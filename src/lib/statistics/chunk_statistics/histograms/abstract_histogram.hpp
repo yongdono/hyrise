@@ -15,10 +15,14 @@ class AbstractHistogram : public AbstractFilter {
   friend class HistogramPrivateTest;
 
  public:
-  AbstractHistogram(const std::shared_ptr<Table> table, const uint8_t string_prefix_length);
+  explicit AbstractHistogram(const std::shared_ptr<Table>& table);
+  AbstractHistogram(const std::shared_ptr<Table>& table, const std::string& supported_characters);
+  AbstractHistogram(const std::shared_ptr<Table>& table, const std::string& supported_characters,
+                    const uint8_t string_prefix_length);
   virtual ~AbstractHistogram() = default;
 
   virtual HistogramType histogram_type() const = 0;
+  const std::string& supported_characters() const;
 
   void generate(const ColumnID column_id, const size_t max_num_buckets);
   float estimate_cardinality(const T value, const PredicateCondition predicate_condition) const;
@@ -52,8 +56,8 @@ class AbstractHistogram : public AbstractFilter {
   virtual uint64_t _total_count() const = 0;
 
   const std::weak_ptr<Table> _table;
-  const uint8_t _string_prefix_length;
-  const std::string _supported_characters = "abcdefghijklmnopqrstuvwxyz";
+  std::string _supported_characters;
+  uint8_t _string_prefix_length;
 };
 
 }  // namespace opossum

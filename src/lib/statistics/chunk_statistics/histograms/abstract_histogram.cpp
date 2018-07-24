@@ -1,5 +1,7 @@
 #include "abstract_histogram.hpp"
 
+#include <cmath>
+
 #include <algorithm>
 #include <memory>
 #include <vector>
@@ -12,9 +14,40 @@
 namespace opossum {
 
 template <typename T>
-AbstractHistogram<T>::AbstractHistogram(const std::shared_ptr<Table> table, const uint8_t string_prefix_length)
+AbstractHistogram<T>::AbstractHistogram(const std::shared_ptr<Table>& table)
+    : _table(table), _supported_characters(""), _string_prefix_length(0) {}
+
+template <>
+AbstractHistogram<std::string>::AbstractHistogram(const std::shared_ptr<Table>& table)
+    : _table(table), _supported_characters("abcdefghijklmnopqrstuvwxyz") {
+  _string_prefix_length = static_cast<uint8_t>(std::log(std::pow(2, 63)) / std::log(_supported_characters.length()));
+}
+
+template <>
+AbstractHistogram<std::string>::AbstractHistogram(const std::shared_ptr<Table>& table,
+                                                  const std::string& supported_characters)
+    : _table(table) {
+  _string_prefix_length = static_cast<uint8_t>(std::log(std::pow(2, 63)) / std::log(_supported_characters.length()));
+  Assert(std::pow(supported_characters.length(), _string_prefix_length) < std::pow(2, 63), "Prefix too long.");
+
+  _supported_characters = supported_characters;
+  std::sort(_supported_characters.begin(), _supported_characters.end());
+}
+
+template <>
+AbstractHistogram<std::string>::AbstractHistogram(const std::shared_ptr<Table>& table,
+                                                  const std::string& supported_characters,
+                                                  const uint8_t string_prefix_length)
     : _table(table), _string_prefix_length(string_prefix_length) {
-  Assert(std::pow(_supported_characters.length(), string_prefix_length) <= std::pow(2, 64), "Prefix too long.");
+  Assert(std::pow(supported_characters.length(), string_prefix_length) < std::pow(2, 63), "Prefix too long.");
+
+  _supported_characters = supported_characters;
+  std::sort(_supported_characters.begin(), _supported_characters.end());
+}
+
+template <>
+const std::string& AbstractHistogram<std::string>::supported_characters() const {
+  return _supported_characters;
 }
 
 template <typename T>
