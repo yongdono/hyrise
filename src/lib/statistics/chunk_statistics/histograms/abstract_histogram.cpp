@@ -217,9 +217,7 @@ float AbstractHistogram<T>::estimate_cardinality(const T value, const PredicateC
   DebugAssert(_num_buckets() > 0u, "Called method on histogram before initialization.");
 
   if constexpr (std::is_same_v<T, std::string>) {
-    if (value.find_first_not_of(_supported_characters) != std::string::npos) {
-      Fail("Unsupported characters.");
-    }
+    Assert(value.find_first_not_of(_supported_characters) == std::string::npos, "Unsupported characters.");
   }
 
   switch (predicate_condition) {
@@ -300,7 +298,6 @@ float AbstractHistogram<T>::estimate_cardinality(const T value, const PredicateC
           const auto value_repr = _convert_string_to_number_representation(value);
           const auto min_repr = _convert_string_to_number_representation(_bucket_min(index));
           const auto max_repr = _convert_string_to_number_representation(_bucket_max(index));
-          // TODO(tim): work with bucket width
           bucket_share = static_cast<float>(value_repr - min_repr) / (max_repr - min_repr + 1);
         }
 

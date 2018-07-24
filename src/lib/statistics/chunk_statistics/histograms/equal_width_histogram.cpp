@@ -239,6 +239,9 @@ void EqualWidthHistogram<T>::_generate(const ColumnID column_id, const size_t ma
     auto current_begin_it = distinct_column->values().begin();
     auto current_begin_index = 0l;
     for (auto current_bucket_id = 0u; current_bucket_id < max_num_buckets; current_bucket_id++) {
+      Assert(current_begin_value.find_first_not_of(this->_supported_characters) == std::string::npos,
+             "Unsupported characters.");
+
       auto num_current_begin_value = this->_convert_string_to_number_representation(current_begin_value);
       T next_begin_value = this->_convert_number_representation_to_string(num_current_begin_value + bucket_width);
       T current_end_value = this->_previous_value(next_begin_value);
@@ -247,6 +250,11 @@ void EqualWidthHistogram<T>::_generate(const ColumnID column_id, const size_t ma
         current_end_value = next_begin_value;
         next_begin_value = this->_next_value(next_begin_value);
       }
+
+      Assert(current_end_value.find_first_not_of(this->_supported_characters) == std::string::npos,
+             "Unsupported characters.");
+      Assert(next_begin_value.find_first_not_of(this->_supported_characters) == std::string::npos,
+             "Unsupported characters.");
 
       // TODO(tim): think about replacing with binary search (same for other hists)
       auto next_begin_it = current_begin_it;

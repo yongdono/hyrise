@@ -114,8 +114,18 @@ void EqualNumElementsHistogram<T>::_generate(const ColumnID column_id, const siz
       end_index++;
     }
 
-    _mins.emplace_back(*(distinct_column.begin() + begin_index));
-    _maxs.emplace_back(*(distinct_column.begin() + end_index));
+    const auto current_min = *(distinct_column.begin() + begin_index);
+    const auto current_max = *(distinct_column.begin() + end_index);
+
+    if constexpr (std::is_same_v<T, std::string>) {
+      Assert(current_min.find_first_not_of(this->_supported_characters) == std::string::npos,
+             "Unsupported characters.");
+      Assert(current_max.find_first_not_of(this->_supported_characters) == std::string::npos,
+             "Unsupported characters.");
+    }
+
+    _mins.emplace_back(current_min);
+    _maxs.emplace_back(current_max);
     _counts.emplace_back(
         std::accumulate(count_column.begin() + begin_index, count_column.begin() + end_index + 1, uint64_t{0}));
 

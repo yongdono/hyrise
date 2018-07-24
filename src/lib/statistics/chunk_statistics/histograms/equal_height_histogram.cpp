@@ -124,7 +124,14 @@ void EqualHeightHistogram<T>::_generate(const ColumnID column_id, const size_t m
     current_height += count_column->get(current_end);
 
     if (current_height >= _count_per_bucket) {
-      _maxs.emplace_back(distinct_column->get(current_end));
+      const auto current_value = distinct_column->get(current_end);
+
+      if constexpr (std::is_same_v<T, std::string>) {
+        Assert(current_value.find_first_not_of(this->_supported_characters) == std::string::npos,
+               "Unsupported characters.");
+      }
+
+      _maxs.emplace_back(current_value);
       _distinct_counts.emplace_back(current_end - current_begin + 1);
       current_height = 0u;
       current_begin = current_end + 1;
@@ -132,7 +139,14 @@ void EqualHeightHistogram<T>::_generate(const ColumnID column_id, const size_t m
   }
 
   if (current_height > 0u) {
-    _maxs.emplace_back(distinct_column->get(distinct_column->size() - 1));
+    const auto current_value = distinct_column->get(distinct_column->size() - 1);
+
+    if constexpr (std::is_same_v<T, std::string>) {
+      Assert(current_value.find_first_not_of(this->_supported_characters) == std::string::npos,
+             "Unsupported characters.");
+    }
+
+    _maxs.emplace_back(current_value);
     _distinct_counts.emplace_back(distinct_column->size() - current_begin);
   }
 }
