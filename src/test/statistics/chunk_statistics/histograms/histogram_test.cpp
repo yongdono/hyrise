@@ -821,9 +821,6 @@ TEST_F(HistogramTest, StringConstructorTests) {
   auto hist = EqualNumElementsHistogram<std::string>(_string2, "zyxwvutsrqponmlkjihgfedcba");
   EXPECT_EQ(hist.supported_characters(), "abcdefghijklmnopqrstuvwxyz");
 
-  auto hist2 = EqualNumElementsHistogram<std::string>(_string2);
-  EXPECT_EQ(hist2.supported_characters(), "abcdefghijklmnopqrstuvwxyz");
-
   EXPECT_THROW(EqualNumElementsHistogram<std::string>(_string2, "ac"), std::exception);
   EXPECT_THROW(EqualNumElementsHistogram<std::string>(_string2, "ac", 10), std::exception);
 }
@@ -846,13 +843,13 @@ TEST_F(HistogramTest, GenerateHistogramUnsupportedCharacters) {
 }
 
 TEST_F(HistogramTest, EstimateCardinalityUnsupportedCharacters) {
-  auto hist = EqualNumElementsHistogram<std::string>(_string2);
+  auto hist = EqualNumElementsHistogram<std::string>(_string2, "abcdefghijklmnopqrstuvwxyz");
   hist.generate(ColumnID{0}, 4u);
 
   EXPECT_NO_THROW(hist.estimate_cardinality("abcd", PredicateCondition::Equals));
   EXPECT_THROW(hist.estimate_cardinality("abc1", PredicateCondition::Equals), std::exception);
-  EXPECT_THROW(hist.estimate_cardinality("Abc", PredicateCondition::Equals), std::exception);
-  EXPECT_THROW(hist.estimate_cardinality("@", PredicateCondition::Equals), std::exception);
+  EXPECT_THROW(hist.estimate_cardinality("aBcd", PredicateCondition::Equals), std::exception);
+  EXPECT_THROW(hist.estimate_cardinality("@abc", PredicateCondition::Equals), std::exception);
 }
 
 class HistogramPrivateTest : public BaseTest {

@@ -19,7 +19,9 @@ AbstractHistogram<T>::AbstractHistogram(const std::shared_ptr<Table>& table)
 
 template <>
 AbstractHistogram<std::string>::AbstractHistogram(const std::shared_ptr<Table>& table)
-    : _table(table), _supported_characters("abcdefghijklmnopqrstuvwxyz") {
+    : _table(table),
+      _supported_characters(
+          " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~") {
   _string_prefix_length = static_cast<uint64_t>(std::log(std::pow(2, 63)) / std::log(_supported_characters.length()));
 }
 
