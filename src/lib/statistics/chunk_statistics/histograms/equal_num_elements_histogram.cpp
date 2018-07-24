@@ -20,16 +20,10 @@ size_t EqualNumElementsHistogram<T>::_num_buckets() const {
 
 template <typename T>
 BucketID EqualNumElementsHistogram<T>::_bucket_for_value(const T value) const {
-  T cleaned_value = value;
-
-  if constexpr (std::is_same_v<T, std::string>) {
-    cleaned_value = value.substr(0, this->_string_prefix_length);
-  }
-
-  const auto it = std::lower_bound(_maxs.begin(), _maxs.end(), cleaned_value);
+  const auto it = std::lower_bound(_maxs.begin(), _maxs.end(), value);
   const auto index = static_cast<BucketID>(std::distance(_maxs.begin(), it));
 
-  if (it == _maxs.end() || cleaned_value < _bucket_min(index) || cleaned_value > _bucket_max(index)) {
+  if (it == _maxs.end() || value < _bucket_min(index) || value > _bucket_max(index)) {
     return INVALID_BUCKET_ID;
   }
 

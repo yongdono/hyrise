@@ -53,88 +53,93 @@ T AbstractHistogram<T>::_upper_end() const {
   return _bucket_max(_num_buckets() - 1u);
 }
 
+template <>
+std::string AbstractHistogram<std::string>::_bucket_width(const BucketID /*index*/) const {
+  Fail("Method not supported for string histograms.");
+}
+
+// TODO(tim): ask experts how this works
+// template <typename T>
+// std::enable_if_t<std::is_integral_v<T>, T> AbstractHistogram<T>::_bucket_width(const BucketID index) const {
+//   DebugAssert(index < _num_buckets(), "Index is not a valid bucket.");
+//
+//   return _bucket_max(index) - _bucket_min(index) + 1;
+// }
+//
+// template <typename T>
+// std::enable_if_t<std::is_floating_point_v<T>, T> AbstractHistogram<T>::_bucket_width(const BucketID index) const {
+//   DebugAssert(index < _num_buckets(), "Index is not a valid bucket.");
+//
+//   return _bucket_max(index) - _bucket_min(index);
+// }
+
 template <typename T>
-T AbstractHistogram<T>::_bucket_width([[maybe_unused]] const BucketID index) const {
+T AbstractHistogram<T>::_bucket_width(const BucketID index) const {
   DebugAssert(index < _num_buckets(), "Index is not a valid bucket.");
 
   if constexpr (std::is_integral_v<T>) {
     return _bucket_max(index) - _bucket_min(index) + 1;
   }
 
-  if constexpr (std::is_floating_point_v<T>) {
-    return _bucket_max(index) - _bucket_min(index);
+  return _bucket_max(index) - _bucket_min(index);
+}
+
+template <>
+std::string AbstractHistogram<std::string>::_previous_value(const std::string value) const {
+  if (value.empty()) {
+    return value;
   }
 
-  Fail("Histogram type not yet supported.");
+  const auto sub_string = value.substr(0, value.length() - 1);
+  const auto last_char = value.back();
+
+  if (last_char == 'a') {
+    return sub_string;
+  }
+
+  return sub_string + static_cast<char>(last_char - 1);
 }
 
 template <typename T>
 T AbstractHistogram<T>::_previous_value(const T value) const {
-  if constexpr (std::is_integral_v<T>) {
-    return value - 1;
-  }
-
   if constexpr (std::is_floating_point_v<T>) {
     return std::nextafter(value, value - 1);
   }
 
-  if constexpr (std::is_same_v<T, std::string>) {
-    if (value.empty()) {
-      return value;
-    }
+  return value - 1;
+}
 
-    const auto sub_string = value.substr(0, value.length() - 1);
-    const auto last_char = value.back();
-
-    if (last_char == 'a') {
-      return sub_string;
-    }
-
-    return sub_string + static_cast<char>(last_char - 1);
+template <>
+std::string AbstractHistogram<std::string>::_next_value(const std::string value, const bool overflow) const {
+  if (value.empty()) {
+    return "a";
   }
 
-  Fail("Unsupported data type.");
+  if ((overflow && value.length() < _string_prefix_length) || (value == std::string(_string_prefix_length, 'z'))) {
+    return value + 'a';
+  }
+
+  const auto last_char = value.back();
+  const auto sub_string = value.substr(0, value.length() - 1);
+
+  if (last_char != 'z') {
+    return sub_string + static_cast<char>(last_char + 1);
+  }
+
+  return _next_value(sub_string, false) + 'a';
 }
 
 template <typename T>
-T AbstractHistogram<T>::_next_value(const T value, [[maybe_unused]] const bool overflow) const {
-  if constexpr (std::is_integral_v<T>) {
-    return value + 1;
-  }
-
+T AbstractHistogram<T>::_next_value(const T value, const bool /*overflow*/) const {
   if constexpr (std::is_floating_point_v<T>) {
     return std::nextafter(value, value + 1);
   }
 
-  if constexpr (std::is_same_v<T, std::string>) {
-    if (value.empty()) {
-      return "a";
-    }
-
-    if (value.find_first_not_of(_supported_characters) != std::string::npos) {
-      Fail("Unsupported characters.");
-    }
-
-    if ((overflow && value.length() < _string_prefix_length) || (value == std::string(_string_prefix_length, 'z'))) {
-      return value + 'a';
-    }
-
-    const auto last_char = value.back();
-    const auto sub_string = value.substr(0, value.length() - 1);
-
-    if (last_char != 'z') {
-      return sub_string + static_cast<char>(last_char + 1);
-    }
-
-    return _next_value(sub_string, false) + 'a';
-  }
-
-  Fail("Unsupported data type.");
+  return value + 1;
 }
 
 template <>
-uint64_t AbstractHistogram<std::string>::_convert_string_to_number_representation([
-    [maybe_unused]] const std::string& value) const {
+uint64_t AbstractHistogram<std::string>::_convert_string_to_number_representation(const std::string& value) const {
   const auto trimmed = value.substr(0, _string_prefix_length);
 
   uint64_t result = 0;
@@ -147,8 +152,7 @@ uint64_t AbstractHistogram<std::string>::_convert_string_to_number_representatio
 }
 
 template <>
-std::string AbstractHistogram<std::string>::_convert_number_representation_to_string([
-    [maybe_unused]] const uint64_t value) const {
+std::string AbstractHistogram<std::string>::_convert_number_representation_to_string(const uint64_t value) const {
   std::string result_string = "";
 
   auto remainder = value;

@@ -37,6 +37,8 @@ class AbstractHistogram : public AbstractFilter {
   std::string _convert_number_representation_to_string(const uint64_t) const;
 
   virtual T _bucket_width(const BucketID index) const;
+  // TODO(tim): ask experts how this works
+  // virtual std::enable_if_t<std::is_integral_v<T>, T> _bucket_width(const BucketID index) const;
 
   virtual size_t _num_buckets() const = 0;
   virtual BucketID _bucket_for_value(const T value) const = 0;

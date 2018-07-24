@@ -32,6 +32,8 @@ class EqualWidthHistogram : public AbstractHistogram<T> {
 
   // Overriding because it would otherwise recursively call itself.
   T _bucket_width(const BucketID index) const override;
+  // TODO(tim): ask experts how this works
+  // std::enable_if_t<std::is_integral_v<T>, T> _bucket_width(const BucketID index) const override;
 
   uint64_t _string_bucket_width(const BucketID index) const;
 
