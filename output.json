@@ -1,0 +1,243 @@
+{
+  "results": [
+    {
+      "experiment": {
+        "engine": "jit",
+        "lqp_file": "lqp",
+        "optimize": true,
+        "query_id": "0",
+        "task": "lqp"
+      },
+      "globals": {
+        "dictionary_compress": false,
+        "scale_factor": 0.0006,
+        "use_other_tables": true,
+        "use_tpch_tables": true
+      },
+      "results": [
+        {}
+      ]
+    },
+    {
+      "experiment": {
+        "engine": "jit",
+        "optimize": true,
+        "pqp_file": "pqp",
+        "query_id": "0",
+        "task": "pqp"
+      },
+      "globals": {
+        "dictionary_compress": false,
+        "scale_factor": 0.0006,
+        "use_other_tables": true,
+        "use_tpch_tables": true
+      },
+      "results": [
+        {}
+      ]
+    },
+    {
+      "experiment": {
+        "engine": "jit",
+        "jit_predicate": true,
+        "jit_second_pass": true,
+        "jit_use_jit": true,
+        "optimize": true,
+        "papi_events": [],
+        "print": false,
+        "query_id": "0",
+        "repetitions": 1,
+        "task": "run"
+      },
+      "globals": {
+        "dictionary_compress": false,
+        "scale_factor": 0.0006,
+        "use_other_tables": true,
+        "use_tpch_tables": true
+      },
+      "results": [
+        {
+          "dynamic_resolved": 11,
+          "inlined_functions": 22,
+          "not_resolved_vtables": 36,
+          "num_instructions": 198,
+          "operators": [
+            {
+              "name": "GetTable",
+              "prepare": true,
+              "walltime": 0.0
+            },
+            {
+              "name": "GetTable",
+              "prepare": false,
+              "walltime": 0.001
+            },
+            {
+              "name": "JitOperatorWrapper",
+              "prepare": true,
+              "walltime": 55.115
+            },
+            {
+              "name": "JitOperatorWrapper",
+              "prepare": false,
+              "walltime": 16.491
+            },
+            {
+              "name": "Projection",
+              "prepare": true,
+              "walltime": 0.0
+            },
+            {
+              "name": "Projection",
+              "prepare": false,
+              "walltime": 16.813
+            },
+            {
+              "name": "Aggregate",
+              "prepare": true,
+              "walltime": 0.0
+            },
+            {
+              "name": "Aggregate",
+              "prepare": false,
+              "walltime": 29.466
+            },
+            {
+              "name": "Projection",
+              "prepare": true,
+              "walltime": 0.0
+            },
+            {
+              "name": "Projection",
+              "prepare": false,
+              "walltime": 0.033
+            },
+            {
+              "name": "Sort",
+              "prepare": true,
+              "walltime": 0.0
+            },
+            {
+              "name": "Sort",
+              "prepare": false,
+              "walltime": 0.228
+            },
+            {
+              "name": "Sort",
+              "prepare": true,
+              "walltime": 0.0
+            },
+            {
+              "name": "Sort",
+              "prepare": false,
+              "walltime": 0.079
+            }
+          ],
+          "pipeline_compile_time": 752,
+          "pipeline_execution_time": 119274,
+          "pipeline_optimize_time": 16,
+          "replaced_values": 28,
+          "resolved_vtables": 19,
+          "result_rows": 4,
+          "static_resolved": 0
+        }
+      ]
+    },
+    {
+      "experiment": {
+        "engine": "opossum",
+        "optimize": true,
+        "print": false,
+        "query_id": "0",
+        "repetitions": 1,
+        "task": "run"
+      },
+      "globals": {
+        "dictionary_compress": false,
+        "scale_factor": 0.0006,
+        "use_other_tables": true,
+        "use_tpch_tables": true
+      },
+      "results": [
+        {
+          "operators": [
+            {
+              "name": "GetTable",
+              "prepare": true,
+              "walltime": 0.0
+            },
+            {
+              "name": "GetTable",
+              "prepare": false,
+              "walltime": 0.001
+            },
+            {
+              "name": "TableScan",
+              "prepare": true,
+              "walltime": 0.0
+            },
+            {
+              "name": "TableScan",
+              "prepare": false,
+              "walltime": 1.353
+            },
+            {
+              "name": "Projection",
+              "prepare": true,
+              "walltime": 0.0
+            },
+            {
+              "name": "Projection",
+              "prepare": false,
+              "walltime": 27.625
+            },
+            {
+              "name": "Aggregate",
+              "prepare": true,
+              "walltime": 0.0
+            },
+            {
+              "name": "Aggregate",
+              "prepare": false,
+              "walltime": 27.939
+            },
+            {
+              "name": "Projection",
+              "prepare": true,
+              "walltime": 0.0
+            },
+            {
+              "name": "Projection",
+              "prepare": false,
+              "walltime": 0.023
+            },
+            {
+              "name": "Sort",
+              "prepare": true,
+              "walltime": 0.0
+            },
+            {
+              "name": "Sort",
+              "prepare": false,
+              "walltime": 0.095
+            },
+            {
+              "name": "Sort",
+              "prepare": true,
+              "walltime": 0.0
+            },
+            {
+              "name": "Sort",
+              "prepare": false,
+              "walltime": 0.079
+            }
+          ],
+          "pipeline_compile_time": 96,
+          "pipeline_execution_time": 57448,
+          "pipeline_optimize_time": 13,
+          "result_rows": 4
+        }
+      ]
+    }
+  ]
+}

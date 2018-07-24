@@ -35,6 +35,7 @@ class JitOperatorWrapper : public AbstractReadOnlyOperator {
 
  protected:
   std::shared_ptr<const Table> _on_execute() override;
+  void _prepare() override;
 
   std::shared_ptr<AbstractOperator> _on_recreate(
       const std::vector<AllParameterVariant>& args, const std::shared_ptr<AbstractOperator>& recreated_input_left,
@@ -45,9 +46,10 @@ class JitOperatorWrapper : public AbstractReadOnlyOperator {
   const std::shared_ptr<AbstractJittableSink> _sink() const;
   void insert_loads(const bool lazy);
 
-  const JitExecutionMode _execution_mode;
+  JitExecutionMode _execution_mode;
   JitCodeSpecializer _module;
   std::list<std::shared_ptr<AbstractJittable>> _jit_operators;
+  std::function<void(const JitReadTuples*, JitRuntimeContext&)> _execute_func;
 };
 
 }  // namespace opossum

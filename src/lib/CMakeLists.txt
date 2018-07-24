@@ -492,6 +492,8 @@ if (${ENABLE_JIT_SUPPORT})
     embed_llvm(LLVM_BUNDLE_FILE jit_llvm_bundle ${JIT_EMBEDDED_SOURCES})
     set(
         SOURCES
+        jit_evaluation_helper.cpp
+        jit_evaluation_helper.hpp
         operators/jit_operator/jit_utils.cpp
         operators/jit_operator/jit_utils.hpp
         logical_query_plan/jit_aware_lqp_translator.cpp

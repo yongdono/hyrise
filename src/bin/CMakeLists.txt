@@ -68,3 +68,16 @@ target_include_directories(
     PUBLIC
     ${READLINE_INCLUDE_DIR}
 )
+
+
+# Configure jitEvaluate
+add_executable(
+    jitEvaluate
+    jit_evaluate.cpp
+)
+target_link_libraries(
+    jitEvaluate
+    hyrise
+    hyriseBenchmarkLib
+    # papi
+)

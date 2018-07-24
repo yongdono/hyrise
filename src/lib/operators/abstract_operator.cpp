@@ -12,6 +12,8 @@
 #include "utils/format_duration.hpp"
 #include "utils/print_directed_acyclic_graph.hpp"
 #include "utils/timer.hpp"
+#include "jit_evaluation_helper.hpp"
+// #include <papi.h>
 
 namespace opossum {
 
@@ -26,7 +28,40 @@ void AbstractOperator::execute() {
   DebugAssert(!_input_right || _input_right->get_output(), "Right input has not yet been executed");
   DebugAssert(!_output, "Operator has already been executed");
 
+  auto& result = JitEvaluationHelper::get().result();
+
+  auto papi_events = JitEvaluationHelper::get().globals()["papi_events"];
+  auto num_counters = papi_events.size();
+  // int32_t papi_event_ids[10];
+  long long papi_values[10];
+
+  for (uint32_t i = 0; i < num_counters; ++i) {
+    // if (PAPI_event_name_to_code(papi_events[i].get<std::string>().c_str(), &papi_event_ids[i]) < 0) throw std::logic_error("PAPI error");
+  }
+
   Timer performance_timer;
+  if (num_counters) {
+    // //  if (PAPI_assign_eventset_component(papi_event_ids, 0) < 0) throw std::logic_error("PAPI error");
+    // if (PAPI_start_counters(papi_event_ids, num_counters) < 0) throw std::logic_error("PAPI error " + std::to_string(PAPI_start_counters(papi_event_ids, num_counters)));
+  }
+  _prepare();
+  if (num_counters) {
+    // if (PAPI_stop_counters(papi_values, num_counters) < 0) throw std::logic_error("PAPI error");
+  }
+
+  auto walltime_ns = performance_timer.lap().count();
+  nlohmann::json op = {{"name", name()}, {"prepare", true}, {"walltime", walltime_ns / 1000.0}};
+  for (uint32_t i = 0; i < num_counters; ++i) {
+    op[papi_events[i].get<std::string>()] = papi_values[i];
+    papi_values[i] = 0;
+  }
+  result["operators"].push_back(op);
+
+  performance_timer.lap();
+
+  if (num_counters) {
+    // if (PAPI_start_counters(papi_event_ids, num_counters) < 0) throw std::logic_error("PAPI error");
+  }
 
   auto transaction_context = this->transaction_context();
 
@@ -49,7 +84,17 @@ void AbstractOperator::execute() {
   // release any temporary data if possible
   _on_cleanup();
 
+  if (num_counters) {
+    // if (PAPI_stop_counters(papi_values, num_counters) < 0) throw std::logic_error("PAPI error");
+  }
+
   _base_performance_data.walltime = performance_timer.lap();
+
+  nlohmann::json op2 = {{"name", name()}, {"prepare", false}, {"walltime", _base_performance_data.walltime.count() / 1000.0}};
+  for (uint32_t i = 0; i < num_counters; ++i) {
+    op2[papi_events[i].get<std::string>()] = papi_values[i];
+  }
+  result["operators"].push_back(op2);
 }
 
 // returns the result of the operator

@@ -17,6 +17,7 @@
 
 #include <queue>
 
+#include "jit_evaluation_helper.hpp"
 #include "jit_runtime_pointer.hpp"
 #include "llvm_extensions.hpp"
 
@@ -42,7 +43,7 @@ JitCodeSpecializer::JitCodeSpecializer(JitRepository& repository)
 
 std::shared_ptr<llvm::Module> JitCodeSpecializer::specialize_function(
     const std::string& root_function_name, const std::shared_ptr<const JitRuntimePointer>& runtime_this,
-    const bool two_passes) {
+    bool two_passes) {
   // The LLVMContext does not support concurrent access, so we only allow one specialization operation at a time for
   // each JitRepository (each bitcode repository has its own LLVMContext).
   std::lock_guard<std::mutex> lock(_repository.specialization_mutex());
@@ -67,12 +68,18 @@ std::shared_ptr<llvm::Module> JitCodeSpecializer::specialize_function(
   // - a second specialization pass that can now specialize the unrolled loop bodies
   // - a final optimization pass
 
+  if (JitEvaluationHelper::get().experiment().count("jit_second_pass")) {
+    two_passes = JitEvaluationHelper::get().experiment()["jit_second_pass"].get<bool>();
+  }
+
   // Run the first specialization and optimization pass
   context.runtime_value_map[context.root_function->arg_begin()] = runtime_this;
   _inline_function_calls(context);
   _perform_load_substitution(context);
   // Unroll loops only if two passes are selected
   _optimize(context, two_passes);
+
+
 
   // Conditionally run a second pass
   if (two_passes) {
@@ -82,6 +89,11 @@ std::shared_ptr<llvm::Module> JitCodeSpecializer::specialize_function(
     _perform_load_substitution(context);
     _optimize(context, false);
   }
+
+  int32_t num_instr = 0;
+  _visit<llvm::Instruction>(*context.root_function, [&](llvm::Instruction& inst) { num_instr++; });
+  JitEvaluationHelper::get().result()["num_instructions"] = num_instr;
+
   if (false) print(context);
   if (false) print_function(context.root_function);
 
@@ -160,9 +172,11 @@ void JitCodeSpecializer::_inline_function_calls(SpecializationContext& context) 
         // that function.
         if (const auto repo_function = _repository.get_vtable_entry(class_name, vtable_index)) {
           call_site.setCalledFunction(repo_function);
+          JitEvaluationHelper::get().result()["resolved_vtables"] = JitEvaluationHelper::get().result()["resolved_vtables"].get<int32_t>() + 1;
         }
       } else {
         // The virtual call could not be resolved. There is nothing we can inline so we move on.
+        JitEvaluationHelper::get().result()["not_resolved_vtables"] = JitEvaluationHelper::get().result()["not_resolved_vtables"].get<int32_t>() + 1;
         call_sites.pop();
         continue;
       }
@@ -238,6 +252,7 @@ void JitCodeSpecializer::_inline_function_calls(SpecializationContext& context) 
     // Instruct LLVM to perform the function inlining and push all new call sites to the working queue
     llvm::InlineFunctionInfo info;
     if (InlineFunction(call_site, info, nullptr, false, nullptr, context)) {
+      JitEvaluationHelper::get().result()["inlined_functions"] = JitEvaluationHelper::get().result()["inlined_functions"].get<int32_t>() + 1;
       for (const auto& new_call_site : info.InlinedCallSites) {
         call_sites.push(new_call_site);
       }
@@ -272,12 +287,15 @@ void JitCodeSpecializer::_perform_load_substitution(SpecializationContext& conte
     if (inst.getType()->isIntegerTy()) {
       const auto value = dereference_flexible_width_int_pointer(address, inst.getType()->getIntegerBitWidth());
       inst.replaceAllUsesWith(llvm::ConstantInt::get(inst.getType(), value));
+      JitEvaluationHelper::get().result()["replaced_values"] = JitEvaluationHelper::get().result()["replaced_values"].get<int32_t>() + 1;
     } else if (inst.getType()->isFloatTy()) {
       const auto value = *reinterpret_cast<float*>(address);
       inst.replaceAllUsesWith(llvm::ConstantFP::get(inst.getType(), value));
+      JitEvaluationHelper::get().result()["replaced_values"] = JitEvaluationHelper::get().result()["replaced_values"].get<int32_t>() + 1;
     } else if (inst.getType()->isDoubleTy()) {
       const auto value = *reinterpret_cast<double*>(address);
       inst.replaceAllUsesWith(llvm::ConstantFP::get(inst.getType(), value));
+      JitEvaluationHelper::get().result()["replaced_values"] = JitEvaluationHelper::get().result()["replaced_values"].get<int32_t>() + 1;
     }
   });
 }

@@ -20,6 +20,7 @@
 #include "operators/jit_operator/operators/jit_validate.hpp"
 #include "operators/jit_operator/operators/jit_write_tuples.hpp"
 #include "storage/storage_manager.hpp"
+#include "jit_evaluation_helper.hpp"
 
 namespace opossum {
 
@@ -379,6 +380,11 @@ bool JitAwareLQPTranslator::_input_is_filtered(const std::shared_ptr<AbstractLQP
 
 bool JitAwareLQPTranslator::_node_is_jittable(const std::shared_ptr<AbstractLQPNode>& node,
                                               const bool allow_aggregate_node) const {
+  bool jit_predicate = true;
+  if (JitEvaluationHelper::get().experiment().count("jit_predicate")) {
+    jit_predicate = JitEvaluationHelper::get().experiment()["jit_predicate"];
+  }
+
   if (node->type() == LQPNodeType::Aggregate) {
     // We do not support the count distinct function yet and thus need to check all aggregate expressions.
     auto aggregate_node = std::static_pointer_cast<AggregateNode>(node);
@@ -392,15 +398,19 @@ bool JitAwareLQPTranslator::_node_is_jittable(const std::shared_ptr<AbstractLQPN
 
   if (node->type() == LQPNodeType::Predicate) {
     auto predicate_node = std::static_pointer_cast<PredicateNode>(node);
-    return predicate_node->scan_type() == ScanType::TableScan &&
-           std::dynamic_pointer_cast<PredicateNode>(node)->predicate_condition() != PredicateCondition::Between;
+    return jit_predicate && (predicate_node->scan_type() == ScanType::TableScan &&
+           std::dynamic_pointer_cast<PredicateNode>(node)->predicate_condition() != PredicateCondition::Between);
   }
 
   if (Global::get().jit_validate && node->type() == LQPNodeType::Validate) {
     return true;
   }
 
-  return (node->type() == LQPNodeType::Projection || node->type() == LQPNodeType::Union);
+  if (node->type() == LQPNodeType::Projection) {
+    return jit_predicate;
+  }
+
+  return (node->type() == LQPNodeType::Union);
 }
 
 void JitAwareLQPTranslator::_visit(const std::shared_ptr<AbstractLQPNode>& node,
