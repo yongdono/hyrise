@@ -823,6 +823,9 @@ TEST_F(HistogramTest, StringConstructorTests) {
 
   auto hist2 = EqualNumElementsHistogram<std::string>(_string2);
   EXPECT_EQ(hist2.supported_characters(), "abcdefghijklmnopqrstuvwxyz");
+
+  EXPECT_THROW(EqualNumElementsHistogram<std::string>(_string2, "ac"), std::exception);
+  EXPECT_THROW(EqualNumElementsHistogram<std::string>(_string2, "ac", 10), std::exception);
 }
 
 TEST_F(HistogramTest, EstimateCardinalityUnsupportedCharacters) {

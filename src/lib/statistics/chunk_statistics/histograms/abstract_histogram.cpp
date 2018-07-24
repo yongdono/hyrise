@@ -15,34 +15,47 @@ namespace opossum {
 
 template <typename T>
 AbstractHistogram<T>::AbstractHistogram(const std::shared_ptr<Table>& table)
-    : _table(table), _supported_characters(""), _string_prefix_length(0) {}
+    : _table(table), _supported_characters(""), _string_prefix_length(0ul) {}
 
 template <>
 AbstractHistogram<std::string>::AbstractHistogram(const std::shared_ptr<Table>& table)
     : _table(table), _supported_characters("abcdefghijklmnopqrstuvwxyz") {
-  _string_prefix_length = static_cast<uint8_t>(std::log(std::pow(2, 63)) / std::log(_supported_characters.length()));
+  _string_prefix_length = static_cast<uint64_t>(std::log(std::pow(2, 63)) / std::log(_supported_characters.length()));
 }
 
 template <>
 AbstractHistogram<std::string>::AbstractHistogram(const std::shared_ptr<Table>& table,
                                                   const std::string& supported_characters)
     : _table(table) {
-  _string_prefix_length = static_cast<uint8_t>(std::log(std::pow(2, 63)) / std::log(_supported_characters.length()));
-  Assert(std::pow(supported_characters.length(), _string_prefix_length) < std::pow(2, 63), "Prefix too long.");
+  Assert(supported_characters.length() > 1, "String range must consist of more than one character.");
 
   _supported_characters = supported_characters;
   std::sort(_supported_characters.begin(), _supported_characters.end());
+
+  for (auto it = _supported_characters.begin(); it < _supported_characters.end(); it++) {
+    Assert(std::distance(_supported_characters.begin(), it) == *it - _supported_characters.front(),
+           "Non-consecutive string ranges are not supported.");
+  }
+
+  _string_prefix_length = static_cast<uint64_t>(std::log(std::pow(2, 63)) / std::log(_supported_characters.length()));
 }
 
 template <>
 AbstractHistogram<std::string>::AbstractHistogram(const std::shared_ptr<Table>& table,
                                                   const std::string& supported_characters,
-                                                  const uint8_t string_prefix_length)
+                                                  const uint64_t string_prefix_length)
     : _table(table), _string_prefix_length(string_prefix_length) {
+  Assert(string_prefix_length > 0, "Invalid prefix length.");
+  Assert(supported_characters.length() > 1, "String range must consist of more than one character.");
   Assert(std::pow(supported_characters.length(), string_prefix_length) < std::pow(2, 63), "Prefix too long.");
 
   _supported_characters = supported_characters;
   std::sort(_supported_characters.begin(), _supported_characters.end());
+
+  for (auto it = _supported_characters.begin(); it < _supported_characters.end(); it++) {
+    Assert(std::distance(_supported_characters.begin(), it) == *it - _supported_characters.front(),
+           "Non-consecutive string ranges are not supported.");
+  }
 }
 
 template <>
@@ -186,12 +199,12 @@ uint64_t AbstractHistogram<std::string>::_convert_string_to_number_representatio
 
 template <>
 std::string AbstractHistogram<std::string>::_convert_number_representation_to_string(const uint64_t value) const {
-  std::string result_string = "";
+  std::string result_string;
 
   auto remainder = value;
-  for (auto power = _string_prefix_length - 1; power >= 0; power--) {
-    auto pow_result = static_cast<uint64_t>(std::pow(_supported_characters.length(), power));
-    auto div = remainder / pow_result;
+  for (auto str_pos = _string_prefix_length; str_pos > 0; str_pos--) {
+    const auto pow_result = static_cast<uint64_t>(std::pow(_supported_characters.length(), str_pos - 1));
+    const auto div = remainder / pow_result;
     remainder -= div * pow_result;
     result_string += _supported_characters.at(div);
   }

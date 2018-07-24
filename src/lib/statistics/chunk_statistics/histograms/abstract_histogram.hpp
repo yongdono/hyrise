@@ -18,7 +18,7 @@ class AbstractHistogram : public AbstractFilter {
   explicit AbstractHistogram(const std::shared_ptr<Table>& table);
   AbstractHistogram(const std::shared_ptr<Table>& table, const std::string& supported_characters);
   AbstractHistogram(const std::shared_ptr<Table>& table, const std::string& supported_characters,
-                    const uint8_t string_prefix_length);
+                    const uint64_t string_prefix_length);
   virtual ~AbstractHistogram() = default;
 
   virtual HistogramType histogram_type() const = 0;
@@ -57,7 +57,7 @@ class AbstractHistogram : public AbstractFilter {
 
   const std::weak_ptr<Table> _table;
   std::string _supported_characters;
-  uint8_t _string_prefix_length;
+  uint64_t _string_prefix_length;
 };
 
 }  // namespace opossum
