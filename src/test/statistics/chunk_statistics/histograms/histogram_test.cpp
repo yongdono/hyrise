@@ -828,6 +828,23 @@ TEST_F(HistogramTest, StringConstructorTests) {
   EXPECT_THROW(EqualNumElementsHistogram<std::string>(_string2, "ac", 10), std::exception);
 }
 
+TEST_F(HistogramTest, GenerateHistogramUnsupportedCharacters) {
+  // Generation should fail if we remove 'z' from the list of supported characters,
+  // because it appears on a bucket boundary.
+  EXPECT_NO_THROW(
+      EqualNumElementsHistogram<std::string>(_string3, "abcdefghijklmnopqrstuvwxyz").generate(ColumnID{0}, 4u));
+  EXPECT_THROW(EqualNumElementsHistogram<std::string>(_string3, "abcdefghijklmnopqrstuvwxy").generate(ColumnID{0}, 4u),
+               std::exception);
+
+  EXPECT_NO_THROW(EqualHeightHistogram<std::string>(_string3, "abcdefghijklmnopqrstuvwxyz").generate(ColumnID{0}, 4u));
+  EXPECT_THROW(EqualHeightHistogram<std::string>(_string3, "abcdefghijklmnopqrstuvwxy").generate(ColumnID{0}, 4u),
+               std::exception);
+
+  EXPECT_NO_THROW(EqualWidthHistogram<std::string>(_string3, "abcdefghijklmnopqrstuvwxyz").generate(ColumnID{0}, 4u));
+  EXPECT_THROW(EqualWidthHistogram<std::string>(_string3, "abcdefghijklmnopqrstuvwxy").generate(ColumnID{0}, 4u),
+               std::exception);
+}
+
 TEST_F(HistogramTest, EstimateCardinalityUnsupportedCharacters) {
   auto hist = EqualNumElementsHistogram<std::string>(_string2);
   hist.generate(ColumnID{0}, 4u);
