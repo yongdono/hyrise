@@ -417,6 +417,7 @@ set(
     tasks/server/load_server_file_task.hpp
     type_cast.hpp
     type_comparison.hpp
+    types.cpp
     types.hpp
     uid_allocator.hpp
     utils/arithmetic_operator_expression.hpp

@@ -47,7 +47,7 @@ class HashTable : private Noncopyable {
         return;
       }
     }
-    auto element = HashElement{value, pmr_vector<RowID>{row_id}};
+    auto element = HashElement{value, PosList{row_id}};
     place(std::move(element), 0, 0);
   }
 

@@ -132,7 +132,111 @@ using StringLength = uint16_t;     // The length of column value strings must fi
 using ColumnNameLength = uint8_t;  // The length of column names must fit in this type.
 using AttributeVectorWidth = uint8_t;
 
-using PosList = pmr_vector<RowID>;
+//using PosList = pmr_vector<RowID>;
+
+class PosList : private pmr_vector<RowID> {
+ private:
+  using underlying = pmr_vector<RowID>;
+
+ public:
+  using underlying::allocator_type;
+  using underlying::const_iterator;
+  using underlying::const_pointer;
+  using underlying::const_reference;
+  using underlying::const_reverse_iterator;
+  using underlying::difference_type;
+  using underlying::iterator;
+  using underlying::pointer;
+  using underlying::reference;
+  using underlying::reverse_iterator;
+  using underlying::size_type;
+  using underlying::value_type;
+
+  PosList() noexcept(noexcept(underlying::allocator_type())) : underlying() {}
+  explicit PosList(const underlying::allocator_type& alloc) noexcept : underlying(alloc) {}
+  PosList(size_type count, const RowID value, const underlying::allocator_type& alloc = underlying::allocator_type())
+      : underlying(count, value, alloc) {}
+  explicit PosList(size_type count, const underlying::allocator_type& alloc = underlying::allocator_type())
+      : underlying(count, alloc) {}
+
+  template <class InputIt>
+  PosList(InputIt first, InputIt last, const underlying::allocator_type& alloc = underlying::allocator_type())
+      : underlying(first, last, alloc) {}
+
+  PosList(const PosList& other) : underlying(other) {}
+  PosList(const PosList& other, const underlying::allocator_type& alloc) : underlying(other, alloc) {}
+  PosList(PosList&& other) noexcept : underlying(std::move(other)) {}
+  PosList(PosList&& other, const underlying::allocator_type& alloc) : underlying(std::move(other), alloc) {}
+
+  PosList& operator=(const PosList& other) {
+    underlying::operator=(other);
+    return *this;
+  }
+  PosList& operator=(PosList&& other) {
+    underlying::operator=(std::move(other));
+    return *this;
+  }
+
+  PosList& operator=(std::initializer_list<RowID> ilist) {
+    underlying::operator=(ilist);
+    return *this;
+  }
+  PosList(std::initializer_list<RowID> init, const underlying::allocator_type& alloc = underlying::allocator_type())
+      : underlying(init, alloc) {}
+
+  const underlying& as_vector() const { return *static_cast<const underlying*>(this); }
+
+  using underlying::operator=;
+  using underlying::assign;
+  using underlying::at;
+  using underlying::get_allocator;
+  using underlying::operator[];
+  using underlying::back;
+  using underlying::begin;
+  using underlying::capacity;
+  using underlying::cbegin;
+  using underlying::cend;
+  using underlying::clear;
+  using underlying::crbegin;
+  using underlying::crend;
+  using underlying::data;
+  using underlying::emplace;
+  using underlying::emplace_back;
+  using underlying::empty;
+  using underlying::end;
+  using underlying::erase;
+  using underlying::front;
+  using underlying::insert;
+  using underlying::max_size;
+  using underlying::pop_back;
+  using underlying::push_back;
+  using underlying::rbegin;
+  using underlying::rend;
+  using underlying::reserve;
+  using underlying::resize;
+  using underlying::shrink_to_fit;
+  using underlying::size;
+  using underlying::swap;
+
+  //  enum class ChunkCardinality {
+  //    SingleChunk,
+  //    MultipleChunks
+  //  };
+
+  //  enum class TypeUniformity {
+  //    AllSameType,
+  //    HeterogenousTypes
+  //  }
+
+  //private:
+  //  ChunkCardinality _chunk_cardinality;
+  //  TypeUniformity _type_uniformity;
+};
+
+bool operator==(const opossum::PosList& lhs, const opossum::PosList& rhs); // { return lhs.as_vector() == rhs.as_vector(); }
+bool operator!=(const PosList& lhs, const PosList& rhs); // { return lhs.as_vector() != rhs.as_vector(); }
+
+
 using ColumnIDPair = std::pair<ColumnID, ColumnID>;
 
 constexpr NodeID INVALID_NODE_ID{std::numeric_limits<NodeID::base_type>::max()};
@@ -268,3 +372,4 @@ class Noncopyable {
 };
 
 }  // namespace opossum
+
