@@ -21,6 +21,15 @@ EnumerateCcp::EnumerateCcp(const size_t num_vertices, std::vector<std::pair<size
 }
 
 std::vector<std::pair<boost::dynamic_bitset<>, boost::dynamic_bitset<>>> EnumerateCcp::operator()() {
+  _vertex_neighbourhoods.resize(_num_vertices);
+  for (auto vertex_idx = size_t{0}; vertex_idx < _num_vertices; ++vertex_idx) {
+    boost::dynamic_bitset<> vertex_set{_num_vertices};
+    vertex_set.set(vertex_idx);
+    boost::dynamic_bitset<> exclusion_set{_num_vertices};
+
+    _vertex_neighbourhoods[vertex_idx] = _neighbourhood(vertex_set, exclusion_set);
+  }
+
   for (size_t reverse_vertex_idx = 0; reverse_vertex_idx < _num_vertices; ++reverse_vertex_idx) {
     const auto forward_vertex_idx = _num_vertices - reverse_vertex_idx - 1;
 
@@ -66,7 +75,7 @@ std::vector<std::pair<boost::dynamic_bitset<>, boost::dynamic_bitset<>>> Enumera
 void EnumerateCcp::_enumerate_csg_recursive(std::vector<boost::dynamic_bitset<>>& csgs,
                                             const boost::dynamic_bitset<>& vertex_set,
                                             const boost::dynamic_bitset<>& exclusion_set) {
-  const auto neighbourhood = _neighbourhood(vertex_set, exclusion_set);
+  const auto neighbourhood = _neighbourhood2(vertex_set, exclusion_set);
   const auto neighbourhood_subsets = _non_empty_subsets(neighbourhood);
   const auto extended_exclusion_set = exclusion_set | neighbourhood;
 
@@ -133,6 +142,22 @@ boost::dynamic_bitset<> EnumerateCcp::_neighbourhood(const boost::dynamic_bitset
   //std::cout << "Neighbourhood of " << vertex_set << " under exclusion of " << exclusion_set << " is " << neighbourhood << std::endl;
 
   return neighbourhood;
+}
+
+boost::dynamic_bitset<> EnumerateCcp::_neighbourhood2(const boost::dynamic_bitset<>& vertex_set,
+                                                     const boost::dynamic_bitset<>& exclusion_set) const {
+  boost::dynamic_bitset<> neighbourhood(_num_vertices);
+
+  //vertex_set.find_first();
+  //Assert(current_vertex_idx != boost::dynamic_bitset<>::npos, "Cannot find neighbourhood of empty vertex set");
+
+  for (auto current_vertex_idx = size_t{0};current_vertex_idx < _num_vertices; ++current_vertex_idx) {
+    if (!vertex_set[current_vertex_idx]) continue;
+
+    neighbourhood |= _vertex_neighbourhoods[current_vertex_idx];
+  }
+
+  return neighbourhood - exclusion_set - vertex_set;
 }
 
 std::vector<boost::dynamic_bitset<>> EnumerateCcp::_non_empty_subsets(const boost::dynamic_bitset<>& vertex_set) const {

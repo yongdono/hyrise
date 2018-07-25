@@ -24,6 +24,8 @@ std::ostream &operator<<(std::ostream &stream, const JoeQueryIterationSample &sa
   stream << sample.ce_cache_size << ",";
   stream << sample.ce_cache_distinct_hit_count << ",";;
   stream << sample.ce_cache_distinct_miss_count << ",";
+  stream << sample.ce_cache_memory_consumption << ",";
+  stream << sample.ce_cache_memory_consumption_alt << ",";
 
   stream << (sample.rank_zero_plan ? sample.rank_zero_plan->sample.hash : 0) << ",";
   stream << (sample.best_plan ? sample.best_plan->sample.hash : 0);
@@ -70,6 +72,8 @@ void JoeQueryIteration::run() {
   sample.ce_cache_size = config->cardinality_estimation_cache->size();
   sample.ce_cache_distinct_hit_count = config->cardinality_estimation_cache->distinct_hit_count();
   sample.ce_cache_distinct_miss_count = config->cardinality_estimation_cache->distinct_miss_count();
+  sample.ce_cache_memory_consumption = config->cardinality_estimation_cache->memory_consumption();
+  sample.ce_cache_memory_consumption_alt = config->cardinality_estimation_cache->memory_consumption_alt();
 
   out() << "---- Generated " << join_plans.size() << " plans in " << format_duration(std::chrono::duration_cast<std::chrono::nanoseconds>(sample.planning_duration)) << std::endl;
 

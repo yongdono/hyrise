@@ -17,6 +17,8 @@ struct JoeQueryIterationSample {
   size_t ce_cache_size{0};
   size_t ce_cache_distinct_hit_count{0};
   size_t ce_cache_distinct_miss_count{0};
+  size_t ce_cache_memory_consumption{0};
+  size_t ce_cache_memory_consumption_alt{0};
 };
 
 std::ostream &operator<<(std::ostream &stream, const JoeQueryIterationSample &sample);

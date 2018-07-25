@@ -76,7 +76,7 @@ set(
 #    #optimizer/column_statistics_test.cpp
 #    optimizer/expression_test.cpp
     optimizer/join_ordering/dp_ccp_test.cpp
-#    optimizer/join_ordering/enumerate_ccp_test.cpp
+    optimizer/join_ordering/enumerate_ccp_test.cpp
     optimizer/join_ordering/join_graph_builder_test.cpp
     optimizer/join_ordering/join_graph_test.cpp
     optimizer/join_ordering/join_plan_predicate_test.cpp

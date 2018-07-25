@@ -42,6 +42,13 @@ class AbstractJoinPlanPredicate {
 
   virtual nlohmann::json to_json() const = 0;
 
+  size_t memory_consumption() const { return sizeof(_type) + _on_memory_consumption(); }
+  size_t memory_consumption_alt() const { return sizeof(_type) + _on_memory_consumption_alt(); }
+
+ protected:
+  virtual size_t _on_memory_consumption() const = 0;
+  virtual size_t _on_memory_consumption_alt() const = 0;
+
  private:
   const JoinPlanPredicateType _type;
 };
@@ -69,6 +76,10 @@ class JoinPlanLogicalPredicate : public AbstractJoinPlanPredicate {
   const std::shared_ptr<const AbstractJoinPlanPredicate> left_operand;
   const JoinPlanPredicateLogicalOperator logical_operator;
   const std::shared_ptr<const AbstractJoinPlanPredicate> right_operand;
+
+ protected:
+  size_t _on_memory_consumption() const override { return left_operand->memory_consumption() + right_operand->memory_consumption() + sizeof(JoinPlanPredicateLogicalOperator) + 16; }
+  size_t _on_memory_consumption_alt() const override { return left_operand->memory_consumption() + right_operand->memory_consumption() + sizeof(JoinPlanPredicateLogicalOperator) + 16; }
 };
 
 /**
@@ -93,6 +104,10 @@ class JoinPlanAtomicPredicate : public AbstractJoinPlanPredicate {
   const LQPColumnReference left_operand;
   const PredicateCondition predicate_condition;
   const AllParameterVariant right_operand;
+
+ protected:
+  size_t _on_memory_consumption() const override { return sizeof(LQPColumnReference) + sizeof(PredicateCondition) + sizeof(AllParameterVariant); }
+  size_t _on_memory_consumption_alt() const override { return 1 + 1 + sizeof(PredicateCondition) + sizeof(AllParameterVariant); }
 };
 
 std::shared_ptr<const AbstractJoinPlanPredicate> join_plan_predicate_from_json(const nlohmann::json& json, std::vector<std::shared_ptr<AbstractLQPNode>>& vertices);

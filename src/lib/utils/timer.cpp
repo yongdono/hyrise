@@ -22,4 +22,9 @@ std::chrono::microseconds Timer::lap() {
   return lap_ns;
 }
 
+std::chrono::microseconds Timer::elapsed() const {
+  const auto now = std::chrono::high_resolution_clock::now();
+  return std::chrono::duration_cast<std::chrono::microseconds>(now - _begin);
+}
+
 }  // namespace opossum

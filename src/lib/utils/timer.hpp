@@ -17,8 +17,8 @@ class Timer final {
   ~Timer();
 
   std::chrono::microseconds lap();
+  std::chrono::microseconds elapsed() const;
 
- private:
   std::chrono::high_resolution_clock::time_point _begin;
   std::optional<Callback> _on_destruct;
 };

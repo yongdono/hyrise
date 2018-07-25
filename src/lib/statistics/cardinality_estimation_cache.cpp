@@ -13,6 +13,7 @@
 
 #include "json.hpp"
 
+#include "logical_query_plan/stored_table_node.hpp"
 #include "optimizer/join_ordering/join_plan_predicate.hpp"
 
 
@@ -253,6 +254,47 @@ std::shared_ptr<const AbstractJoinPlanPredicate> CardinalityEstimationCache::_no
   }
 
   return predicate;
+}
+
+size_t CardinalityEstimationCache::memory_consumption() const {
+  auto memory = _cache.size() * 4;  // Entries = float
+
+  for (const auto& entry : _cache) {
+    const auto& join_graph = entry.first;
+
+    memory += join_graph.vertices.size() * 8; // Pointers to the vertices
+    memory += join_graph.predicates.size() * 8; // Pointers to the predicates
+
+    for (const auto& vertex : join_graph.vertices) {
+      const auto stored_table_node = std::dynamic_pointer_cast<StoredTableNode>(vertex);
+      Assert(stored_table_node, "Expected StoredTableNode");
+      memory += stored_table_node->table_name().size();
+    }
+
+    for (const auto& predicate : join_graph.predicates) {
+      memory += predicate->memory_consumption();
+    }
+  }
+
+  return memory;
+}
+
+size_t CardinalityEstimationCache::memory_consumption_alt() const {
+  auto memory = _cache.size() * 4;  // Entries = float
+
+  for (const auto& entry : _cache) {
+    const auto& join_graph = entry.first;
+
+    memory += 8;
+
+    for (const auto& predicate : join_graph.predicates) {
+      std::stringstream stream;
+      predicate->print(stream);
+      memory += stream.str().size();
+    }
+  }
+
+  return memory;
 }
 
 }  // namespace opossum

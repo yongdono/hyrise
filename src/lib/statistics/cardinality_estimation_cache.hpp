@@ -52,6 +52,9 @@ class CardinalityEstimationCache final {
   void update(const std::string& path) const;
   nlohmann::json to_json() const;
 
+  size_t memory_consumption() const;
+  size_t memory_consumption_alt() const;
+
  private:
   static BaseJoinGraph _normalize(const BaseJoinGraph& join_graph);
   static std::shared_ptr<const AbstractJoinPlanPredicate> _normalize(const std::shared_ptr<const AbstractJoinPlanPredicate>& predicate);

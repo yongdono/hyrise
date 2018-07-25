@@ -1,5 +1,7 @@
 #pragma once
 
+#define NDEBUG 1
+
 #include <cstdint>
 #include <optional>
 #include <utility>
@@ -22,11 +24,15 @@ class EnumerateCcp final {
   std::vector<std::pair<size_t, size_t>> _edges;
   std::vector<std::pair<boost::dynamic_bitset<>, boost::dynamic_bitset<>>> _csg_cmp_pairs;
 
+  std::vector<boost::dynamic_bitset<>> _vertex_neighbourhoods;
+
   void _enumerate_csg_recursive(std::vector<boost::dynamic_bitset<>>& csgs, const boost::dynamic_bitset<>& vertex_set,
                                 const boost::dynamic_bitset<>& exclusion_set);
   void _enumerate_cmp(const boost::dynamic_bitset<>& vertex_set);
   boost::dynamic_bitset<> _exclusion_set(const size_t vertex_idx) const;
   boost::dynamic_bitset<> _neighbourhood(const boost::dynamic_bitset<>& vertex_set,
+                                         const boost::dynamic_bitset<>& exclusion_set) const;
+  boost::dynamic_bitset<> _neighbourhood2(const boost::dynamic_bitset<>& vertex_set,
                                          const boost::dynamic_bitset<>& exclusion_set) const;
   std::vector<boost::dynamic_bitset<>> _non_empty_subsets(const boost::dynamic_bitset<>& vertex_set) const;
 };
