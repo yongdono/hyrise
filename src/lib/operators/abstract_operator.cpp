@@ -13,7 +13,7 @@
 #include "utils/print_directed_acyclic_graph.hpp"
 #include "utils/timer.hpp"
 #include "jit_evaluation_helper.hpp"
-// #include <papi.h>
+#include <papi.h>
 
 namespace opossum {
 
@@ -32,21 +32,21 @@ void AbstractOperator::execute() {
 
   auto papi_events = JitEvaluationHelper::get().globals()["papi_events"];
   auto num_counters = papi_events.size();
-  // int32_t papi_event_ids[10];
+  int32_t papi_event_ids[10];
   long long papi_values[10];
 
   for (uint32_t i = 0; i < num_counters; ++i) {
-    // if (PAPI_event_name_to_code(papi_events[i].get<std::string>().c_str(), &papi_event_ids[i]) < 0) throw std::logic_error("PAPI error");
+    if (PAPI_event_name_to_code(papi_events[i].get<std::string>().c_str(), &papi_event_ids[i]) < 0) throw std::logic_error("PAPI error");
   }
 
   Timer performance_timer;
   if (num_counters) {
-    // //  if (PAPI_assign_eventset_component(papi_event_ids, 0) < 0) throw std::logic_error("PAPI error");
-    // if (PAPI_start_counters(papi_event_ids, num_counters) < 0) throw std::logic_error("PAPI error " + std::to_string(PAPI_start_counters(papi_event_ids, num_counters)));
+    //  if (PAPI_assign_eventset_component(papi_event_ids, 0) < 0) throw std::logic_error("PAPI error");
+    if (PAPI_start_counters(papi_event_ids, num_counters) < 0) throw std::logic_error("PAPI error " + std::to_string(PAPI_start_counters(papi_event_ids, num_counters)));
   }
   _prepare();
   if (num_counters) {
-    // if (PAPI_stop_counters(papi_values, num_counters) < 0) throw std::logic_error("PAPI error");
+    if (PAPI_stop_counters(papi_values, num_counters) < 0) throw std::logic_error("PAPI error");
   }
 
   auto walltime_ns = performance_timer.lap().count();
@@ -60,7 +60,7 @@ void AbstractOperator::execute() {
   performance_timer.lap();
 
   if (num_counters) {
-    // if (PAPI_start_counters(papi_event_ids, num_counters) < 0) throw std::logic_error("PAPI error");
+    if (PAPI_start_counters(papi_event_ids, num_counters) < 0) throw std::logic_error("PAPI error");
   }
 
   auto transaction_context = this->transaction_context();
@@ -85,7 +85,7 @@ void AbstractOperator::execute() {
   _on_cleanup();
 
   if (num_counters) {
-    // if (PAPI_stop_counters(papi_values, num_counters) < 0) throw std::logic_error("PAPI error");
+    if (PAPI_stop_counters(papi_values, num_counters) < 0) throw std::logic_error("PAPI error");
   }
 
   _base_performance_data.walltime = performance_timer.lap();
