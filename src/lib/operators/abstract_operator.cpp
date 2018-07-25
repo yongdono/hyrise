@@ -36,8 +36,9 @@ void AbstractOperator::execute() {
   long long papi_values[10];
 
   for (uint32_t i = 0; i < num_counters; ++i) {
-    if (PAPI_event_name_to_code(papi_events[i].get<std::string>().c_str(), &papi_event_ids[i]) < 0)
-      throw std::logic_error("PAPI_event_name_to_code: PAPI error" + std::to_string(PAPI_event_name_to_code(papi_events[i].get<std::string>().c_str(), &papi_event_ids[i])));
+	auto event_name = papi_events[i].get<std::string>();
+    if (PAPI_event_name_to_code(event_name.c_str(), &papi_event_ids[i]) < 0)
+      throw std::logic_error("PAPI_event_name_to_code: PAPI event name: " + event_name +  " PAPI error " + std::to_string(PAPI_event_name_to_code(event_name.c_str(), &papi_event_ids[i])));
   }
 
   Timer performance_timer;
