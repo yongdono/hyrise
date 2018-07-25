@@ -141,7 +141,7 @@ std::string AbstractHistogram<std::string>::_previous_value(const std::string va
   const auto sub_string = value.substr(0, value.length() - 1);
   const auto last_char = value.back();
 
-  if (last_char == 'a') {
+  if (last_char == _supported_characters.front()) {
     return sub_string;
   }
 
@@ -160,21 +160,22 @@ T AbstractHistogram<T>::_previous_value(const T value) const {
 template <>
 std::string AbstractHistogram<std::string>::_next_value(const std::string value, const bool overflow) const {
   if (value.empty()) {
-    return "a";
+    return std::string{_supported_characters.front()};
   }
 
-  if ((overflow && value.length() < _string_prefix_length) || (value == std::string(_string_prefix_length, 'z'))) {
-    return value + 'a';
+  if ((overflow && value.length() < _string_prefix_length) ||
+      (value == std::string(_string_prefix_length, _supported_characters.back()))) {
+    return value + _supported_characters.front();
   }
 
   const auto last_char = value.back();
   const auto sub_string = value.substr(0, value.length() - 1);
 
-  if (last_char != 'z') {
+  if (last_char != _supported_characters.back()) {
     return sub_string + static_cast<char>(last_char + 1);
   }
 
-  return _next_value(sub_string, false) + 'a';
+  return _next_value(sub_string, false) + _supported_characters.front();
 }
 
 template <typename T>
