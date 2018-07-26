@@ -47,6 +47,8 @@ class HistogramTest : public BaseTest {
     _expected_join_result_1 = load_table("src/test/tables/joinoperators/expected_join_result_1.tbl");
     _string2 = load_table("src/test/tables/string2.tbl");
     _string3 = load_table("src/test/tables/string3.tbl");
+    _lineitem = load_table("src/test/tables/tpch/sf-0.001/lineitem.tbl");
+    _random_string_data = load_table("src/test/tables/random_string_data.tbl");
   }
 
  protected:
@@ -56,6 +58,8 @@ class HistogramTest : public BaseTest {
   std::shared_ptr<Table> _expected_join_result_1;
   std::shared_ptr<Table> _string2;
   std::shared_ptr<Table> _string3;
+  std::shared_ptr<Table> _lineitem;
+  std::shared_ptr<Table> _random_string_data;
 };
 
 TEST_F(HistogramTest, EqualNumElementsBasic) {
@@ -851,6 +855,17 @@ TEST_F(HistogramTest, EstimateCardinalityUnsupportedCharacters) {
   EXPECT_THROW(hist.estimate_cardinality("aBcd", PredicateCondition::Equals), std::exception);
   EXPECT_THROW(hist.estimate_cardinality("@abc", PredicateCondition::Equals), std::exception);
 }
+
+// TODO(tim): remove
+// TEST_F(HistogramTest, LargeTable) {
+//   // auto hist = EqualNumElementsHistogram<std::string>(_lineitem);
+//   // hist.generate(ColumnID{10}, 20u);
+//   // EXPECT_FLOAT_EQ(hist.estimate_cardinality("1996-01-01", PredicateCondition::Equals), 296 / 113.f);
+//
+//   auto hist = EqualNumElementsHistogram<std::string>(_random_string_data);
+//   hist.generate(ColumnID{0}, 200u);
+//   EXPECT_FLOAT_EQ(hist.estimate_cardinality("mmmmmm", PredicateCondition::Equals), 296 / 113.f);
+// }
 
 class HistogramPrivateTest : public BaseTest {
   void SetUp() override {
