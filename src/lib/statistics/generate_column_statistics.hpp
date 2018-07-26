@@ -14,7 +14,8 @@ namespace opossum {
  * Generate the statistics of a single column. Used by generate_table_statistics()
  */
 template <typename ColumnDataType>
-std::shared_ptr<BaseColumnStatistics> generate_column_statistics(const Table& table, const ColumnID column_id) {
+std::shared_ptr<BaseColumnStatistics> generate_column_statistics(const std::shared_ptr<const Table>& table,
+                                                                 const ColumnID column_id) {
   std::unordered_set<ColumnDataType> distinct_set;
 
   auto null_value_count = size_t{0};
@@ -22,8 +23,8 @@ std::shared_ptr<BaseColumnStatistics> generate_column_statistics(const Table& ta
   auto min = std::numeric_limits<ColumnDataType>::max();
   auto max = std::numeric_limits<ColumnDataType>::lowest();
 
-  for (ChunkID chunk_id{0}; chunk_id < table.chunk_count(); ++chunk_id) {
-    const auto base_column = table.get_chunk(chunk_id)->get_column(column_id);
+  for (ChunkID chunk_id{0}; chunk_id < table->chunk_count(); ++chunk_id) {
+    const auto base_column = table->get_chunk(chunk_id)->get_column(column_id);
 
     resolve_column_type<ColumnDataType>(*base_column, [&](auto& column) {
       auto iterable = create_iterable_from_column<ColumnDataType>(column);
@@ -40,7 +41,7 @@ std::shared_ptr<BaseColumnStatistics> generate_column_statistics(const Table& ta
   }
 
   const auto null_value_ratio =
-      table.row_count() > 0 ? static_cast<float>(null_value_count) / static_cast<float>(table.row_count()) : 0.0f;
+      table->row_count() > 0 ? static_cast<float>(null_value_count) / static_cast<float>(table->row_count()) : 0.0f;
   const auto distinct_count = static_cast<float>(distinct_set.size());
 
   if (distinct_count == 0.0f) {
@@ -52,7 +53,7 @@ std::shared_ptr<BaseColumnStatistics> generate_column_statistics(const Table& ta
 }
 
 template <>
-std::shared_ptr<BaseColumnStatistics> generate_column_statistics<std::string>(const Table& table,
+std::shared_ptr<BaseColumnStatistics> generate_column_statistics<std::string>(const std::shared_ptr<const Table>& table,
                                                                               const ColumnID column_id);
 
 }  // namespace opossum

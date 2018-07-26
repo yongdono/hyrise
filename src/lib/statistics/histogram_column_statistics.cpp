@@ -409,18 +409,19 @@ FilterByValueEstimate HistogramColumnStatistics<ColumnDataType>::estimate_not_eq
 template <typename ColumnDataType>
 FilterByValueEstimate HistogramColumnStatistics<ColumnDataType>::estimate_range(const float selectivity,
                                                                                 const bool can_prune,
-                                                                                const ColumnDataType minimum,
-                                                                                const ColumnDataType maximum) const {
+                                                                                const ColumnDataType min,
+                                                                                const ColumnDataType max) const {
   // NOTE: minimum can be greater than maximum (e.g. a predicate >= 2 on a column with only values of 1)
   // new minimum/maximum of table cannot be smaller/larger than the current minimum/maximum
-  const auto common_min = std::max(minimum, _histogram->min());
-  const auto common_max = std::min(maximum, _histogram->max());
+  const auto new_min = std::max(min, _histogram->min());
+  const auto new_max = std::min(max, _histogram->max());
   const auto new_distinct_count = can_prune ? 0.f : distinct_count() * selectivity;
 
   auto column_statistics =
-      std::make_shared<ColumnStatistics<ColumnDataType>>(0.0f, new_distinct_count, common_min, common_max);
+      std::make_shared<ColumnStatistics<ColumnDataType>>(0.0f, new_distinct_count, new_min, new_max);
   return {selectivity, column_statistics};
 }
 
 EXPLICITLY_INSTANTIATE_DATA_TYPES(HistogramColumnStatistics);
+
 }  // namespace opossum

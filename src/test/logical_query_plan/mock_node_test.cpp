@@ -15,7 +15,7 @@ class MockNodeTest : public BaseTest {
  protected:
   void SetUp() override {
     auto table = load_table("src/test/tables/int_float_double_string.tbl", Chunk::MAX_SIZE);
-    _statistics = std::make_shared<TableStatistics>(generate_table_statistics(*table));
+    _statistics = std::make_shared<TableStatistics>(generate_table_statistics(table));
 
     _mock_node = MockNode::make(_statistics);
   }

@@ -448,4 +448,5 @@ FilterByValueEstimate ColumnStatistics<ColumnDataType>::estimate_not_equals_with
 }
 
 EXPLICITLY_INSTANTIATE_DATA_TYPES(ColumnStatistics);
+
 }  // namespace opossum

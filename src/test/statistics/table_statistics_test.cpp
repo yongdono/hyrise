@@ -26,7 +26,7 @@ class TableStatisticsTest : public BaseTest {
 
   void SetUp() override {
     auto table = load_table("src/test/tables/int_float_double_string.tbl", Chunk::MAX_SIZE);
-    _table_a_with_statistics.statistics = std::make_shared<TableStatistics>(generate_table_statistics(*table));
+    _table_a_with_statistics.statistics = std::make_shared<TableStatistics>(generate_table_statistics(table));
     table->set_table_statistics(_table_a_with_statistics.statistics);
     _table_a_with_statistics.table = table;
   }

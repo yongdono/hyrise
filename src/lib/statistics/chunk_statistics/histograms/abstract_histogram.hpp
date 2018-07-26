@@ -15,9 +15,9 @@ class AbstractHistogram : public AbstractFilter {
   friend class HistogramPrivateTest;
 
  public:
-  explicit AbstractHistogram(const std::shared_ptr<Table>& table);
-  AbstractHistogram(const std::shared_ptr<Table>& table, const std::string& supported_characters);
-  AbstractHistogram(const std::shared_ptr<Table>& table, const std::string& supported_characters,
+  explicit AbstractHistogram(const std::shared_ptr<const Table>& table);
+  AbstractHistogram(const std::shared_ptr<const Table>& table, const std::string& supported_characters);
+  AbstractHistogram(const std::shared_ptr<const Table>& table, const std::string& supported_characters,
                     const uint64_t string_prefix_length);
   virtual ~AbstractHistogram() = default;
 
@@ -58,7 +58,7 @@ class AbstractHistogram : public AbstractFilter {
   virtual uint64_t _bucket_count(const BucketID index) const = 0;
   virtual uint64_t _bucket_count_distinct(const BucketID index) const = 0;
 
-  const std::weak_ptr<Table> _table;
+  const std::weak_ptr<const Table> _table;
   std::string _supported_characters;
   uint64_t _string_prefix_length;
 };

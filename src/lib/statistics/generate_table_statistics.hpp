@@ -12,6 +12,6 @@ class Table;
 /**
  * Generate statistics about a Table by analysing its entire data. This may be slow, use with caution.
  */
-TableStatistics generate_table_statistics(const Table& table);
+TableStatistics generate_table_statistics(const std::shared_ptr<const Table>& table);
 
 }  // namespace opossum

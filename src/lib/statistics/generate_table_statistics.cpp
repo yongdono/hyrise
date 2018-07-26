@@ -12,12 +12,12 @@
 
 namespace opossum {
 
-TableStatistics generate_table_statistics(const Table& table) {
+TableStatistics generate_table_statistics(const std::shared_ptr<const Table>& table) {
   std::vector<std::shared_ptr<const BaseColumnStatistics>> column_statistics;
-  column_statistics.reserve(table.column_count());
+  column_statistics.reserve(table->column_count());
 
-  for (ColumnID column_id{0}; column_id < table.column_count(); ++column_id) {
-    const auto column_data_type = table.column_data_types()[column_id];
+  for (ColumnID column_id{0}; column_id < table->column_count(); ++column_id) {
+    const auto column_data_type = table->column_data_types()[column_id];
 
     resolve_data_type(column_data_type, [&](auto type) {
       using ColumnDataType = typename decltype(type)::type;
@@ -25,7 +25,7 @@ TableStatistics generate_table_statistics(const Table& table) {
     });
   }
 
-  return {table.type(), static_cast<float>(table.row_count()), std::move(column_statistics)};
+  return {table->type(), static_cast<float>(table->row_count()), std::move(column_statistics)};
 }
 
 }  // namespace opossum

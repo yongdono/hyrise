@@ -67,8 +67,8 @@ class HistogramColumnStatistics : public BaseColumnStatistics {
   /**
    * @return estimate the predicate `column BETWEEN minimum AND maximum`
    */
-  FilterByValueEstimate estimate_range(const float selectivity, const bool can_prune, const ColumnDataType minimum,
-                                       const ColumnDataType maximum) const;
+  FilterByValueEstimate estimate_range(const float selectivity, const bool can_prune, const ColumnDataType min,
+                                       const ColumnDataType max) const;
   /** @} */
 
  protected:

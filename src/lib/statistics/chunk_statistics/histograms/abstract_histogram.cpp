@@ -16,11 +16,11 @@
 namespace opossum {
 
 template <typename T>
-AbstractHistogram<T>::AbstractHistogram(const std::shared_ptr<Table>& table)
+AbstractHistogram<T>::AbstractHistogram(const std::shared_ptr<const Table>& table)
     : _table(table), _supported_characters(""), _string_prefix_length(0ul) {}
 
 template <>
-AbstractHistogram<std::string>::AbstractHistogram(const std::shared_ptr<Table>& table)
+AbstractHistogram<std::string>::AbstractHistogram(const std::shared_ptr<const Table>& table)
     : _table(table),
       _supported_characters(
           " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~") {
@@ -28,7 +28,7 @@ AbstractHistogram<std::string>::AbstractHistogram(const std::shared_ptr<Table>& 
 }
 
 template <>
-AbstractHistogram<std::string>::AbstractHistogram(const std::shared_ptr<Table>& table,
+AbstractHistogram<std::string>::AbstractHistogram(const std::shared_ptr<const Table>& table,
                                                   const std::string& supported_characters)
     : _table(table) {
   Assert(supported_characters.length() > 1, "String range must consist of more than one character.");
@@ -45,7 +45,7 @@ AbstractHistogram<std::string>::AbstractHistogram(const std::shared_ptr<Table>& 
 }
 
 template <>
-AbstractHistogram<std::string>::AbstractHistogram(const std::shared_ptr<Table>& table,
+AbstractHistogram<std::string>::AbstractHistogram(const std::shared_ptr<const Table>& table,
                                                   const std::string& supported_characters,
                                                   const uint64_t string_prefix_length)
     : _table(table), _string_prefix_length(string_prefix_length) {
