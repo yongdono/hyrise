@@ -14,7 +14,7 @@ HistogramType EqualNumElementsHistogram<T>::histogram_type() const {
 }
 
 template <typename T>
-size_t EqualNumElementsHistogram<T>::_num_buckets() const {
+size_t EqualNumElementsHistogram<T>::num_buckets() const {
   return _counts.size();
 }
 
@@ -78,8 +78,13 @@ uint64_t EqualNumElementsHistogram<T>::_bucket_count_distinct(const BucketID ind
 }
 
 template <typename T>
-uint64_t EqualNumElementsHistogram<T>::_total_count() const {
+uint64_t EqualNumElementsHistogram<T>::total_count() const {
   return std::accumulate(_counts.begin(), _counts.end(), 0ul);
+}
+
+template <typename T>
+uint64_t EqualNumElementsHistogram<T>::total_count_distinct() const {
+  return _distinct_count_per_bucket * num_buckets() + _num_buckets_with_extra_value;
 }
 
 template <typename T>

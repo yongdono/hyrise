@@ -14,9 +14,7 @@ ColumnStatistics<ColumnDataType>::ColumnStatistics(const float null_value_ratio,
     : BaseColumnStatistics(data_type_from_type<ColumnDataType>(), null_value_ratio),
       _min(min),
       _max(max),
-      _distinct_count(distinct_count) {
-  Assert(null_value_ratio >= 0.0f && null_value_ratio <= 1.0f, "NullValueRatio out of range");
-}
+      _distinct_count(distinct_count) {}
 
 template <typename ColumnDataType>
 ColumnDataType ColumnStatistics<ColumnDataType>::min() const {
@@ -374,9 +372,8 @@ FilterByColumnComparisonEstimate ColumnStatistics<std::string>::estimate_predica
 }
 
 template <typename ColumnDataType>
-std::string ColumnStatistics<ColumnDataType>::description() const {
+std::string ColumnStatistics<ColumnDataType>::_description() const {
   std::stringstream stream;
-  stream << "Col Stats: " << std::endl;
   stream << "  dist.    " << _distinct_count << std::endl;
   stream << "  min      " << _min << std::endl;
   stream << "  max      " << _max << std::endl;

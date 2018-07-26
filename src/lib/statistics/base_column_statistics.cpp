@@ -3,7 +3,16 @@
 namespace opossum {
 
 BaseColumnStatistics::BaseColumnStatistics(const DataType data_type, const float null_value_ratio)
-    : _data_type(data_type), _null_value_ratio(null_value_ratio) {}
+    : _data_type(data_type), _null_value_ratio(null_value_ratio) {
+  Assert(null_value_ratio >= 0.0f && null_value_ratio <= 1.0f, "NullValueRatio out of range");
+}
+
+std::string BaseColumnStatistics::description() const {
+  std::stringstream stream;
+  stream << "Col Stats: " << std::endl << std::endl;
+  stream << _description();
+  return stream.str();
+}
 
 DataType BaseColumnStatistics::data_type() const { return _data_type; }
 

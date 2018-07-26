@@ -11,6 +11,8 @@
 #include "operators/table_wrapper.hpp"
 #include "storage/table.hpp"
 
+#include "constant_mappings.hpp"
+
 namespace opossum {
 
 template <typename T>
@@ -60,6 +62,25 @@ AbstractHistogram<std::string>::AbstractHistogram(const std::shared_ptr<Table>& 
   }
 }
 
+template <typename T>
+std::string AbstractHistogram<T>::description() const {
+  std::stringstream stream;
+  stream << histogram_type_to_string.at(histogram_type()) << std::endl;
+  stream << "  distinct    " << total_count_distinct() << std::endl;
+  stream << "  min         " << min() << std::endl;
+  stream << "  max         " << max() << std::endl;
+  // TODO(tim): consider non-null ration in histograms
+  // stream << "  non-null " << non_null_value_ratio() << std::endl;
+  stream << "  buckets     " << num_buckets() << std::endl;
+
+  stream << "  boundaries  " << std::endl;
+  for (auto bucket = 0u; bucket < num_buckets(); bucket++) {
+    stream << "              [" << _bucket_min(bucket) << ", " << _bucket_max(bucket) << "]" << std::endl;
+  }
+
+  return stream.str();
+}
+
 template <>
 const std::string& AbstractHistogram<std::string>::supported_characters() const {
   return _supported_characters;
@@ -90,15 +111,15 @@ void AbstractHistogram<T>::generate(const ColumnID column_id, const size_t max_n
 }
 
 template <typename T>
-T AbstractHistogram<T>::_lower_end() const {
-  DebugAssert(_num_buckets() > 0u, "Called method on histogram before initialization.");
+T AbstractHistogram<T>::min() const {
+  DebugAssert(num_buckets() > 0u, "Called method on histogram before initialization.");
   return _bucket_min(0u);
 }
 
 template <typename T>
-T AbstractHistogram<T>::_upper_end() const {
-  DebugAssert(_num_buckets() > 0u, "Called method on histogram before initialization.");
-  return _bucket_max(_num_buckets() - 1u);
+T AbstractHistogram<T>::max() const {
+  DebugAssert(num_buckets() > 0u, "Called method on histogram before initialization.");
+  return _bucket_max(num_buckets() - 1u);
 }
 
 template <>
@@ -109,21 +130,21 @@ std::string AbstractHistogram<std::string>::_bucket_width(const BucketID /*index
 // TODO(tim): ask experts how this works
 // template <typename T>
 // std::enable_if_t<std::is_integral_v<T>, T> AbstractHistogram<T>::_bucket_width(const BucketID index) const {
-//   DebugAssert(index < _num_buckets(), "Index is not a valid bucket.");
+//   DebugAssert(index < num_buckets(), "Index is not a valid bucket.");
 //
 //   return _bucket_max(index) - _bucket_min(index) + 1;
 // }
 //
 // template <typename T>
 // std::enable_if_t<std::is_floating_point_v<T>, T> AbstractHistogram<T>::_bucket_width(const BucketID index) const {
-//   DebugAssert(index < _num_buckets(), "Index is not a valid bucket.");
+//   DebugAssert(index < num_buckets(), "Index is not a valid bucket.");
 //
 //   return _bucket_max(index) - _bucket_min(index);
 // }
 
 template <typename T>
 T AbstractHistogram<T>::_bucket_width(const BucketID index) const {
-  DebugAssert(index < _num_buckets(), "Index is not a valid bucket.");
+  DebugAssert(index < num_buckets(), "Index is not a valid bucket.");
 
   if constexpr (std::is_integral_v<T>) {
     return _bucket_max(index) - _bucket_min(index) + 1;
@@ -133,7 +154,7 @@ T AbstractHistogram<T>::_bucket_width(const BucketID index) const {
 }
 
 template <>
-std::string AbstractHistogram<std::string>::_previous_value(const std::string value) const {
+std::string AbstractHistogram<std::string>::previous_value(const std::string value) const {
   if (value.empty()) {
     return value;
   }
@@ -149,7 +170,7 @@ std::string AbstractHistogram<std::string>::_previous_value(const std::string va
 }
 
 template <typename T>
-T AbstractHistogram<T>::_previous_value(const T value) const {
+T AbstractHistogram<T>::previous_value(const T value) const {
   if constexpr (std::is_floating_point_v<T>) {
     return std::nextafter(value, value - 1);
   }
@@ -158,7 +179,7 @@ T AbstractHistogram<T>::_previous_value(const T value) const {
 }
 
 template <>
-std::string AbstractHistogram<std::string>::_next_value(const std::string value, const bool overflow) const {
+std::string AbstractHistogram<std::string>::next_value(const std::string value, const bool overflow) const {
   if (value.empty()) {
     return std::string{_supported_characters.front()};
   }
@@ -175,11 +196,11 @@ std::string AbstractHistogram<std::string>::_next_value(const std::string value,
     return sub_string + static_cast<char>(last_char + 1);
   }
 
-  return _next_value(sub_string, false) + _supported_characters.front();
+  return next_value(sub_string, false) + _supported_characters.front();
 }
 
 template <typename T>
-T AbstractHistogram<T>::_next_value(const T value, const bool /*overflow*/) const {
+T AbstractHistogram<T>::next_value(const T value, const bool /*overflow*/) const {
   if constexpr (std::is_floating_point_v<T>) {
     return std::nextafter(value, value + 1);
   }
@@ -217,7 +238,7 @@ std::string AbstractHistogram<std::string>::_convert_number_representation_to_st
 
 template <typename T>
 float AbstractHistogram<T>::estimate_cardinality(const T value, const PredicateCondition predicate_condition) const {
-  DebugAssert(_num_buckets() > 0u, "Called method on histogram before initialization.");
+  DebugAssert(num_buckets() > 0u, "Called method on histogram before initialization.");
 
   if constexpr (std::is_same_v<T, std::string>) {
     Assert(value.find_first_not_of(_supported_characters) == std::string::npos, "Unsupported characters.");
@@ -237,18 +258,18 @@ float AbstractHistogram<T>::estimate_cardinality(const T value, const PredicateC
       const auto index = _bucket_for_value(value);
 
       if (index == INVALID_BUCKET_ID) {
-        return _total_count();
+        return total_count();
       }
 
-      return _total_count() -
+      return total_count() -
              static_cast<float>(_bucket_count(index)) / static_cast<float>(_bucket_count_distinct(index));
     }
     case PredicateCondition::LessThan: {
-      if (value > _upper_end()) {
-        return _total_count();
+      if (value > max()) {
+        return total_count();
       }
 
-      if (value <= _lower_end()) {
+      if (value <= min()) {
         return 0.f;
       }
 
@@ -312,22 +333,33 @@ float AbstractHistogram<T>::estimate_cardinality(const T value, const PredicateC
         cardinality += _bucket_count(bucket);
       }
 
-      return cardinality;
+      /**
+       * The cardinality is capped at total_count().
+       * It is possible for a value that is smaller than or equal to the max of the EqualHeightHistogram
+       * to yield a calculated cardinality higher than total_count.
+       * This is due to the way EqualHeightHistograms store the count for a bucket,
+       * which is in a single value (count_per_bucket) for all buckets rather than a vector (one value for each bucket).
+       * Consequently, this value is the desired count for all buckets.
+       * In practice, _bucket_count(n) >= _count_per_bucket for n < num_buckets() - 1,
+       * because buckets are filled up until the count is at least _count_per_bucket.
+       * The last bucket typically has a count lower than _count_per_bucket.
+       * Therefore, if we calculate the share of the last bucket based on _count_per_bucket
+       * we might end up with an estimate higher than total_count(), which is then capped.
+       */
+      return std::min(cardinality, static_cast<float>(total_count()));
     }
     case PredicateCondition::LessThanEquals: {
-      return estimate_cardinality(value, PredicateCondition::LessThan) +
-             estimate_cardinality(value, PredicateCondition::Equals);
+      return estimate_cardinality(next_value(value), PredicateCondition::LessThan);
     }
     case PredicateCondition::GreaterThanEquals: {
-      return estimate_cardinality(value, PredicateCondition::GreaterThan) +
-             estimate_cardinality(value, PredicateCondition::Equals);
+      return estimate_cardinality(previous_value(value), PredicateCondition::GreaterThan);
     }
     case PredicateCondition::GreaterThan: {
-      // if (value < _lower_end()) {
-      //   return _total_count();
+      // if (value < min()) {
+      //   return total_count();
       // }
       //
-      // if (value >= _upper_end()) {
+      // if (value >= max()) {
       //   return 0.f;
       // }
       //
@@ -353,12 +385,20 @@ float AbstractHistogram<T>::estimate_cardinality(const T value, const PredicateC
       // }
       //
       // // Sum up all buckets after the bucket (or gap) containing the value.
-      // for (BucketID bucket = index; bucket < _num_buckets(); bucket++) {
+      // for (BucketID bucket = index; bucket < num_buckets(); bucket++) {
       //   cardinality += _bucket_count(bucket);
       // }
       //
       // return cardinality;
-      return _total_count() - estimate_cardinality(value, PredicateCondition::LessThanEquals);
+      return total_count() - estimate_cardinality(value, PredicateCondition::LessThanEquals);
+    }
+    // TODO(tim): implement more meaningful things here
+    case PredicateCondition::Like:
+    case PredicateCondition::NotLike:
+    case PredicateCondition::Between: {
+      return total_count();
+      // return estimate_cardinality(value2, PredicateCondition::LessThanEquals) -
+      //        estimate_cardinality(value, PredicateCondition::LessThan);
     }
     default:
       Fail("Predicate condition not yet supported.");
@@ -367,7 +407,7 @@ float AbstractHistogram<T>::estimate_cardinality(const T value, const PredicateC
 
 template <typename T>
 bool AbstractHistogram<T>::can_prune(const AllTypeVariant& value, const PredicateCondition predicate_type) const {
-  DebugAssert(_num_buckets() > 0, "Called method on histogram before initialization.");
+  DebugAssert(num_buckets() > 0, "Called method on histogram before initialization.");
 
   const auto t_value = type_cast<T>(value);
 
@@ -375,15 +415,15 @@ bool AbstractHistogram<T>::can_prune(const AllTypeVariant& value, const Predicat
     case PredicateCondition::Equals:
       return _bucket_for_value(t_value) == INVALID_BUCKET_ID;
     case PredicateCondition::NotEquals:
-      return _num_buckets() == 1 && _bucket_min(0) == t_value && _bucket_max(0) == t_value;
+      return num_buckets() == 1 && _bucket_min(0) == t_value && _bucket_max(0) == t_value;
     case PredicateCondition::LessThan:
-      return t_value <= _lower_end();
+      return t_value <= min();
     case PredicateCondition::LessThanEquals:
-      return t_value < _lower_end();
+      return t_value < min();
     case PredicateCondition::GreaterThanEquals:
-      return t_value > _upper_end();
+      return t_value > max();
     case PredicateCondition::GreaterThan:
-      return t_value >= _upper_end();
+      return t_value >= max();
     // TODO(tim): change signature to support two values
     // talk to Moritz about new expression interface first
     // case PredicateCondition::Between:
@@ -393,6 +433,7 @@ bool AbstractHistogram<T>::can_prune(const AllTypeVariant& value, const Predicat
     //           upper_bound_for_value(t_value) == _upper_bound_for_value(t_value2));
     default:
       // Rather than failing we simply do not prune for things we cannot (yet) handle.
+      // TODO(tim): think about like and not like
       return false;
   }
 }

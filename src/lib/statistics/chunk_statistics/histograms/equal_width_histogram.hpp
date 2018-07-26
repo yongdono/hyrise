@@ -15,11 +15,13 @@ class EqualWidthHistogram : public AbstractHistogram<T> {
   using AbstractHistogram<T>::AbstractHistogram;
 
   HistogramType histogram_type() const override;
+  uint64_t total_count_distinct() const override;
+  uint64_t total_count() const override;
+  size_t num_buckets() const override;
 
  protected:
   void _generate(const ColumnID column_id, const size_t max_num_buckets) override;
 
-  size_t _num_buckets() const override;
   BucketID _bucket_for_value(const T value) const override;
   BucketID _lower_bound_for_value(const T value) const override;
   BucketID _upper_bound_for_value(const T value) const override;
@@ -28,7 +30,6 @@ class EqualWidthHistogram : public AbstractHistogram<T> {
   T _bucket_max(const BucketID index) const override;
   uint64_t _bucket_count(const BucketID index) const override;
   uint64_t _bucket_count_distinct(const BucketID index) const override;
-  uint64_t _total_count() const override;
 
   // Overriding because it would otherwise recursively call itself.
   T _bucket_width(const BucketID index) const override;

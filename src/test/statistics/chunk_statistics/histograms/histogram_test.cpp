@@ -656,8 +656,8 @@ TEST_F(HistogramTest, EqualHeightLessThan) {
                   3.f + (80'000.f - 12'346) / (123'456 - 12'346 + 1) * 3);
   EXPECT_FLOAT_EQ(hist.estimate_cardinality(123'456, PredicateCondition::LessThan),
                   3.f + (123'456.f - 12'346) / (123'456 - 12'346 + 1) * 3);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(123'457, PredicateCondition::LessThan), 3.f + 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(1'000'000, PredicateCondition::LessThan), 3.f + 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(123'457, PredicateCondition::LessThan), 7.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(1'000'000, PredicateCondition::LessThan), 7.f);
 }
 
 TEST_F(HistogramTest, EqualHeightFloatLessThan) {
@@ -692,10 +692,11 @@ TEST_F(HistogramTest, EqualHeightFloatLessThan) {
   EXPECT_FLOAT_EQ(hist.estimate_cardinality(3.9f, PredicateCondition::LessThan),
                   5.f + (3.9f - (std::nextafter(2.5f, 2.5f + 1))) / (4.4f - std::nextafter(2.5f, 2.5f + 1)) * 5);
   EXPECT_FLOAT_EQ(hist.estimate_cardinality(std::nextafter(4.4f, 4.4f + 1), PredicateCondition::LessThan), 5.f + 5.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(5.9f, PredicateCondition::LessThan),
-                  5.f + 5.f + (5.9f - (std::nextafter(4.4f, 4.4f + 1))) / (6.1f - std::nextafter(4.4f, 4.4f + 1)) * 5);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(std::nextafter(6.1f, 6.1f + 1), PredicateCondition::LessThan),
-                  5.f + 5.f + 5.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(5.1f, PredicateCondition::LessThan),
+                  5.f + 5.f + (5.1f - (std::nextafter(4.4f, 4.4f + 1))) / (6.1f - std::nextafter(4.4f, 4.4f + 1)) * 5);
+  // Special case: cardinality is capped, see AbstractHistogram::estimate_cardinality().
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(5.9f, PredicateCondition::LessThan), 14.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(std::nextafter(6.1f, 6.1f + 1), PredicateCondition::LessThan), 14.f);
 }
 
 TEST_F(HistogramTest, EqualHeightStringLessThan) {
@@ -724,7 +725,6 @@ TEST_F(HistogramTest, EqualHeightStringLessThan) {
   constexpr auto bucket_3_width = (bucket_3_upper - bucket_3_lower + 1.f);
   constexpr auto bucket_4_width = (bucket_4_upper - bucket_4_lower + 1.f);
 
-  // Note that this is not the actual count in each bucket, but an approximation due to the type of the histogram.
   constexpr auto bucket_count = 4.f;
   constexpr auto total_count = 4 * bucket_count;
 
@@ -860,10 +860,6 @@ class HistogramPrivateTest : public BaseTest {
   }
 
  protected:
-  std::string previous_value(const std::string& value) { return _hist->_previous_value(value); }
-
-  std::string next_value(const std::string& value) { return _hist->_next_value(value); }
-
   uint64_t convert_string_to_number_representation(const std::string& value) {
     return _hist->_convert_string_to_number_representation(value);
   }
@@ -877,24 +873,24 @@ class HistogramPrivateTest : public BaseTest {
 };
 
 TEST_F(HistogramPrivateTest, PreviousValueString) {
-  EXPECT_EQ(previous_value(""), "");
-  EXPECT_EQ(previous_value("a"), "");
-  EXPECT_EQ(previous_value("aaa"), "aa");
-  EXPECT_EQ(previous_value("abcd"), "abcc");
-  EXPECT_EQ(previous_value("abzz"), "abzy");
-  EXPECT_EQ(previous_value("abca"), "abc");
-  EXPECT_EQ(previous_value("abaa"), "aba");
-  EXPECT_EQ(previous_value("aba"), "ab");
+  EXPECT_EQ(_hist->previous_value(""), "");
+  EXPECT_EQ(_hist->previous_value("a"), "");
+  EXPECT_EQ(_hist->previous_value("aaa"), "aa");
+  EXPECT_EQ(_hist->previous_value("abcd"), "abcc");
+  EXPECT_EQ(_hist->previous_value("abzz"), "abzy");
+  EXPECT_EQ(_hist->previous_value("abca"), "abc");
+  EXPECT_EQ(_hist->previous_value("abaa"), "aba");
+  EXPECT_EQ(_hist->previous_value("aba"), "ab");
 }
 
 TEST_F(HistogramPrivateTest, NextValueString) {
-  EXPECT_EQ(next_value(""), "a");
-  EXPECT_EQ(next_value("abcd"), "abce");
-  EXPECT_EQ(next_value("abaz"), "abba");
-  EXPECT_EQ(next_value("abzz"), "acaa");
-  EXPECT_EQ(next_value("abca"), "abcb");
-  EXPECT_EQ(next_value("abaa"), "abab");
-  EXPECT_EQ(next_value("zzzz"), "zzzza");
+  EXPECT_EQ(_hist->next_value(""), "a");
+  EXPECT_EQ(_hist->next_value("abcd"), "abce");
+  EXPECT_EQ(_hist->next_value("abaz"), "abba");
+  EXPECT_EQ(_hist->next_value("abzz"), "acaa");
+  EXPECT_EQ(_hist->next_value("abca"), "abcb");
+  EXPECT_EQ(_hist->next_value("abaa"), "abab");
+  EXPECT_EQ(_hist->next_value("zzzz"), "zzzza");
 }
 
 TEST_F(HistogramPrivateTest, StringToNumber) {

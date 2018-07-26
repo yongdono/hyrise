@@ -7,6 +7,7 @@
 
 #include "all_type_variant.hpp"
 #include "base_column_statistics.hpp"
+#include "chunk_statistics/histograms/abstract_histogram.hpp"
 
 namespace opossum {
 
@@ -14,18 +15,16 @@ namespace opossum {
  * @tparam ColumnDataType   the DataType of the values in the Column that these statistics represent
  */
 template <typename ColumnDataType>
-class ColumnStatistics : public BaseColumnStatistics {
+class HistogramColumnStatistics : public BaseColumnStatistics {
  public:
-  ColumnStatistics(const float null_value_ratio, const float distinct_count, const ColumnDataType min,
-                   const ColumnDataType max);
+  HistogramColumnStatistics(const std::shared_ptr<AbstractHistogram<ColumnDataType>>& histogram,
+                            const float null_value_ratio);
 
   /**
    * @defgroup Member access
    * @{
    */
-  ColumnDataType min() const;
-  ColumnDataType max() const;
-  float distinct_count() const override;
+  const std::shared_ptr<AbstractHistogram<ColumnDataType>>& histogram() const;
   /** @} */
 
   /**
@@ -44,6 +43,8 @@ class ColumnStatistics : public BaseColumnStatistics {
   FilterByColumnComparisonEstimate estimate_predicate_with_column(
       const PredicateCondition predicate_condition, const BaseColumnStatistics& right_column_statistics) const override;
 
+  float distinct_count() const override;
+
   /** @} */
 
   /**
@@ -52,33 +53,29 @@ class ColumnStatistics : public BaseColumnStatistics {
    */
 
   /**
-   * @return the ratio of rows of this Column that are in the range [minimum, maximum]
-   */
-  float estimate_range_selectivity(const ColumnDataType minimum, const ColumnDataType maximum) const;
-
-  /**
-   * @return estimate the predicate `column BETWEEN minimum AND maximum`
-   */
-  FilterByValueEstimate estimate_range(const ColumnDataType minimum, const ColumnDataType maximum) const;
-
-  /**
    * @return estimate the predicate `column = value`
    */
-  FilterByValueEstimate estimate_equals_with_value(const ColumnDataType value) const;
+  FilterByValueEstimate estimate_equals(const float selectivity, const bool can_prune,
+                                        const ColumnDataType value) const;
 
   /**
    * @return estimate the predicate `column != value`
    */
-  FilterByValueEstimate estimate_not_equals_with_value(const ColumnDataType value) const;
+  FilterByValueEstimate estimate_not_equals(const float selectivity, const bool can_prune,
+                                            const ColumnDataType value) const;
+
+  /**
+   * @return estimate the predicate `column BETWEEN minimum AND maximum`
+   */
+  FilterByValueEstimate estimate_range(const float selectivity, const bool can_prune, const ColumnDataType minimum,
+                                       const ColumnDataType maximum) const;
   /** @} */
 
  protected:
   std::string _description() const override;
 
  private:
-  ColumnDataType _min;
-  ColumnDataType _max;
-  float _distinct_count;
+  const std::shared_ptr<AbstractHistogram<ColumnDataType>> _histogram;
 };
 
 }  // namespace opossum

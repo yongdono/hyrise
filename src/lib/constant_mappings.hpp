@@ -29,5 +29,6 @@ extern const boost::bimap<DataType, std::string> data_type_to_string;
 extern const boost::bimap<EncodingType, std::string> encoding_type_to_string;
 extern const boost::bimap<VectorCompressionType, std::string> vector_compression_type_to_string;
 extern const boost::bimap<TableType, std::string> table_type_to_string;
+extern const std::unordered_map<HistogramType, std::string> histogram_type_to_string;
 
 }  // namespace opossum

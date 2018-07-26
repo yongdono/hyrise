@@ -14,7 +14,7 @@ HistogramType EqualHeightHistogram<T>::histogram_type() const {
 }
 
 template <typename T>
-size_t EqualHeightHistogram<T>::_num_buckets() const {
+size_t EqualHeightHistogram<T>::num_buckets() const {
   return _maxs.size();
 }
 
@@ -63,7 +63,7 @@ T EqualHeightHistogram<T>::_bucket_min(const BucketID index) const {
     return _min;
   }
 
-  return this->_next_value(this->_bucket_max(index - 1));
+  return this->next_value(this->_bucket_max(index - 1));
 }
 
 template <typename T>
@@ -74,7 +74,7 @@ T EqualHeightHistogram<T>::_bucket_max(const BucketID index) const {
 
 template <typename T>
 uint64_t EqualHeightHistogram<T>::_bucket_count(const BucketID index) const {
-  DebugAssert(index < this->_num_buckets(), "Index is not a valid bucket.");
+  DebugAssert(index < this->num_buckets(), "Index is not a valid bucket.");
   return _count_per_bucket;
 }
 
@@ -85,8 +85,13 @@ uint64_t EqualHeightHistogram<T>::_bucket_count_distinct(const BucketID index) c
 }
 
 template <typename T>
-uint64_t EqualHeightHistogram<T>::_total_count() const {
-  return this->_num_buckets() * _count_per_bucket;
+uint64_t EqualHeightHistogram<T>::total_count() const {
+  return _total_count;
+}
+
+template <typename T>
+uint64_t EqualHeightHistogram<T>::total_count_distinct() const {
+  return std::accumulate(_distinct_counts.begin(), _distinct_counts.end(), 0ul);
 }
 
 template <typename T>
@@ -111,9 +116,10 @@ void EqualHeightHistogram<T>::_generate(const ColumnID column_id, const size_t m
   DebugAssert(table != nullptr, "Corresponding table of histogram is deleted.");
 
   // Buckets shall have (approximately) the same height.
-  _count_per_bucket = table->row_count() / max_num_buckets;
+  _total_count = table->row_count();
+  _count_per_bucket = _total_count / max_num_buckets;
 
-  if (table->row_count() % max_num_buckets > 0u) {
+  if (_total_count % max_num_buckets > 0u) {
     // Add 1 so that we never create more buckets than requested.
     _count_per_bucket++;
   }

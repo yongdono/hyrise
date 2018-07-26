@@ -79,7 +79,10 @@ class BaseColumnStatistics {
       const PredicateCondition predicate_condition, const BaseColumnStatistics& right_column_statistics) const = 0;
   /** @} */
 
-  virtual std::string description() const = 0;
+  std::string description() const;
+
+ protected:
+  virtual std::string _description() const = 0;
 
  protected:
   const DataType _data_type;

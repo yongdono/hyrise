@@ -175,4 +175,10 @@ const boost::bimap<VectorCompressionType, std::string> vector_compression_type_t
 const boost::bimap<TableType, std::string> table_type_to_string =
     make_bimap<TableType, std::string>({{TableType::Data, "Data"}, {TableType::References, "References"}});
 
+const std::unordered_map<HistogramType, std::string> histogram_type_to_string = {
+    {HistogramType::EqualHeight, "EqualHeightHistogram"},
+    {HistogramType::EqualNumElements, "EqualNumElementsHistogram"},
+    {HistogramType::EqualWidth, "EqualWidthHistogram"},
+};
+
 }  // namespace opossum

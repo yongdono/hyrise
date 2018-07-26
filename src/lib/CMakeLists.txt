@@ -173,23 +173,6 @@ set(
     operators/update.hpp
     operators/validate.cpp
     operators/validate.hpp
-    statistics/statistics_import_export.cpp
-    statistics/statistics_import_export.hpp
-    statistics/chunk_statistics/abstract_filter.hpp
-    statistics/chunk_statistics/chunk_column_statistics.cpp
-    statistics/chunk_statistics/chunk_column_statistics.hpp
-    statistics/chunk_statistics/chunk_statistics.cpp
-    statistics/chunk_statistics/chunk_statistics.hpp
-    statistics/chunk_statistics/min_max_filter.hpp
-    statistics/chunk_statistics/range_filter.hpp
-    statistics/chunk_statistics/histograms/abstract_histogram.cpp
-    statistics/chunk_statistics/histograms/abstract_histogram.hpp
-    statistics/chunk_statistics/histograms/equal_height_histogram.cpp
-    statistics/chunk_statistics/histograms/equal_height_histogram.hpp
-    statistics/chunk_statistics/histograms/equal_num_elements_histogram.cpp
-    statistics/chunk_statistics/histograms/equal_num_elements_histogram.hpp
-    statistics/chunk_statistics/histograms/equal_width_histogram.cpp
-    statistics/chunk_statistics/histograms/equal_width_histogram.hpp
     optimizer/join_ordering/join_edge.cpp
     optimizer/join_ordering/join_edge.hpp
     optimizer/join_ordering/join_graph_builder.cpp
@@ -257,16 +240,6 @@ set(
     server/types.hpp
     server/use_boost_future.hpp
     server/use_boost_future_impl.hpp
-    statistics/base_column_statistics.cpp
-    statistics/base_column_statistics.hpp
-    statistics/column_statistics.cpp
-    statistics/column_statistics.cpp
-    statistics/generate_table_statistics.cpp
-    statistics/generate_table_statistics.hpp
-    statistics/generate_column_statistics.cpp
-    statistics/generate_column_statistics.hpp
-    statistics/table_statistics.cpp
-    statistics/table_statistics.hpp
     sql/abstract_cache.hpp
     sql/gdfs_cache.hpp
     sql/gds_cache.hpp
@@ -286,6 +259,35 @@ set(
     sql/sql_query_plan.hpp
     sql/sql_translator.cpp
     sql/sql_translator.hpp
+    statistics/base_column_statistics.cpp
+    statistics/base_column_statistics.hpp
+    statistics/chunk_statistics/abstract_filter.hpp
+    statistics/chunk_statistics/chunk_column_statistics.cpp
+    statistics/chunk_statistics/chunk_column_statistics.hpp
+    statistics/chunk_statistics/chunk_statistics.cpp
+    statistics/chunk_statistics/chunk_statistics.hpp
+    statistics/chunk_statistics/min_max_filter.hpp
+    statistics/chunk_statistics/range_filter.hpp
+    statistics/chunk_statistics/histograms/abstract_histogram.cpp
+    statistics/chunk_statistics/histograms/abstract_histogram.hpp
+    statistics/chunk_statistics/histograms/equal_height_histogram.cpp
+    statistics/chunk_statistics/histograms/equal_height_histogram.hpp
+    statistics/chunk_statistics/histograms/equal_num_elements_histogram.cpp
+    statistics/chunk_statistics/histograms/equal_num_elements_histogram.hpp
+    statistics/chunk_statistics/histograms/equal_width_histogram.cpp
+    statistics/chunk_statistics/histograms/equal_width_histogram.hpp
+    statistics/column_statistics.cpp
+    statistics/column_statistics.hpp
+    statistics/generate_table_statistics.cpp
+    statistics/generate_table_statistics.hpp
+    statistics/generate_column_statistics.cpp
+    statistics/generate_column_statistics.hpp
+    statistics/histogram_column_statistics.cpp
+    statistics/histogram_column_statistics.hpp
+    statistics/statistics_import_export.cpp
+    statistics/statistics_import_export.hpp
+    statistics/table_statistics.cpp
+    statistics/table_statistics.hpp
     storage/base_column.cpp
     storage/base_column_encoder.hpp
     storage/base_column.hpp
