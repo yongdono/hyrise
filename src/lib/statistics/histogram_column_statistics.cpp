@@ -394,9 +394,15 @@ template <typename ColumnDataType>
 FilterByValueEstimate HistogramColumnStatistics<ColumnDataType>::estimate_not_equals(const float selectivity,
                                                                                      const bool can_prune,
                                                                                      const ColumnDataType value) const {
+  // If the value filtered for is either the min or max, we can update the min/max.
+  // Unfortunately, we do not know exactly which value is the second lowest/highest,
+  // so we simply take the next higher/lower one.
+  const auto new_min = _histogram->min() == value ? _histogram->next_value(value) : _histogram->min();
+  const auto new_max = _histogram->max() == value ? _histogram->previous_value(value) : _histogram->max();
+
   const auto new_distinct_count = can_prune ? 0.f : distinct_count() - 1;
-  auto column_statistics = std::make_shared<ColumnStatistics<ColumnDataType>>(0.0f, new_distinct_count,
-                                                                              _histogram->min(), _histogram->max());
+  auto column_statistics =
+      std::make_shared<ColumnStatistics<ColumnDataType>>(0.0f, new_distinct_count, new_min, new_max);
   return {selectivity, column_statistics};
 }
 
