@@ -156,6 +156,7 @@ FilterByValueEstimate HistogramColumnStatistics<ColumnDataType>::estimate_predic
   //   }
   //   default: { return {non_null_value_ratio(), without_null_values()}; }
   // }
+  // TODO(tim): come up with strategy
   return {non_null_value_ratio(), without_null_values()};
 }
 
@@ -349,7 +350,13 @@ FilterByColumnComparisonEstimate HistogramColumnStatistics<ColumnDataType>::esti
   //   // case PredicateCondition::Between is not supported for ColumnID as TableScan does not support this
   //   default: { return {combined_non_null_ratio, without_null_values(), right_column_statistics.without_null_values()}; }
   // }
-  return {};
+  // TODO(tim): come up with strategy
+  Assert(_data_type == abstract_right_column_statistics.data_type(), "Cannot compare columns of different type");
+
+  const auto& right_column_statistics =
+      static_cast<const ColumnStatistics<ColumnDataType>&>(abstract_right_column_statistics);
+  const auto combined_non_null_ratio = non_null_value_ratio() * right_column_statistics.non_null_value_ratio();
+  return {combined_non_null_ratio, without_null_values(), right_column_statistics.without_null_values()};
 }
 
 // /**
