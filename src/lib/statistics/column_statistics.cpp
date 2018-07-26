@@ -11,9 +11,10 @@ namespace opossum {
 template <typename ColumnDataType>
 ColumnStatistics<ColumnDataType>::ColumnStatistics(const float null_value_ratio, const float distinct_count,
                                                    const ColumnDataType min, const ColumnDataType max)
-    : BaseColumnStatistics(data_type_from_type<ColumnDataType>(), null_value_ratio, distinct_count),
+    : BaseColumnStatistics(data_type_from_type<ColumnDataType>(), null_value_ratio),
       _min(min),
-      _max(max) {
+      _max(max),
+      _distinct_count(distinct_count) {
   Assert(null_value_ratio >= 0.0f && null_value_ratio <= 1.0f, "NullValueRatio out of range");
 }
 
@@ -25,6 +26,11 @@ ColumnDataType ColumnStatistics<ColumnDataType>::min() const {
 template <typename ColumnDataType>
 ColumnDataType ColumnStatistics<ColumnDataType>::max() const {
   return _max;
+}
+
+template <typename ColumnDataType>
+float ColumnStatistics<ColumnDataType>::distinct_count() const {
+  return _distinct_count;
 }
 
 template <typename ColumnDataType>
@@ -159,9 +165,9 @@ FilterByColumnComparisonEstimate ColumnStatistics<ColumnDataType>::estimate_pred
     const PredicateCondition predicate_condition, const BaseColumnStatistics& abstract_right_column_statistics) const {
   /**
    * Calculate expected selectivity by looking at what ratio of values of both columns are in the overlapping value
-   * range of both columns. 
-   * 
-   * For the different predicate conditions the appropriate ratios of values below, within and above the overlapping 
+   * range of both columns.
+   *
+   * For the different predicate conditions the appropriate ratios of values below, within and above the overlapping
    * range from both columns are taken to compute the selectivity.
    *
    * Example estimation:

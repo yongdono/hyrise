@@ -25,6 +25,7 @@ class ColumnStatistics : public BaseColumnStatistics {
    */
   ColumnDataType min() const;
   ColumnDataType max() const;
+  float distinct_count() const override;
   /** @} */
 
   /**
@@ -75,6 +76,7 @@ class ColumnStatistics : public BaseColumnStatistics {
  private:
   ColumnDataType _min;
   ColumnDataType _max;
+  float _distinct_count;
 };
 
 }  // namespace opossum

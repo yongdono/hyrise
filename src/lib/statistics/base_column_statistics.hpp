@@ -24,7 +24,7 @@ struct FilterByColumnComparisonEstimate {
 
 class BaseColumnStatistics {
  public:
-  BaseColumnStatistics(const DataType data_type, const float null_value_ratio, const float distinct_count);
+  BaseColumnStatistics(const DataType data_type, const float null_value_ratio);
   virtual ~BaseColumnStatistics() = default;
 
   /**
@@ -34,10 +34,14 @@ class BaseColumnStatistics {
   DataType data_type() const;
   float null_value_ratio() const;
   float non_null_value_ratio() const;
-  float distinct_count() const;
 
   void set_null_value_ratio(const float null_value_ratio);
   /** @} */
+
+  /**
+   * @return the distinct count
+   */
+  virtual float distinct_count() const = 0;
 
   /**
    * @return a clone of the concrete ColumnStatistics object
@@ -80,7 +84,6 @@ class BaseColumnStatistics {
  protected:
   const DataType _data_type;
   float _null_value_ratio;
-  float _distinct_count;
 };
 
 }  // namespace opossum
