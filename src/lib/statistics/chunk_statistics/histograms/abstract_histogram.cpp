@@ -264,6 +264,10 @@ float AbstractHistogram<T>::estimate_cardinality(const T value, const PredicateC
     Assert(value.find_first_not_of(_supported_characters) == std::string::npos, "Unsupported characters.");
   }
 
+  if (can_prune(AllTypeVariant{value}, predicate_condition)) {
+    return 0.f;
+  }
+
   switch (predicate_condition) {
     case PredicateCondition::Equals: {
       const auto index = _bucket_for_value(value);
@@ -429,8 +433,10 @@ template <typename T>
 bool AbstractHistogram<T>::can_prune(const AllTypeVariant& value, const PredicateCondition predicate_type) const {
   DebugAssert(num_buckets() > 0, "Called method on histogram before initialization.");
 
-  // TODO(tim): take substring for string histograms once substrings are used to generate histograms
-  const auto t_value = type_cast<T>(value);
+  T t_value = type_cast<T>(value);
+  if constexpr (std::is_same_v<T, std::string>) {
+    t_value = t_value.substr(0, _string_prefix_length);
+  }
 
   switch (predicate_type) {
     case PredicateCondition::Equals:

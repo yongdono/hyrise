@@ -118,7 +118,7 @@ TEST_F(HistogramColumnStatisticsTest, EqualsTest) {
   predict_selectivities_and_compare(_column_statistics_string, predicate_condition, _string_values, selectivities);
 }
 
-TEST_F(HistogramColumnStatisticsTest, NotEqualTest) {
+TEST_F(HistogramColumnStatisticsTest, NotEqualsTest) {
   PredicateCondition predicate_condition = PredicateCondition::NotEquals;
 
   std::vector<float> selectivities{1.f, 5.f / 6.f, 1.f, 5.f / 6.f, 5.f / 6.f, 1.f};
@@ -160,7 +160,7 @@ TEST_F(HistogramColumnStatisticsTest, LessThanTest) {
                                     selectivities_string);
 }
 
-TEST_F(HistogramColumnStatisticsTest, LessEqualThanTest) {
+TEST_F(HistogramColumnStatisticsTest, LessThanEqualsTest) {
   PredicateCondition predicate_condition = PredicateCondition::LessThanEquals;
 
   std::vector<float> selectivities_int{0.f, 1.f / 6.f, 1.f / 3.f, 1.f / 2.f, 1.f, 1.f};
@@ -236,7 +236,7 @@ TEST_F(HistogramColumnStatisticsTest, GreaterThanTest) {
                                     selectivities_string);
 }
 
-TEST_F(HistogramColumnStatisticsTest, GreaterEqualThanTest) {
+TEST_F(HistogramColumnStatisticsTest, GreaterThanEqualsTest) {
   PredicateCondition predicate_condition = PredicateCondition::GreaterThanEquals;
 
   std::vector<float> selectivities_int{1.f, 1.f, 2.f / 3.f, 2.f / 3.f, 1.f / 6.f, 0.f};
