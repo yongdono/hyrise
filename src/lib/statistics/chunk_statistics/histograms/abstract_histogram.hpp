@@ -31,8 +31,8 @@ class AbstractHistogram : public AbstractFilter {
 
   T min() const;
   T max() const;
-  T previous_value(const T value) const;
-  T next_value(const T value, const bool overflow = true) const;
+  T previous_value(const T value, const bool pad_and_trim = true) const;
+  T next_value(const T value, const bool pad_and_trim = true) const;
 
   virtual size_t num_buckets() const = 0;
   virtual uint64_t total_count() const = 0;
@@ -42,8 +42,8 @@ class AbstractHistogram : public AbstractFilter {
   const std::shared_ptr<const Table> _get_value_counts(const ColumnID column_id) const;
   virtual void _generate(const ColumnID column_id, const size_t max_num_buckets) = 0;
 
-  uint64_t _convert_string_to_number_representation(const std::string& value) const;
-  std::string _convert_number_representation_to_string(const uint64_t) const;
+  int64_t _convert_string_to_number_representation(const std::string& value) const;
+  std::string _convert_number_representation_to_string(const int64_t) const;
 
   virtual T _bucket_width(const BucketID index) const;
   // TODO(tim): ask experts how this works

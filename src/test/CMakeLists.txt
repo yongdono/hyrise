@@ -94,6 +94,7 @@ set(
     statistics/chunk_statistics/pruning_filters_test.cpp
     statistics/column_statistics_test.cpp
     statistics/generate_table_statistics_test.cpp
+    statistics/histogram_column_statistics_test.cpp
     statistics/statistics_import_export_test.cpp
     statistics/statistics_test_utils.hpp
     scheduler/scheduler_test.cpp

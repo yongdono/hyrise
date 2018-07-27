@@ -3,7 +3,6 @@
 #include <unordered_set>
 
 #include "base_column_statistics.hpp"
-#include "column_statistics.hpp"
 #include "generate_column_statistics.hpp"
 #include "resolve_type.hpp"
 #include "storage/create_iterable_from_column.hpp"
@@ -12,7 +11,7 @@
 
 namespace opossum {
 
-TableStatistics generate_table_statistics(const std::shared_ptr<const Table>& table) {
+TableStatistics generate_table_statistics(const std::shared_ptr<const Table>& table, const int64_t num_buckets) {
   std::vector<std::shared_ptr<const BaseColumnStatistics>> column_statistics;
   column_statistics.reserve(table->column_count());
 
@@ -21,7 +20,12 @@ TableStatistics generate_table_statistics(const std::shared_ptr<const Table>& ta
 
     resolve_data_type(column_data_type, [&](auto type) {
       using ColumnDataType = typename decltype(type)::type;
-      column_statistics.emplace_back(generate_column_statistics<ColumnDataType>(table, column_id));
+
+      if (num_buckets == 0) {
+        column_statistics.emplace_back(generate_column_statistics<ColumnDataType>(table, column_id));
+      } else {
+        column_statistics.emplace_back(generate_column_statistics<ColumnDataType>(table, column_id, num_buckets));
+      }
     });
   }
 

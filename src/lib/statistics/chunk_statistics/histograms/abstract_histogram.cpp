@@ -145,32 +145,36 @@ std::string AbstractHistogram<std::string>::_bucket_width(const BucketID /*index
 template <typename T>
 T AbstractHistogram<T>::_bucket_width(const BucketID index) const {
   DebugAssert(index < num_buckets(), "Index is not a valid bucket.");
-
-  if constexpr (std::is_integral_v<T>) {
-    return _bucket_max(index) - _bucket_min(index) + 1;
-  }
-
-  return _bucket_max(index) - _bucket_min(index);
+  return next_value(_bucket_max(index) - _bucket_min(index));
 }
 
 template <>
-std::string AbstractHistogram<std::string>::previous_value(const std::string value) const {
-  if (value.empty()) {
-    return value;
+std::string AbstractHistogram<std::string>::previous_value(const std::string value, const bool pad_and_trim) const {
+  if (value.empty() || value.find_first_not_of(_supported_characters.front()) == std::string::npos) {
+    return "";
   }
 
-  const auto sub_string = value.substr(0, value.length() - 1);
-  const auto last_char = value.back();
+  std::string cleaned_value;
+  if (pad_and_trim) {
+    cleaned_value = value.length() >= _string_prefix_length
+                        ? value.substr(0, _string_prefix_length)
+                        : value + std::string(_string_prefix_length - value.length(), _supported_characters.front());
+  } else {
+    cleaned_value = value;
+  }
+
+  const auto last_char = cleaned_value.back();
+  const auto sub_string = cleaned_value.substr(0, cleaned_value.length() - 1);
 
   if (last_char == _supported_characters.front()) {
-    return sub_string;
+    return previous_value(sub_string, false) + _supported_characters.back();
   }
 
   return sub_string + static_cast<char>(last_char - 1);
 }
 
 template <typename T>
-T AbstractHistogram<T>::previous_value(const T value) const {
+T AbstractHistogram<T>::previous_value(const T value, const bool /*pad_and_trim*/) const {
   if constexpr (std::is_floating_point_v<T>) {
     return std::nextafter(value, value - 1);
   }
@@ -179,18 +183,26 @@ T AbstractHistogram<T>::previous_value(const T value) const {
 }
 
 template <>
-std::string AbstractHistogram<std::string>::next_value(const std::string value, const bool overflow) const {
+std::string AbstractHistogram<std::string>::next_value(const std::string value, const bool pad_and_trim) const {
   if (value.empty()) {
     return std::string{_supported_characters.front()};
   }
 
-  if ((overflow && value.length() < _string_prefix_length) ||
-      (value == std::string(_string_prefix_length, _supported_characters.back()))) {
+  if (value == std::string(_string_prefix_length, _supported_characters.back())) {
     return value + _supported_characters.front();
   }
 
-  const auto last_char = value.back();
-  const auto sub_string = value.substr(0, value.length() - 1);
+  std::string cleaned_value;
+  if (pad_and_trim) {
+    cleaned_value = value.length() >= _string_prefix_length
+                        ? value.substr(0, _string_prefix_length)
+                        : value + std::string(_string_prefix_length - value.length(), _supported_characters.front());
+  } else {
+    cleaned_value = value;
+  }
+
+  const auto last_char = cleaned_value.back();
+  const auto sub_string = cleaned_value.substr(0, cleaned_value.length() - 1);
 
   if (last_char != _supported_characters.back()) {
     return sub_string + static_cast<char>(last_char + 1);
@@ -200,7 +212,7 @@ std::string AbstractHistogram<std::string>::next_value(const std::string value, 
 }
 
 template <typename T>
-T AbstractHistogram<T>::next_value(const T value, const bool /*overflow*/) const {
+T AbstractHistogram<T>::next_value(const T value, const bool /*pad_and_trim*/) const {
   if constexpr (std::is_floating_point_v<T>) {
     return std::nextafter(value, value + 1);
   }
@@ -209,7 +221,11 @@ T AbstractHistogram<T>::next_value(const T value, const bool /*overflow*/) const
 }
 
 template <>
-uint64_t AbstractHistogram<std::string>::_convert_string_to_number_representation(const std::string& value) const {
+int64_t AbstractHistogram<std::string>::_convert_string_to_number_representation(const std::string& value) const {
+  if (value.empty()) {
+    return -1;
+  }
+
   const auto trimmed = value.substr(0, _string_prefix_length);
 
   uint64_t result = 0;
@@ -222,7 +238,11 @@ uint64_t AbstractHistogram<std::string>::_convert_string_to_number_representatio
 }
 
 template <>
-std::string AbstractHistogram<std::string>::_convert_number_representation_to_string(const uint64_t value) const {
+std::string AbstractHistogram<std::string>::_convert_number_representation_to_string(const int64_t value) const {
+  if (value < 0) {
+    return "";
+  }
+
   std::string result_string;
 
   auto remainder = value;
@@ -409,6 +429,7 @@ template <typename T>
 bool AbstractHistogram<T>::can_prune(const AllTypeVariant& value, const PredicateCondition predicate_type) const {
   DebugAssert(num_buckets() > 0, "Called method on histogram before initialization.");
 
+  // TODO(tim): take substring for string histograms once substrings are used to generate histograms
   const auto t_value = type_cast<T>(value);
 
   switch (predicate_type) {
