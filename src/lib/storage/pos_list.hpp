@@ -57,7 +57,7 @@ class PosList : private pmr_vector<RowID> {
   PosList& operator=(std::initializer_list<RowID> ilist);
 
   // Equality comparison helper
-  // TODO: Do we want to compare meta information like ChunkCardinality if the vector contents are the same?
+  // TODO(adrian.holfter): Do we want to compare meta information like ChunkCardinality if the vector contents are the same?
   bool is_equal_helper(const PosList& rhs) const;
 
   // Meta information
