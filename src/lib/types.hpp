@@ -134,11 +134,16 @@ using AttributeVectorWidth = uint8_t;
 
 //using PosList = pmr_vector<RowID>;
 
+/**
+ * A PosList is a list of RowIDs. It is used to reference specific rows of a table.
+ * The PosList by itself has no notion of a table, but only has semantic meaning together with it.
+ */
 class PosList : private pmr_vector<RowID> {
  private:
   using underlying = pmr_vector<RowID>;
 
  public:
+  // Forward type declarations
   using underlying::allocator_type;
   using underlying::const_iterator;
   using underlying::const_pointer;
@@ -152,44 +157,57 @@ class PosList : private pmr_vector<RowID> {
   using underlying::size_type;
   using underlying::value_type;
 
-  PosList() noexcept(noexcept(underlying::allocator_type())) : underlying() {}
-  explicit PosList(const underlying::allocator_type& alloc) noexcept : underlying(alloc) {}
-  PosList(size_type count, const RowID value, const underlying::allocator_type& alloc = underlying::allocator_type())
-      : underlying(count, value, alloc) {}
-  explicit PosList(size_type count, const underlying::allocator_type& alloc = underlying::allocator_type())
-      : underlying(count, alloc) {}
+  // Meta information types
+  enum class ChunkCardinality { SingleChunk, MultipleChunks };
 
+  // Constructor
+  PosList() noexcept(noexcept(underlying::allocator_type()))
+      : underlying(), _chunk_cardinality(ChunkCardinality::MultipleChunks) {}
+  explicit PosList(const underlying::allocator_type& alloc) noexcept
+      : underlying(alloc), _chunk_cardinality(ChunkCardinality::MultipleChunks) {}
+  PosList(size_type count, const RowID value, const underlying::allocator_type& alloc = underlying::allocator_type())
+      : underlying(count, value, alloc), _chunk_cardinality(ChunkCardinality::MultipleChunks) {}
+  explicit PosList(size_type count, const underlying::allocator_type& alloc = underlying::allocator_type())
+      : underlying(count, alloc), _chunk_cardinality(ChunkCardinality::MultipleChunks) {}
+
+  // Iterator range constructor
   template <class InputIt>
   PosList(InputIt first, InputIt last, const underlying::allocator_type& alloc = underlying::allocator_type())
-      : underlying(first, last, alloc) {}
+      : underlying(first, last, alloc), _chunk_cardinality(ChunkCardinality::MultipleChunks) {}
 
-  //PosList(const PosList& other) : underlying(other) {}
-  //PosList(const PosList& other, const underlying::allocator_type& alloc) : underlying(other, alloc) {}
+  // No copy constructor / assignment
   PosList(const PosList& other) = delete;
-
-  PosList(PosList&& other) noexcept : underlying(std::move(other)) {}
-  PosList(PosList&& other, const underlying::allocator_type& alloc) : underlying(std::move(other), alloc) {}
-
-  //PosList& operator=(const PosList& other) {
-  //  underlying::operator=(other);
-  //  return *this;
-  //}
   PosList& operator=(const PosList& other) = delete;
 
+  // Move constructor / assignment
+  PosList(PosList&& other) noexcept
+      : underlying(std::move(other)), _chunk_cardinality(std::move(other._chunk_cardinality)) {}
+  PosList(PosList&& other, const underlying::allocator_type& alloc)
+      : underlying(std::move(other), alloc), _chunk_cardinality(std::move(other._chunk_cardinality)) {}
   PosList& operator=(PosList&& other) {
     underlying::operator=(std::move(other));
+    _chunk_cardinality = std::move(other._chunk_cardinality);
     return *this;
   }
 
+  // Initializer list constructor / assignment
+  PosList(std::initializer_list<RowID> init, const underlying::allocator_type& alloc = underlying::allocator_type())
+      : underlying(init, alloc), _chunk_cardinality(ChunkCardinality::MultipleChunks) {}
   PosList& operator=(std::initializer_list<RowID> ilist) {
     underlying::operator=(ilist);
+    _chunk_cardinality = ChunkCardinality::MultipleChunks;
     return *this;
   }
-  PosList(std::initializer_list<RowID> init, const underlying::allocator_type& alloc = underlying::allocator_type())
-      : underlying(init, alloc) {}
 
-  const underlying& as_vector() const { return *static_cast<const underlying*>(this); }
+  // Equality comparison
+  // TODO: Do we want to compare meta information like ChunkCardinality if the vector contents are the same?
+  bool operator==(const PosList& rhs) const { return as_vector() == rhs.as_vector(); }
 
+  // Meta information
+  ChunkCardinality chunk_cardinality() const { return _chunk_cardinality; }
+  void set_chunk_cardinality(ChunkCardinality cardinality) { _chunk_cardinality = cardinality; }
+
+  // Forward vector interface
   using underlying::operator=;
   using underlying::assign;
   using underlying::at;
@@ -222,24 +240,24 @@ class PosList : private pmr_vector<RowID> {
   using underlying::size;
   using underlying::swap;
 
-  //  enum class ChunkCardinality {
-  //    SingleChunk,
-  //    MultipleChunks
-  //  };
-
   //  enum class TypeUniformity {
   //    AllSameType,
   //    HeterogenousTypes
   //  }
 
-  //private:
-  //  ChunkCardinality _chunk_cardinality;
+ private:
+  // meta information
+  ChunkCardinality _chunk_cardinality;
   //  TypeUniformity _type_uniformity;
+
+ protected:
+  // Helper method
+  const underlying& as_vector() const { return *static_cast<const underlying*>(this); }
 };
 
-bool operator==(const opossum::PosList& lhs,
-                const opossum::PosList& rhs);             // { return lhs.as_vector() == rhs.as_vector(); }
-bool operator!=(const PosList& lhs, const PosList& rhs);  // { return lhs.as_vector() != rhs.as_vector(); }
+// Equality comparison operators defined outside of the PosList scope
+bool operator==(const opossum::PosList& lhs, const opossum::PosList& rhs);
+bool operator!=(const PosList& lhs, const PosList& rhs);
 
 using ColumnIDPair = std::pair<ColumnID, ColumnID>;
 
