@@ -163,15 +163,19 @@ class PosList : private pmr_vector<RowID> {
   PosList(InputIt first, InputIt last, const underlying::allocator_type& alloc = underlying::allocator_type())
       : underlying(first, last, alloc) {}
 
-  PosList(const PosList& other) : underlying(other) {}
-  PosList(const PosList& other, const underlying::allocator_type& alloc) : underlying(other, alloc) {}
+  //PosList(const PosList& other) : underlying(other) {}
+  //PosList(const PosList& other, const underlying::allocator_type& alloc) : underlying(other, alloc) {}
+  PosList(const PosList& other) = delete;
+
   PosList(PosList&& other) noexcept : underlying(std::move(other)) {}
   PosList(PosList&& other, const underlying::allocator_type& alloc) : underlying(std::move(other), alloc) {}
 
-  PosList& operator=(const PosList& other) {
-    underlying::operator=(other);
-    return *this;
-  }
+  //PosList& operator=(const PosList& other) {
+  //  underlying::operator=(other);
+  //  return *this;
+  //}
+  PosList& operator=(const PosList& other) = delete;
+
   PosList& operator=(PosList&& other) {
     underlying::operator=(std::move(other));
     return *this;
@@ -233,9 +237,9 @@ class PosList : private pmr_vector<RowID> {
   //  TypeUniformity _type_uniformity;
 };
 
-bool operator==(const opossum::PosList& lhs, const opossum::PosList& rhs); // { return lhs.as_vector() == rhs.as_vector(); }
-bool operator!=(const PosList& lhs, const PosList& rhs); // { return lhs.as_vector() != rhs.as_vector(); }
-
+bool operator==(const opossum::PosList& lhs,
+                const opossum::PosList& rhs);             // { return lhs.as_vector() == rhs.as_vector(); }
+bool operator!=(const PosList& lhs, const PosList& rhs);  // { return lhs.as_vector() != rhs.as_vector(); }
 
 using ColumnIDPair = std::pair<ColumnID, ColumnID>;
 
@@ -372,4 +376,3 @@ class Noncopyable {
 };
 
 }  // namespace opossum
-

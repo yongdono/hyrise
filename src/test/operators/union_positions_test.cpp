@@ -203,13 +203,13 @@ TEST_F(UnionPositionsTest, MultipleReferencedTables) {
   const auto get_pos_list = [](const auto& table, ColumnID column_id) {
     const auto column = table->get_chunk(ChunkID{0})->get_column(column_id);
     const auto ref_column = std::dynamic_pointer_cast<const ReferenceColumn>(column);
-    return *ref_column->pos_list();
+    return ref_column->pos_list();
   };
 
   const auto& output = union_unique_op->get_output();
 
-  EXPECT_EQ(get_pos_list(output, ColumnID{0}), get_pos_list(output, ColumnID{1}));
-  EXPECT_EQ(get_pos_list(output, ColumnID{2}), get_pos_list(output, ColumnID{3}));
+  EXPECT_EQ(*get_pos_list(output, ColumnID{0}), *get_pos_list(output, ColumnID{1}));
+  EXPECT_EQ(*get_pos_list(output, ColumnID{2}), *get_pos_list(output, ColumnID{3}));
 }
 
 TEST_F(UnionPositionsTest, MultipleShuffledPosList) {

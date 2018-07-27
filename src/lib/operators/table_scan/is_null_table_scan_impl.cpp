@@ -25,7 +25,7 @@ void IsNullTableScanImpl::handle_column(const ReferenceColumn& base_colummn,
   auto context = std::static_pointer_cast<Context>(base_context);
   BaseSingleColumnTableScanImpl::handle_column(base_colummn, base_context);
 
-  const auto pos_list = *base_colummn.pos_list();
+  const auto& pos_list = *base_colummn.pos_list();
 
   // Additionally to the null values in the referencED column, we need to find null values in the referencING column
   if (_predicate_condition == PredicateCondition::IsNull) {

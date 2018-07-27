@@ -47,7 +47,7 @@ class HashTable : private Noncopyable {
         return;
       }
     }
-    auto element = HashElement{value, PosList{row_id}};
+    auto element = HashElement{value, std::move(PosList{row_id})};
     place(std::move(element), 0, 0);
   }
 
@@ -72,7 +72,7 @@ class HashTable : private Noncopyable {
   We use this struct internally for storing data. It should not be exposed to other classes.
   */
   struct HashElement : private Noncopyable {
-    HashElement(T v, PosList r) : value(v), row_ids(r) {}
+    HashElement(T v, PosList r) : value(v), row_ids(std::move(r)) {}
     T value;
     PosList row_ids;
   };
