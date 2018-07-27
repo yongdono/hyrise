@@ -205,6 +205,8 @@ set(
     optimizer/strategy/index_scan_rule.hpp
     optimizer/strategy/join_detection_rule.cpp
     optimizer/strategy/join_detection_rule.hpp
+    optimizer/strategy/limit_pushdown_rule.cpp
+    optimizer/strategy/limit_pushdown_rule.hpp
     optimizer/strategy/predicate_pushdown_rule.cpp
     optimizer/strategy/predicate_pushdown_rule.hpp
     optimizer/strategy/predicate_reordering_rule.cpp
@@ -480,6 +482,8 @@ if (${ENABLE_JIT_SUPPORT})
         operators/jit_operator/operators/jit_expression.hpp
         operators/jit_operator/operators/jit_filter.cpp
         operators/jit_operator/operators/jit_filter.hpp
+        operators/jit_operator/operators/jit_limit.cpp
+        operators/jit_operator/operators/jit_limit.hpp
         operators/jit_operator/operators/jit_read_tuples.cpp
         operators/jit_operator/operators/jit_read_tuples.hpp
         operators/jit_operator/operators/jit_read_value.cpp

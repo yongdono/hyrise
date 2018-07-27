@@ -86,7 +86,7 @@ class JitReadTuples : public AbstractJittable {
   };
 
  public:
-  explicit JitReadTuples(const bool has_validate = false);
+  explicit JitReadTuples(const bool has_validate = false, const size_t limit_rows = 0);
 
   std::string description() const final;
 
@@ -113,6 +113,7 @@ class JitReadTuples : public AbstractJittable {
  private:
   void _consume(JitRuntimeContext& context) const final {}
   const bool _has_validate;
+  const size_t _limit_rows;
 };
 
 }  // namespace opossum

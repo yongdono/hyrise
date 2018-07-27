@@ -11,11 +11,13 @@
 #include "constant_mappings.hpp"
 #include "global.hpp"
 #include "logical_query_plan/aggregate_node.hpp"
+#include "logical_query_plan/limit_node.hpp"
 #include "logical_query_plan/projection_node.hpp"
 #include "logical_query_plan/stored_table_node.hpp"
 #include "operators/jit_operator/operators/jit_aggregate.hpp"
 #include "operators/jit_operator/operators/jit_compute.hpp"
 #include "operators/jit_operator/operators/jit_filter.hpp"
+#include "operators/jit_operator/operators/jit_limit.hpp"
 #include "operators/jit_operator/operators/jit_read_tuples.hpp"
 #include "operators/jit_operator/operators/jit_validate.hpp"
 #include "operators/jit_operator/operators/jit_write_tuples.hpp"
@@ -74,15 +76,16 @@ std::shared_ptr<JitOperatorWrapper> JitAwareLQPTranslator::_try_translate_node_t
   if (!select_query) return nullptr;
 
   bool use_validate = false;
-
   bool input_has_ref_columns = false;
+  bool allow_aggregate = true;
 
   // Traverse query tree until a non-jittable nodes is found in each branch
   _visit(node, [&](auto& current_node) {
     const auto is_root_node = current_node == node;
-    if (_node_is_jittable(current_node, is_root_node)) {
+    if (_node_is_jittable(current_node, allow_aggregate, is_root_node)) {
       use_validate |= current_node->type() == LQPNodeType::Validate;
       ++num_jittable_nodes;
+      allow_aggregate &= current_node->type() == LQPNodeType::Limit;
       return true;
     } else {
       switch (current_node->type()) {
@@ -100,10 +103,19 @@ std::shared_ptr<JitOperatorWrapper> JitAwareLQPTranslator::_try_translate_node_t
     }
   });
 
+  // limit can only be the root node
+  const bool use_limit = node->type() == LQPNodeType::Limit;
+  size_t limit_rows;
+  if (use_limit) {
+    auto limit_node = std::dynamic_pointer_cast<LimitNode>(node);
+    limit_rows = limit_node->num_rows();
+  }
+  const auto& last_node = use_limit ? node->left_input() : node;
+
   // We use a really simple heuristic to decide when to introduce jittable operators:
   // For aggregate operations replacing a single AggregateNode with a JitAggregate operator already yields significant
   // runtime benefits. Otherwise, it does not make sense to create a JitOperatorWrapper for fewer than 2 LQP nodes.
-  if (num_jittable_nodes < 1 || (num_jittable_nodes < 1 && node->type() != LQPNodeType::Aggregate) ||
+  if (num_jittable_nodes < 1 || (num_jittable_nodes < 2 && last_node->type() != LQPNodeType::Aggregate) ||
       input_nodes.size() != 1) {
     return nullptr;
   }
@@ -112,7 +124,7 @@ std::shared_ptr<JitOperatorWrapper> JitAwareLQPTranslator::_try_translate_node_t
   const auto input_node = *input_nodes.begin();
 
   auto jit_operator = std::make_shared<JitOperatorWrapper>(translate_node(input_node));
-  auto read_tuple = std::make_shared<JitReadTuples>(use_validate);
+  auto read_tuple = std::make_shared<JitReadTuples>(use_validate, limit_rows);
   jit_operator->add_jit_operator(read_tuple);
 
   auto filter_node = node;
@@ -141,13 +153,13 @@ std::shared_ptr<JitOperatorWrapper> JitAwareLQPTranslator::_try_translate_node_t
     }
   }
 
-  if (node->type() == LQPNodeType::Aggregate) {
+  if (last_node->type() == LQPNodeType::Aggregate) {
     // Since aggregate nodes cause materialization, there is at most one JitAggregate operator in each operator chain
     // and it must be the last operator of the chain. The _node_is_jittable function takes care of this by rejecting
     // aggregate nodes that would be placed in the middle of an operator chain.
-    const auto aggregate_node = std::static_pointer_cast<AggregateNode>(node);
+    const auto aggregate_node = std::static_pointer_cast<AggregateNode>(last_node);
 
-    auto aggregate = std::make_shared<JitAggregate>();
+    auto aggregate = !use_limit ? std::make_shared<JitAggregate>() : std::make_shared<JitLimitAggregate>();
     const auto column_names = aggregate_node->output_column_names();
     const auto groupby_columns = aggregate_node->groupby_column_references();
     const auto aggregate_columns = aggregate_node->aggregate_expressions();
@@ -190,9 +202,11 @@ std::shared_ptr<JitOperatorWrapper> JitAwareLQPTranslator::_try_translate_node_t
 
     jit_operator->add_jit_operator(aggregate);
   } else {
+    if (use_limit) jit_operator->add_jit_operator(std::make_shared<JitLimit>());
+
     // Add a compute operator for each computed output column (i.e., a column that is not from a stored table).
     auto write_table = std::make_shared<JitWriteTuples>();
-    for (const auto& output_column : boost::combine(node->output_column_names(), node->output_column_references())) {
+    for (const auto& output_column : boost::combine(last_node->output_column_names(), last_node->output_column_references())) {
       const auto expression = _try_translate_column_to_jit_expression(output_column.get<1>(), *read_tuple, input_node);
       if (!expression) return nullptr;
       // If the JitExpression is of type ExpressionType::Column, there is no need to add a compute node, since it
@@ -239,6 +253,9 @@ std::shared_ptr<const JitExpression> JitAwareLQPTranslator::_try_translate_node_
                  ? std::make_shared<JitExpression>(left, ExpressionType::Or, right, jit_source.add_temporary_value())
                  : nullptr;
 
+    case LQPNodeType::Limit:
+      // Limit is handled separately in _try_translate_node_to_jit_operators(...)
+      return nullptr;
     case LQPNodeType::Projection:
       // We don't care about projection nodes here, since they do not perform any tuple filtering
       return _try_translate_node_to_jit_expression(node->left_input(), jit_source, input_node);
@@ -378,7 +395,7 @@ bool JitAwareLQPTranslator::_input_is_filtered(const std::shared_ptr<AbstractLQP
 }
 
 bool JitAwareLQPTranslator::_node_is_jittable(const std::shared_ptr<AbstractLQPNode>& node,
-                                              const bool allow_aggregate_node) const {
+                              const bool allow_aggregate_node, const bool allow_limit_node) const {
   if (node->type() == LQPNodeType::Aggregate) {
     // We do not support the count distinct function yet and thus need to check all aggregate expressions.
     auto aggregate_node = std::static_pointer_cast<AggregateNode>(node);
@@ -397,6 +414,10 @@ bool JitAwareLQPTranslator::_node_is_jittable(const std::shared_ptr<AbstractLQPN
   }
 
   if (Global::get().jit_validate && node->type() == LQPNodeType::Validate) {
+    return true;
+  }
+
+  if (allow_limit_node && node->type() == LQPNodeType::Limit) {
     return true;
   }
 

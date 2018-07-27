@@ -139,6 +139,8 @@ std::shared_ptr<const Table> JitOperatorWrapper::_on_execute() {
     _source()->before_chunk(in_table, in_chunk, context);
     execute_func(_source().get(), context);
     _sink()->after_chunk(*out_table, context);
+    // break, if limit is reached
+    if (context.chunk_offset == std::numeric_limits<ChunkOffset>::max()) break;
   }
 
   _sink()->after_query(*out_table, context);

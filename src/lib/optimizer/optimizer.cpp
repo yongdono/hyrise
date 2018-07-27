@@ -7,6 +7,7 @@
 #include "strategy/constant_calculation_rule.hpp"
 #include "strategy/index_scan_rule.hpp"
 #include "strategy/join_detection_rule.hpp"
+#include "strategy/limit_pushdown_rule.hpp"
 #include "strategy/predicate_pushdown_rule.hpp"
 #include "strategy/predicate_reordering_rule.hpp"
 
@@ -26,6 +27,7 @@ std::shared_ptr<Optimizer> Optimizer::create_default_optimizer() {
   final_batch.add_rule(std::make_shared<ChunkPruningRule>());
   final_batch.add_rule(std::make_shared<ConstantCalculationRule>());
   final_batch.add_rule(std::make_shared<IndexScanRule>());
+  final_batch.add_rule(std::make_shared<LimitPushdownRule>());
   optimizer->add_rule_batch(final_batch);
 
   return optimizer;

@@ -18,6 +18,8 @@ std::string LimitNode::description() const { return "[Limit] " + std::to_string(
 
 size_t LimitNode::num_rows() const { return _num_rows; }
 
+void LimitNode::set_num_rows(const size_t num_rows) { _num_rows = num_rows; }
+
 bool LimitNode::shallow_equals(const AbstractLQPNode& rhs) const {
   Assert(rhs.type() == type(), "Can only compare nodes of the same type()");
   const auto& limit_node = static_cast<const LimitNode&>(rhs);

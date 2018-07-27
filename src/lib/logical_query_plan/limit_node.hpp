@@ -17,6 +17,8 @@ class LimitNode : public EnableMakeForLQPNode<LimitNode>, public AbstractLQPNode
 
   size_t num_rows() const;
 
+  void set_num_rows(const size_t num_rows);
+
   bool shallow_equals(const AbstractLQPNode& rhs) const override;
 
  protected:
@@ -25,7 +27,7 @@ class LimitNode : public EnableMakeForLQPNode<LimitNode>, public AbstractLQPNode
       const std::shared_ptr<AbstractLQPNode>& copied_right_input) const override;
 
  private:
-  const size_t _num_rows;
+  size_t _num_rows;
 };
 
 }  // namespace opossum

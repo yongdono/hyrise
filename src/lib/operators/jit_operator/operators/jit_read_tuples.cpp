@@ -6,7 +6,7 @@
 
 namespace opossum {
 
-JitReadTuples::JitReadTuples(const bool has_validate) : _has_validate(has_validate) {}
+JitReadTuples::JitReadTuples(const bool has_validate, const size_t limit_rows) : _has_validate(has_validate), _limit_rows(limit_rows) {}
 
 std::string JitReadTuples::description() const {
   std::stringstream desc;
@@ -23,6 +23,7 @@ std::string JitReadTuples::description() const {
 void JitReadTuples::before_query(const Table& in_table, JitRuntimeContext& context) const {
   // Create a runtime tuple of the appropriate size
   context.tuple.resize(_num_tuple_values);
+  context.limit_rows = _limit_rows;
 
   // Copy all input literals to the runtime tuple
   for (const auto& input_literal : _input_literals) {
