@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "base_column.hpp"
+#include "pos_list.hpp"
 #include "table.hpp"
 #include "types.hpp"
 #include "utils/assert.hpp"

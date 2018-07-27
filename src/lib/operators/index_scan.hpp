@@ -6,6 +6,7 @@
 
 #include "all_type_variant.hpp"
 #include "storage/index/column_index_type.hpp"
+#include "storage/pos_list.hpp"
 #include "types.hpp"
 
 namespace opossum {

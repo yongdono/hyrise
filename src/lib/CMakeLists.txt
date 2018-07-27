@@ -352,6 +352,8 @@ set(
     storage/mvcc_columns.hpp
     storage/numa_placement_manager.cpp
     storage/numa_placement_manager.hpp
+    storage/pos_list.cpp
+    storage/pos_list.hpp
     storage/proxy_chunk.cpp
     storage/proxy_chunk.hpp
     storage/reference_column.cpp
@@ -417,7 +419,6 @@ set(
     tasks/server/load_server_file_task.hpp
     type_cast.hpp
     type_comparison.hpp
-    types.cpp
     types.hpp
     uid_allocator.hpp
     utils/arithmetic_operator_expression.hpp

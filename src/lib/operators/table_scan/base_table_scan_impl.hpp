@@ -3,6 +3,7 @@
 #include <functional>
 #include <memory>
 
+#include "storage/pos_list.hpp"
 #include "types.hpp"
 #include "utils/assert.hpp"
 
