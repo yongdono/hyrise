@@ -397,6 +397,10 @@ void probe(const RadixContainer<RightType>& radix_container,
       if (hashtables[current_partition_id]) {
         const auto& hashtable = hashtables.at(current_partition_id);
 
+        auto probe_results = std::vector<std::pair<RowID, const PosList*>>();
+        probe_results.reserve(partition_end - partition_begin);
+        uint64_t local_size = 0;
+
         for (size_t partition_offset = partition_begin; partition_offset < partition_end; ++partition_offset) {
           auto& row = partition[partition_offset];
 
@@ -409,19 +413,32 @@ void probe(const RadixContainer<RightType>& radix_container,
           const auto& matching_rows = hashtable->get(type_cast<HashedType>(row.value));
 
           if (matching_rows) {
-            for (const auto row_id : matching_rows->get()) {
-              if (row_id.chunk_offset != INVALID_CHUNK_OFFSET) {
-                pos_list_left_local.emplace_back(row_id);
-                pos_list_right_local.emplace_back(row.row_id);
-              }
+            if (row.row_id.chunk_offset != INVALID_CHUNK_OFFSET) {
+              probe_results.push_back(std::make_pair(row.row_id, matching_rows));
+              local_size += matching_rows->size();
             }
             // We assume that the relations have been swapped previously,
             // so that the outer relation is the probing relation.
           } else if (mode == JoinMode::Left || mode == JoinMode::Right) {
-            pos_list_left_local.emplace_back(NULL_ROW_ID);
-            pos_list_right_local.emplace_back(row.row_id);
+            probe_results.push_back(std::make_pair(row.row_id, nullptr));
+            local_size++;
           }
         }
+        pos_list_left_local.reserve(local_size);
+        pos_list_right_local.reserve(local_size);
+
+        for (const auto& result : probe_results) {
+          if (result.second) {
+            for (const auto& row_id : *result.second) {
+              pos_list_left_local.push_back(row_id);
+              pos_list_right_local.push_back(result.first);
+            }
+          } else {
+            pos_list_left_local.push_back(NULL_ROW_ID);
+            pos_list_right_local.push_back(result.first);
+          }
+        }
+
       } else if (mode == JoinMode::Left || mode == JoinMode::Right) {
         /*
           We assume that the relations have been swapped previously,

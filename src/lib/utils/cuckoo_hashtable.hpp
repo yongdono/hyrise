@@ -56,15 +56,15 @@ class HashTable : private Noncopyable {
   All the matching RowIDs are returned in row_ids.
   */
   template <typename S>
-  std::optional<std::reference_wrapper<const PosList>> get(S value) const {
+  const PosList* get(S value) const {
     for (size_t i = 0; i < NUMBER_OF_HASH_FUNCTIONS; i++) {
       auto position = hash<S>(i, value);
       const auto& element = _hashtables[i][position];
       if (element && value_equal(element->value, value)) {
-        return std::cref(element->row_ids);
+        return &element->row_ids;
       }
     }
-    return std::nullopt;
+    return nullptr;
   }
 
  protected:
