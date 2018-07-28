@@ -424,18 +424,25 @@ void probe(const RadixContainer<RightType>& radix_container,
             local_size++;
           }
         }
-        pos_list_left_local.reserve(local_size);
-        pos_list_right_local.reserve(local_size);
+        pos_list_left_local.resize(local_size);
+        pos_list_right_local.resize(local_size);
+
+        auto left_iterator = pos_list_left_local.begin();
+        auto right_iterator = pos_list_right_local.begin();
 
         for (const auto& result : probe_results) {
           if (result.second) {
             for (const auto& row_id : *result.second) {
-              pos_list_left_local.push_back(row_id);
-              pos_list_right_local.push_back(result.first);
+              *left_iterator = row_id;
+              *right_iterator = result.first;
+              left_iterator++;
+              right_iterator++;
             }
           } else {
-            pos_list_left_local.push_back(NULL_ROW_ID);
-            pos_list_right_local.push_back(result.first);
+            *left_iterator = NULL_ROW_ID;
+            *right_iterator = result.first;
+            left_iterator++;
+            right_iterator++;
           }
         }
 
