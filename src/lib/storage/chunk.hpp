@@ -94,6 +94,9 @@ class Chunk : private Noncopyable {
    */
   SharedScopedLockingPtr<MvccColumns> mvcc_columns();
   SharedScopedLockingPtr<const MvccColumns> mvcc_columns() const;
+  std::shared_ptr<MvccColumns> mvcc_columns_ptr() const {return _mvcc_columns;}
+
+  void set_mvcc_columns(const std::shared_ptr<MvccColumns>& mvcc_columns);
 
   std::vector<std::shared_ptr<BaseIndex>> get_indices(
       const std::vector<std::shared_ptr<const BaseColumn>>& columns) const;

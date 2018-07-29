@@ -189,7 +189,6 @@ class AbstractLQPNode : public std::enable_shared_from_this<AbstractLQPNode> {
 
   std::vector<std::weak_ptr<AbstractLQPNode>> _outputs;
   std::array<std::shared_ptr<AbstractLQPNode>, 2> _inputs;
-  std::shared_ptr<TableStatistics> _statistics;
 };
 
 }  // namespace opossum

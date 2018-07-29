@@ -177,9 +177,6 @@ set(
     operators/index_scan.hpp
     operators/insert.cpp
     operators/insert.hpp
-#    operators/jit_operator/jit_operations.hpp
-#    operators/jit_operator/jit_types.cpp
-#    operators/jit_operator/jit_types.hpp
     operators/join_hash.cpp
     operators/join_hash/hash_traits.hpp
     operators/join_hash.hpp
@@ -254,6 +251,8 @@ set(
     optimizer/strategy/abstract_rule.hpp
     optimizer/strategy/chunk_pruning_rule.cpp
     optimizer/strategy/chunk_pruning_rule.hpp
+    optimizer/strategy/column_pruning_rule.cpp
+    optimizer/strategy/column_pruning_rule.hpp
     optimizer/strategy/constant_calculation_rule.cpp
     optimizer/strategy/constant_calculation_rule.hpp
     optimizer/strategy/index_scan_rule.cpp

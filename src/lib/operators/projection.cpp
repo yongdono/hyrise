@@ -82,6 +82,10 @@ std::shared_ptr<const Table> Projection::_on_execute() {
     }
 
     output_table->append_chunk(output_columns);
+
+    if (forward_columns) {
+      output_table->get_chunk(chunk_id)->set_mvcc_columns(input_table_left()->get_chunk(chunk_id)->mvcc_columns_ptr());
+    }
   }
 
   return output_table;

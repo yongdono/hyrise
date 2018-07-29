@@ -8,6 +8,7 @@ namespace opossum {
 
 class AbstractLQPNode;
 class AbstractExpression;
+enum class LQPInputSide;
 
 using LQPNodeMapping = std::unordered_map<std::shared_ptr<const AbstractLQPNode>, std::shared_ptr<AbstractLQPNode>>;
 using LQPMismatch = std::pair<std::shared_ptr<const AbstractLQPNode>, std::shared_ptr<const AbstractLQPNode>>;
@@ -30,6 +31,8 @@ void lqp_replace_node(const std::shared_ptr<AbstractLQPNode>& original_node,
                       const std::shared_ptr<AbstractLQPNode>& replacement_node);
 
 void lqp_remove_node(const std::shared_ptr<AbstractLQPNode>& node);
+
+void lqp_insert_node(const std::shared_ptr<AbstractLQPNode>& parent_node, const LQPInputSide input_side, const std::shared_ptr<AbstractLQPNode>& node);
 
 /**
  * @return whether all paths to all leafs contain a Validate node - i.e. the LQP can be used in an MVCC aware context

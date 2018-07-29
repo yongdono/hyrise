@@ -28,7 +28,7 @@ class SQLQueryPlanTest : public BaseTest {
   }
 };
 
-TEST_F(SQLQueryPlanTest, SQLQueryPlanCloneTest) {
+TEST_F(SQLQueryPlanTest, DISABLED_SQLQueryPlanCloneTest) {
   std::string query1 = "SELECT a FROM table_a;";
 
   auto pipeline_statement = SQLPipelineBuilder{query1}.disable_mvcc().create_pipeline_statement();
