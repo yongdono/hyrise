@@ -76,7 +76,7 @@ std::shared_ptr<JitOperatorWrapper> JitAwareLQPTranslator::_try_translate_node_t
   if (!select_query) return nullptr;
 
   bool use_validate = false;
-  bool input_has_ref_columns = false;
+  TableType input_table_type = TableType::Data;
   bool allow_aggregate = true;
 
   // Traverse query tree until a non-jittable nodes is found in each branch
@@ -95,7 +95,7 @@ std::shared_ptr<JitOperatorWrapper> JitAwareLQPTranslator::_try_translate_node_t
         case LQPNodeType::Join:
         case LQPNodeType::Limit:
         case LQPNodeType::Sort:
-          input_has_ref_columns = true;
+          input_table_type = TableType::References;
         default: {}
       }
       input_nodes.insert(current_node);
@@ -146,10 +146,10 @@ std::shared_ptr<JitOperatorWrapper> JitAwareLQPTranslator::_try_translate_node_t
   }
 
   if (use_validate) {
-    if (input_has_ref_columns) {
-      jit_operator->add_jit_operator(std::make_shared<JitValidate<true>>());
+    if (input_table_type == TableType::Data) {
+      jit_operator->add_jit_operator(std::make_shared<JitValidate<TableType::Data>>());
     } else {
-      jit_operator->add_jit_operator(std::make_shared<JitValidate<false>>());
+      jit_operator->add_jit_operator(std::make_shared<JitValidate<TableType::References>>());
     }
   }
 

@@ -124,7 +124,7 @@ TEST_F(JitValidateTest, ValidateOnNonReferenceTable) {
   context.snapshot_commit_id = _transaction_context->snapshot_commit_id();
 
   auto source = std::make_shared<MockSource>();
-  auto validate = std::make_shared<JitValidate<false>>();
+  auto validate = std::make_shared<JitValidate<TableType::Data>>();
   auto sink = std::make_shared<MockSink>();
 
   // Link operators to pipeline
@@ -151,7 +151,7 @@ TEST_F(JitValidateTest, ValidateOnReferenceTable) {
 
 
   auto source = std::make_shared<MockSource>();
-  auto validate = std::make_shared<JitValidate<true>>();
+  auto validate = std::make_shared<JitValidate<TableType::References>>();
   auto sink = std::make_shared<MockSink>();
 
   // Link operators to pipeline
