@@ -212,7 +212,8 @@ std::shared_ptr<JitOperatorWrapper> JitAwareLQPTranslator::_try_translate_node_t
 
     // Add a compute operator for each computed output column (i.e., a column that is not from a stored table).
     auto write_table = std::make_shared<JitWriteTuples>();
-    for (const auto& output_column : boost::combine(last_node->output_column_names(), last_node->output_column_references())) {
+    for (const auto& output_column :
+         boost::combine(last_node->output_column_names(), last_node->output_column_references())) {
       const auto expression = _try_translate_column_to_jit_expression(output_column.get<1>(), *read_tuple, input_node);
       if (!expression) return nullptr;
       // If the JitExpression is of type ExpressionType::Column, there is no need to add a compute node, since it
@@ -401,7 +402,7 @@ bool JitAwareLQPTranslator::_input_is_filtered(const std::shared_ptr<AbstractLQP
 }
 
 bool JitAwareLQPTranslator::_node_is_jittable(const std::shared_ptr<AbstractLQPNode>& node,
-                              const bool allow_aggregate_node, const bool allow_limit_node) const {
+                                              const bool allow_aggregate_node, const bool allow_limit_node) const {
   if (node->type() == LQPNodeType::Aggregate) {
     // We do not support the count distinct function yet and thus need to check all aggregate expressions.
     auto aggregate_node = std::static_pointer_cast<AggregateNode>(node);

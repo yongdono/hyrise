@@ -2,12 +2,9 @@
 
 #include <limits>
 
-
 namespace opossum {
 
-std::string JitLimit::description() const {
-  return "[Limit]";
-}
+std::string JitLimit::description() const { return "[Limit]"; }
 
 void JitLimit::_consume(JitRuntimeContext& context) const {
   if (context.limit_rows-- == 0) {

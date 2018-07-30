@@ -6,7 +6,8 @@
 
 namespace opossum {
 
-JitReadTuples::JitReadTuples(const bool has_validate, const size_t limit_rows) : _has_validate(has_validate), _limit_rows(limit_rows) {}
+JitReadTuples::JitReadTuples(const bool has_validate, const size_t limit_rows)
+    : _has_validate(has_validate), _limit_rows(limit_rows) {}
 
 std::string JitReadTuples::description() const {
   std::stringstream desc;

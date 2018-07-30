@@ -1,7 +1,7 @@
+#include "../../../base_test.hpp"
 #include "operators/jit_operator/operators/jit_validate.hpp"
 #include "operators/validate.hpp"
 #include "storage/chunk.hpp"
-#include "../../../base_test.hpp"
 
 namespace opossum {
 
@@ -9,15 +9,15 @@ namespace {
 
 // Mock JitOperator that records whether tuples are passed to it
 class MockSink : public AbstractJittable {
-public:
+ public:
   std::string description() const final { return "MockSink"; }
 
   void reset() const { _consume_was_called = false; }
 
   bool consume_was_called() const { return _consume_was_called; }
 
-private:
-  void _consume(JitRuntimeContext &context) const final { _consume_was_called = true; }
+ private:
+  void _consume(JitRuntimeContext& context) const final { _consume_was_called = true; }
 
   // Must be static, since _consume is const
   static bool _consume_was_called;
@@ -27,26 +27,26 @@ bool MockSink::_consume_was_called = false;
 
 // Mock JitOperator that passes on individual tuples
 class MockSource : public AbstractJittable {
-public:
+ public:
   std::string description() const final { return "MockSource"; }
 
-  void emit(JitRuntimeContext &context) { _emit(context); }
+  void emit(JitRuntimeContext& context) { _emit(context); }
 
-private:
-  void _consume(JitRuntimeContext &context) const final {}
+ private:
+  void _consume(JitRuntimeContext& context) const final {}
 };
 
 }  // namespace
 
 class JitValidateTest : public BaseTest {
-public:
+ public:
   JitValidateTest() {
     _test_table = load_table("src/test/tables/10_ints.tbl", 3u);
 
     _transaction_context = std::make_shared<TransactionContext>(5u, 3u);
 
     {
-      auto &mvcc_columns = *_test_table->get_chunk(ChunkID(0))->mvcc_columns();
+      auto& mvcc_columns = *_test_table->get_chunk(ChunkID(0))->mvcc_columns();
       // deleted -> false
       mvcc_columns.begin_cids[0] = 1u;
       mvcc_columns.end_cids[0] = 2u;
@@ -67,7 +67,7 @@ public:
     }
 
     {
-      auto &mvcc_columns = *_test_table->get_chunk(ChunkID(1))->mvcc_columns();
+      auto& mvcc_columns = *_test_table->get_chunk(ChunkID(1))->mvcc_columns();
       // inserted by other not committed transaction -> false
       mvcc_columns.begin_cids[0] = 4u;
       mvcc_columns.end_cids[0] = MvccColumns::MAX_COMMIT_ID;
@@ -89,7 +89,7 @@ public:
 
     {
       // deleted by not commited transaction -> true
-      auto &mvcc_columns = *_test_table->get_chunk(ChunkID(2))->mvcc_columns();
+      auto& mvcc_columns = *_test_table->get_chunk(ChunkID(2))->mvcc_columns();
       mvcc_columns.begin_cids[0] = 1u;
       mvcc_columns.end_cids[0] = 4u;
       mvcc_columns.tids[0].exchange(4u);
@@ -103,8 +103,9 @@ public:
     }
   }
 
-  void validate_row(const ChunkID chunk_id, const size_t chunk_offset, JitRuntimeContext& context, const bool expected_value,
-                            std::shared_ptr<MockSource> source, std::shared_ptr<MockSink> sink, const bool no_mvcc = true) {
+  void validate_row(const ChunkID chunk_id, const size_t chunk_offset, JitRuntimeContext& context,
+                    const bool expected_value, std::shared_ptr<MockSource> source, std::shared_ptr<MockSink> sink,
+                    const bool no_mvcc = true) {
     if (no_mvcc) context.mvcc_columns = &(*_test_table->get_chunk(chunk_id)->mvcc_columns());
     context.chunk_offset = chunk_offset;
     sink->reset();
@@ -112,7 +113,7 @@ public:
     ASSERT_EQ(sink->consume_was_called(), expected_value);
   }
 
-protected:
+ protected:
   std::shared_ptr<Table> _test_table;
   std::shared_ptr<TransactionContext> _transaction_context;
   std::vector<bool> _expected_values;
@@ -148,7 +149,6 @@ TEST_F(JitValidateTest, ValidateOnReferenceTable) {
   context.transaction_id = _transaction_context->transaction_id();
   context.snapshot_commit_id = _transaction_context->snapshot_commit_id();
   context.referenced_table = _test_table;
-
 
   auto source = std::make_shared<MockSource>();
   auto validate = std::make_shared<JitValidate<TableType::References>>();

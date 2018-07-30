@@ -85,10 +85,10 @@ class JitAggregate : public AbstractJittableSink {
   void consume(JitRuntimeContext& ctx) const;
   void set_has_string_columns(const bool has_string_columns);
 
-protected:
+ protected:
   std::string aggregate_description() const;
 
-private:
+ private:
   void _consume(JitRuntimeContext& ctx) const final;
   virtual bool _limit_reached(JitRuntimeContext& context) const;
 

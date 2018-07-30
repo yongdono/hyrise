@@ -8,10 +8,10 @@ namespace opossum {
 /* The JitLimit operator limits the input to n rows.
  */
 class JitLimit : public AbstractJittable {
-public:
+ public:
   std::string description() const final;
 
-protected:
+ protected:
   void _consume(JitRuntimeContext& context) const final;
 };
 

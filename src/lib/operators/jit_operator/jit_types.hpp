@@ -129,7 +129,7 @@ struct JitRuntimeContext {
   std::shared_ptr<const PosList> pos_list;
   TransactionID transaction_id;
   CommitID snapshot_commit_id;
-  int64_t limit_rows; // signed integer used to allow decrementing below 0
+  int64_t limit_rows;  // signed integer used to allow decrementing below 0
 };
 
 // The JitTupleValue represents a value in the runtime tuple.
