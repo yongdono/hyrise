@@ -311,9 +311,12 @@ std::shared_ptr<const JitExpression> JitAwareLQPTranslator::_try_translate_predi
       auto lower_value = _try_translate_variant_to_jit_expression(node->value(), jit_source, input_node);
       auto upper_value = _try_translate_variant_to_jit_expression(*node->value2(), jit_source, input_node);
       if (!lower_value || !upper_value) return nullptr;
-      auto lower_bound = std::make_shared<JitExpression>(left, ExpressionType::GreaterThanEquals, lower_value, jit_source.add_temporary_value());
-      auto upper_bound = std::make_shared<JitExpression>(left, ExpressionType::LessThanEquals, upper_value, jit_source.add_temporary_value());
-      return std::make_shared<JitExpression>(lower_bound, ExpressionType::And, upper_bound, jit_source.add_temporary_value());
+      auto lower_bound = std::make_shared<JitExpression>(left, ExpressionType::GreaterThanEquals, lower_value,
+                                                         jit_source.add_temporary_value());
+      auto upper_bound = std::make_shared<JitExpression>(left, ExpressionType::LessThanEquals, upper_value,
+                                                         jit_source.add_temporary_value());
+      return std::make_shared<JitExpression>(lower_bound, ExpressionType::And, upper_bound,
+                                             jit_source.add_temporary_value());
     }
     default:
       return nullptr;
