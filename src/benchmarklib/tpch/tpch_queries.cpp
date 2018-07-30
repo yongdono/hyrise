@@ -44,8 +44,8 @@ const char* const tpch_query_1 =
       GROUP BY l_returnflag, l_linestatus
       ORDER BY l_returnflag, l_linestatus;)";
 
-const char* const tpch_query_1_limit =
-    R"(SELECT l_returnflag, l_linestatus, SUM(l_quantity) as sum_qty, SUM(l_extendedprice) as sum_base_price,
+const char* const tpch_query_101 =
+        R"(SELECT l_returnflag, l_linestatus, SUM(l_quantity) as sum_qty, SUM(l_extendedprice) as sum_base_price,
       SUM(l_extendedprice*(1.0-l_discount)) as sum_disc_price,
       SUM(l_extendedprice*(1.0-l_discount)*(1.0+l_tax)) as sum_charge, AVG(l_quantity) as avg_qty,
       AVG(l_extendedprice) as avg_price, AVG(l_discount) as avg_disc, COUNT(*) as count_order
@@ -118,6 +118,13 @@ const char* const tpch_query_3 =
       AND o_orderdate < '1995-03-15' AND l_shipdate > '1995-03-15'
       GROUP BY l_orderkey, o_orderdate, o_shippriority
       ORDER BY revenue DESC, o_orderdate;)";
+const char* const tpch_query_103 =
+        R"(SELECT l_orderkey, SUM(l_extendedprice*(1.0-l_discount)) as revenue, o_orderdate, o_shippriority
+      FROM customer, orders, lineitem
+      WHERE c_mktsegment = 'BUILDING' AND c_custkey = o_custkey AND l_orderkey = o_orderkey
+      AND o_orderdate < '1995-03-15' AND l_shipdate > '1995-03-15'
+      GROUP BY l_orderkey, o_orderdate, o_shippriority
+      ORDER BY revenue DESC, o_orderdate LIMIT 20;)";
 
 /**
  * TPC-H 4
@@ -199,6 +206,14 @@ const char* const tpch_query_5 =
       AND o_orderdate < '1995-01-01'
       GROUP BY n_name
       ORDER BY revenue DESC;)";
+const char* const tpch_query_105 =
+        R"(SELECT n_name, SUM(l_extendedprice * (1.0 - l_discount)) as revenue
+      FROM customer, orders, lineitem, supplier, nation, region
+      WHERE c_custkey = o_custkey AND l_orderkey = o_orderkey AND l_suppkey = s_suppkey AND c_nationkey = s_nationkey
+      AND s_nationkey = n_nationkey AND n_regionkey = r_regionkey AND r_name = 'AMERICA' AND o_orderdate >= '1994-01-01'
+      AND o_orderdate < '1995-01-01'
+      GROUP BY n_name
+      ORDER BY revenue DESC LIMIT 20;)";
 
 /**
  * TPC-H 6
@@ -217,10 +232,15 @@ const char* const tpch_query_5 =
  *  2. arithmetic expressions with constants are not resolved automatically yet, so pre-calculate them as well
  */
 const char* const tpch_query_6 =
-    R"(SELECT sum(l_extendedprice*l_discount) AS REVENUE
+        R"(SELECT sum(l_extendedprice*l_discount) AS REVENUE
       FROM lineitem
       WHERE l_shipdate >= '1994-01-01' AND l_shipdate < '1995-01-01'
       AND l_discount BETWEEN .05 AND .07 AND l_quantity < 24;)";
+const char* const tpch_query_106 =
+        R"(SELECT sum(l_extendedprice*l_discount) AS REVENUE
+      FROM lineitem
+      WHERE l_shipdate >= '1994-01-01' AND l_shipdate < '1995-01-01'
+      AND l_discount BETWEEN .05 AND .07 AND l_quantity < 24 LIMIT 20;)";
 
 /**
  * TPC-H 7
@@ -293,6 +313,39 @@ const char* const tpch_query_7 =
           supp_nation, cust_nation, l_year
       ORDER BY
           supp_nation, cust_nation, l_year;)";
+const char* const tpch_query_107 =
+        R"(SELECT
+          supp_nation,
+          cust_nation,
+          l_year,
+          SUM(volume) as revenue
+      FROM
+          (SELECT
+              n1.n_name as supp_nation,
+              n2.n_name as cust_nation,
+              l_shipdate as l_year,
+              l_extendedprice * (1.0 - l_discount) as volume
+          FROM
+              supplier,
+              lineitem,
+              orders,
+              customer,
+              nation n1,
+              nation n2
+          WHERE
+              s_suppkey = l_suppkey AND
+              o_orderkey = l_orderkey AND
+              c_custkey = o_custkey AND
+              s_nationkey = n1.n_nationkey AND
+              c_nationkey = n2.n_nationkey AND
+              ((n1.n_name = 'IRAN' AND n2.n_name = 'IRAQ') OR
+               (n1.n_name = 'IRAQ' AND n2.n_name = 'IRAN')) AND
+              l_shipdate BETWEEN '1995-01-01' AND '1996-12-31'
+          ) as shipping
+      GROUP BY
+          supp_nation, cust_nation, l_year
+      ORDER BY
+          supp_nation, cust_nation, l_year LIMIT 20;)";
 
 /**
  * TPC-H 8
@@ -395,6 +448,13 @@ const char* const tpch_query_9 =
       AND ps_suppkey = l_suppkey AND ps_partkey = l_partkey AND p_partkey = l_partkey AND o_orderkey = l_orderkey
       AND s_nationkey = n_nationkey AND p_name like '%green%') as profit
       GROUP BY nation, o_year ORDER BY nation, o_year DESC;)";
+const char* const tpch_query_109 =
+        R"(SELECT nation, o_year, SUM(amount) as sum_profit FROM (SELECT n_name as nation, o_orderdate as o_year,
+      l_extendedprice * (1.0 - l_discount) - ps_supplycost * l_quantity as amount
+      FROM supplier, lineitem, partsupp, orders, nation, "part" WHERE s_suppkey = l_suppkey
+      AND ps_suppkey = l_suppkey AND ps_partkey = l_partkey AND p_partkey = l_partkey AND o_orderkey = l_orderkey
+      AND s_nationkey = n_nationkey AND p_name like '%green%') as profit
+      GROUP BY nation, o_year ORDER BY nation, o_year DESC LIMIT 20;)";
 
 /**
  * TPC-H 10
@@ -450,6 +510,14 @@ const char* const tpch_query_10 =
       AND o_orderdate < '1994-01-01' AND l_returnflag = 'R' AND c_nationkey = n_nationkey
       GROUP BY c_custkey, c_name, c_acctbal, c_phone, n_name, c_address, c_comment
       ORDER BY revenue DESC;)";
+const char* const tpch_query_110 =
+        R"(SELECT c_custkey, c_name, SUM(l_extendedprice * (1.0 - l_discount)) as revenue, c_acctbal, n_name, c_address,
+      c_phone, c_comment
+      FROM customer, orders, lineitem, nation
+      WHERE c_custkey = o_custkey AND l_orderkey = o_orderkey AND o_orderdate >= '1993-10-01'
+      AND o_orderdate < '1994-01-01' AND l_returnflag = 'R' AND c_nationkey = n_nationkey
+      GROUP BY c_custkey, c_name, c_acctbal, c_phone, n_name, c_address, c_comment
+      ORDER BY revenue DESC LIMIT 20;)";
 
 /**
  * TPC-H 11
@@ -552,6 +620,10 @@ const char* const tpch_query_13 =
     R"(SELECT c_count, count(*) as custdist FROM (SELECT c_custkey, count(o_orderkey) as c_count
       FROM customer left outer join orders on c_custkey = o_custkey AND o_comment not like '%special%request%'
       GROUP BY c_custkey) as c_orders GROUP BY c_count ORDER BY custdist DESC, c_count DESC;)";
+const char* const tpch_query_113 =
+        R"(SELECT c_count, count(*) as custdist FROM (SELECT c_custkey, count(o_orderkey) as c_count
+      FROM customer left outer join orders on c_custkey = o_custkey AND o_comment not like '%special%request%'
+      GROUP BY c_custkey) as c_orders GROUP BY c_count ORDER BY custdist DESC, c_count DESC LIMIT 10;)";
 
 /**
  * TPC-H 14
@@ -909,19 +981,26 @@ namespace opossum {
 
 const std::map<size_t, const char*> tpch_queries = {
     {1, tpch_query_1},
-    {113, tpch_query_1_limit},
+    {101, tpch_query_101},
     /* {2, tpch_query_2},   Enable once we support Subselects in WHERE condition */
     {3, tpch_query_3},
+    {103, tpch_query_103},
     /* {4, tpch_query_4},   Enable once we support Exists and Subselects in WHERE condition */
     {5, tpch_query_5},
+    {105, tpch_query_105},
     {6, tpch_query_6},
+    {106, tpch_query_106},
     {7, tpch_query_7},
+    {107, tpch_query_107},
     /* {8, tpch_query_8},   Enable once CASE and arithmetic operations of Aggregations are supported */
     {9, tpch_query_9},
+    {109, tpch_query_109},
     {10, tpch_query_10},
+    {110, tpch_query_110},
     /* {11, tpch_query_11}, Enable once we support Subselects in Having clause */
     /* {12, tpch_query_12}, Enable once we support IN */
     {13, tpch_query_13},
+    {113, tpch_query_113},
     /* {14, tpch_query_14}, Enable once we support Case */
     /* {15, tpch_query_15}, Enable once we support Subselects in WHERE condition */
     /* {16, tpch_query_16}, Enable once we support Subselects in WHERE condition */
