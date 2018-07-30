@@ -4,8 +4,11 @@
 #include "operators/jit_operator/jit_operations.hpp"
 #include "resolve_type.hpp"
 #include "storage/value_column.hpp"
+#include "operators/jit_operator/jit_utils.hpp"
 
 namespace opossum {
+
+JitAggregate::JitAggregate(const bool has_string_columns) : _has_string_columns(has_string_columns) {}
 
 std::string JitAggregate::description() const {
   return "[Aggregate] " + aggregate_description();
@@ -227,6 +230,14 @@ std::map<size_t, bool> JitAggregate::accessed_column_ids() const {
 }
 
 void JitAggregate::_consume(JitRuntimeContext& context) const {
+  if (_has_string_columns) {
+    no_inline::jit_aggregate_consume(*this, context);
+  } else {
+    consume(context);
+  }
+}
+
+void JitAggregate::consume(JitRuntimeContext& context) const {
   // We use index-based for loops in this function, since the LLVM optimizer is not able to properly unroll range-based
   // loops, and we need the unrolling for proper specialization.
 
@@ -343,6 +354,10 @@ void JitAggregate::_consume(JitRuntimeContext& context) const {
         Fail("Not supported");
     }
   }
+}
+
+void JitAggregate::set_has_string_columns(const bool has_string_columns) {
+  const_cast<bool&>(_has_string_columns) = has_string_columns;
 }
 
 bool JitAggregate::_limit_reached(JitRuntimeContext& context) const { return false; }

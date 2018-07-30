@@ -170,9 +170,12 @@ std::shared_ptr<JitOperatorWrapper> JitAwareLQPTranslator::_try_translate_node_t
     const auto aggregate_column_names =
         boost::adaptors::slice(column_names, groupby_columns.size(), column_names.size());
 
+    bool has_string_columns = false;
+
     for (const auto& groupby_column : boost::combine(groupby_column_names, groupby_columns)) {
       const auto expression = _try_translate_column_to_jit_expression(groupby_column.get<1>(), *read_tuple, input_node);
       if (!expression) return nullptr;
+      has_string_columns |= expression->result().data_type() == DataType::String;
       // Create a JitCompute operator for each computed groupby column ...
       if (expression->expression_type() != ExpressionType::Column) {
         jit_operator->add_jit_operator(std::make_shared<JitCompute>(expression));
@@ -187,6 +190,7 @@ std::shared_ptr<JitOperatorWrapper> JitAwareLQPTranslator::_try_translate_node_t
       const auto function_arg = aggregate_expression->aggregate_function_arguments()[0];
       const auto expression = _try_translate_expression_to_jit_expression(*function_arg, *read_tuple, input_node);
       if (!expression) return nullptr;
+      has_string_columns |= expression->result().data_type() == DataType::String;
       // Create a JitCompute operator for each aggregate expression on a computed value ...
       if (expression->expression_type() != ExpressionType::Column) {
         jit_operator->add_jit_operator(std::make_shared<JitCompute>(expression));
@@ -199,6 +203,8 @@ std::shared_ptr<JitOperatorWrapper> JitAwareLQPTranslator::_try_translate_node_t
       aggregate->add_aggregate_column(aggregate_column_name, expression->result(),
                                       aggregate_expression->aggregate_function());
     }
+
+    aggregate->set_has_string_columns(has_string_columns);
 
     jit_operator->add_jit_operator(aggregate);
   } else {

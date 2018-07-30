@@ -13,7 +13,7 @@ struct Mvcc {
   CommitID end_cid;
 };
 
-using StringFunction = std::function<void(const std::string& a, const std::string& b)>;
+class JitAggregate;
 
 namespace no_inline {
 
@@ -22,6 +22,8 @@ __attribute__((noinline)) Mvcc unpack_mvcc(const MvccColumns& columns, ChunkOffs
 __attribute__((noinline)) void compute_binary(const JitTupleValue& lhs, const ExpressionType expression_type,
                                               const JitTupleValue& rhs, const JitTupleValue& result,
                                               JitRuntimeContext& context);
+
+__attribute__((noinline)) void jit_aggregate_consume(const JitAggregate& jit_aggregate, JitRuntimeContext& context);
 
 }  // namespace no_inline
 
