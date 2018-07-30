@@ -103,6 +103,14 @@ std::shared_ptr<JitOperatorWrapper> JitAwareLQPTranslator::_try_translate_node_t
     }
   });
 
+  // We use a really simple heuristic to decide when to introduce jittable operators:
+  // For aggregate operations replacing a single AggregateNode with a JitAggregate operator already yields significant
+  // runtime benefits. Otherwise, it does not make sense to create a JitOperatorWrapper for fewer than 2 LQP nodes.
+  if (num_jittable_nodes < 1 || (num_jittable_nodes < 2 && node->type() != LQPNodeType::Aggregate) ||
+      input_nodes.size() != 1) {
+    return nullptr;
+  }
+
   // limit can only be the root node
   const bool use_limit = node->type() == LQPNodeType::Limit;
   size_t limit_rows;
@@ -111,14 +119,6 @@ std::shared_ptr<JitOperatorWrapper> JitAwareLQPTranslator::_try_translate_node_t
     limit_rows = limit_node->num_rows();
   }
   const auto& last_node = use_limit ? node->left_input() : node;
-
-  // We use a really simple heuristic to decide when to introduce jittable operators:
-  // For aggregate operations replacing a single AggregateNode with a JitAggregate operator already yields significant
-  // runtime benefits. Otherwise, it does not make sense to create a JitOperatorWrapper for fewer than 2 LQP nodes.
-  if (num_jittable_nodes < 1 || (num_jittable_nodes < 2 && last_node->type() != LQPNodeType::Aggregate) ||
-      input_nodes.size() != 1) {
-    return nullptr;
-  }
 
   // The input_node is not being integrated into the operator chain, but instead serves as the input to the JitOperators
   const auto input_node = *input_nodes.begin();
@@ -286,7 +286,6 @@ std::shared_ptr<const JitExpression> JitAwareLQPTranslator::_try_translate_predi
   auto condition = predicate_condition_to_expression_type.at(node->predicate_condition());
   auto left = _try_translate_column_to_jit_expression(node->column_reference(), jit_source, input_node);
   if (!left) return nullptr;
-  std::shared_ptr<const JitExpression> right;
 
   switch (condition) {
     /* Binary predicates */
@@ -297,14 +296,25 @@ std::shared_ptr<const JitExpression> JitAwareLQPTranslator::_try_translate_predi
     case ExpressionType::GreaterThan:
     case ExpressionType::GreaterThanEquals:
     case ExpressionType::Like:
-    case ExpressionType::NotLike:
-      right = _try_translate_variant_to_jit_expression(node->value(), jit_source, input_node);
+    case ExpressionType::NotLike: {
+      auto right = _try_translate_variant_to_jit_expression(node->value(), jit_source, input_node);
       return right ? std::make_shared<JitExpression>(left, condition, right, jit_source.add_temporary_value())
                    : nullptr;
+    }
     /* Unary predicates */
     case ExpressionType::IsNull:
     case ExpressionType::IsNotNull:
       return std::make_shared<JitExpression>(left, condition, jit_source.add_temporary_value());
+    case ExpressionType::Between: {
+      DebugAssert(static_cast<bool>(node->value2()), "Predicate condition BETWEEN requires a second value");
+      PerformanceWarning("Jit Expression executes BETWEEN as two separate scans");
+      auto lower_value = _try_translate_variant_to_jit_expression(node->value(), jit_source, input_node);
+      auto upper_value = _try_translate_variant_to_jit_expression(*node->value2(), jit_source, input_node);
+      if (!lower_value || !upper_value) return nullptr;
+      auto lower_bound = std::make_shared<JitExpression>(left, ExpressionType::GreaterThanEquals, lower_value, jit_source.add_temporary_value());
+      auto upper_bound = std::make_shared<JitExpression>(left, ExpressionType::LessThanEquals, upper_value, jit_source.add_temporary_value());
+      return std::make_shared<JitExpression>(lower_bound, ExpressionType::And, upper_bound, jit_source.add_temporary_value());
+    }
     default:
       return nullptr;
   }
@@ -398,7 +408,11 @@ bool JitAwareLQPTranslator::_input_is_filtered(const std::shared_ptr<AbstractLQP
   while (current_node->type() == LQPNodeType::Projection) {
     current_node = current_node->left_input();
   }
-  return current_node->type() == LQPNodeType::Predicate || current_node->type() == LQPNodeType::Union;
+  if (current_node->type() == LQPNodeType::Predicate) {
+    auto predicate_node = std::static_pointer_cast<PredicateNode>(node);
+    return predicate_node->scan_type() == ScanType::TableScan;
+  }
+  return current_node->type() == LQPNodeType::Union;
 }
 
 bool JitAwareLQPTranslator::_node_is_jittable(const std::shared_ptr<AbstractLQPNode>& node,
@@ -416,8 +430,7 @@ bool JitAwareLQPTranslator::_node_is_jittable(const std::shared_ptr<AbstractLQPN
 
   if (node->type() == LQPNodeType::Predicate) {
     auto predicate_node = std::static_pointer_cast<PredicateNode>(node);
-    return predicate_node->scan_type() == ScanType::TableScan &&
-           std::dynamic_pointer_cast<PredicateNode>(node)->predicate_condition() != PredicateCondition::Between;
+    return predicate_node->scan_type() == ScanType::TableScan;
   }
 
   if (Global::get().jit_validate && node->type() == LQPNodeType::Validate) {
