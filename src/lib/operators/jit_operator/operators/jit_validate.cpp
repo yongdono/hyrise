@@ -37,7 +37,7 @@ void JitValidate<input_table_type>::_consume(JitRuntimeContext& context) const {
         jit_is_row_visible(context.transaction_id, context.snapshot_commit_id, row_id.chunk_offset, *mvcc_columns);
   } else {
     row_is_visible =
-        jit_is_row_visible(context.transaction_id, context.snapshot_commit_id, context.chunk_offset, *context.columns);
+        jit_is_row_visible(context.transaction_id, context.snapshot_commit_id, context.chunk_offset, *context.mvcc_columns);
   }
   if (row_is_visible) _emit(context);
 }

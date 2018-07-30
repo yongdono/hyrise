@@ -105,7 +105,7 @@ public:
 
   void validate_row(const ChunkID chunk_id, const size_t chunk_offset, JitRuntimeContext& context, const bool expected_value,
                             std::shared_ptr<MockSource> source, std::shared_ptr<MockSink> sink, const bool no_mvcc = true) {
-    if (no_mvcc) context.columns = &(*_test_table->get_chunk(chunk_id)->mvcc_columns());
+    if (no_mvcc) context.mvcc_columns = &(*_test_table->get_chunk(chunk_id)->mvcc_columns());
     context.chunk_offset = chunk_offset;
     sink->reset();
     source->emit(context);

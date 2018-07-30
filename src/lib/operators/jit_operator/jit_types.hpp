@@ -124,7 +124,7 @@ struct JitRuntimeContext {
   std::vector<std::shared_ptr<BaseJitColumnWriter>> outputs;
   JitRuntimeHashmap hashmap;
   ChunkColumns out_chunk;
-  const MvccColumns* columns;
+  const MvccColumns* mvcc_columns;
   std::shared_ptr<const Table> referenced_table;
   std::shared_ptr<const PosList> pos_list;
   TransactionID transaction_id;

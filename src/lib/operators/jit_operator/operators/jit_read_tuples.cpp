@@ -42,7 +42,7 @@ void JitReadTuples::before_chunk(const Table& in_table, const Chunk& in_chunk, J
   if (_has_validate) {
     if (in_chunk.has_mvcc_columns()) {
       auto mvcc_columns = in_chunk.mvcc_columns();
-      context.columns = &(*mvcc_columns);
+      context.mvcc_columns = &(*mvcc_columns);
     } else {
       DebugAssert(in_chunk.references_exactly_one_table(),
                   "Input to Validate contains a Chunk referencing more than one table.");
