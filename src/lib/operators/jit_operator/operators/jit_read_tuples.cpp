@@ -3,11 +3,12 @@
 #include "constant_mappings.hpp"
 #include "resolve_type.hpp"
 #include "storage/create_iterable_from_column.hpp"
+#include "expression/evaluation/expression_evaluator.hpp"
 
 namespace opossum {
 
-JitReadTuples::JitReadTuples(const bool has_validate, const size_t limit_rows)
-    : _has_validate(has_validate), _limit_rows(limit_rows) {}
+JitReadTuples::JitReadTuples(const bool has_validate, const std::shared_ptr<AbstractExpression>& row_count_expression)
+    : _has_validate(has_validate), _row_count_expression(row_count_expression) {}
 
 std::string JitReadTuples::description() const {
   std::stringstream desc;
@@ -24,7 +25,11 @@ std::string JitReadTuples::description() const {
 void JitReadTuples::before_query(const Table& in_table, JitRuntimeContext& context) const {
   // Create a runtime tuple of the appropriate size
   context.tuple.resize(_num_tuple_values);
-  context.limit_rows = _limit_rows;
+  if (_row_count_expression) {
+    const auto num_rows_expression_result =
+            ExpressionEvaluator{}.evaluate_expression_to_result<int64_t>(*_row_count_expression);
+    context.limit_rows = num_rows_expression_result->value(0);
+  }
 
   // Copy all input literals to the runtime tuple
   for (const auto& input_literal : _input_literals) {

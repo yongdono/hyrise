@@ -22,16 +22,16 @@ class Validate : public AbstractReadOnlyOperator {
 
   const std::string name() const override;
 
+  static bool is_row_visible(CommitID our_tid, CommitID snapshot_commit_id, const TransactionID row_tid,
+                             const CommitID begin_cid, const CommitID end_cid);
+
  protected:
   std::shared_ptr<const Table> _on_execute(std::shared_ptr<TransactionContext> transaction_context) override;
   std::shared_ptr<const Table> _on_execute() override;
-  std::shared_ptr<AbstractOperator> _on_recreate(
-      const std::vector<AllParameterVariant>& args, const std::shared_ptr<AbstractOperator>& recreated_input_left,
-      const std::shared_ptr<AbstractOperator>& recreated_input_right) const override;
-
- public:
-  static bool is_row_visible(CommitID our_tid, CommitID snapshot_commit_id, const TransactionID row_tid,
-                             const CommitID begin_cid, const CommitID end_cid);
+  std::shared_ptr<AbstractOperator> _on_deep_copy(
+      const std::shared_ptr<AbstractOperator>& copied_input_left,
+      const std::shared_ptr<AbstractOperator>& copied_input_right) const override;
+  void _on_set_parameters(const std::unordered_map<ParameterID, AllTypeVariant>& parameters) override;
 };
 
 }  // namespace opossum

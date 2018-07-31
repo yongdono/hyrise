@@ -131,7 +131,7 @@ Console::Console()
     _tpcc_commands.push_back(it->first);
   }
 
-  _prepared_statements = std::make_shared<SQLQueryCache<SQLQueryPlan>>(DefaultCacheCapacity);
+  _prepared_statements = std::make_shared<PreparedStatementCache>(DefaultCacheCapacity);
 }
 
 Console& Console::get() {

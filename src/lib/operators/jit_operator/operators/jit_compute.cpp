@@ -21,7 +21,7 @@ std::map<size_t, bool> JitCompute::accessed_column_ids() const {
     stack.pop();
     if (auto right_child = current->right_child()) stack.push(right_child);
     if (auto left_child = current->left_child()) stack.push(left_child);
-    if (current->expression_type() == ExpressionType::Column) {
+    if (current->expression_type() == JitExpressionType::Column) {
       const auto tuple_index = current->result().tuple_index();
       column_ids[tuple_index] = !column_ids.count(tuple_index);
     }
@@ -37,7 +37,7 @@ void JitCompute::set_load_column(const size_t tuple_id, const size_t input_colum
     stack.pop();
     if (auto right_child = current->right_child()) stack.push(right_child);
     if (auto left_child = current->left_child()) stack.push(left_child);
-    if (current->expression_type() == ExpressionType::Column) {
+    if (current->expression_type() == JitExpressionType::Column) {
       const auto tuple_index = current->result().tuple_index();
       if (tuple_id == tuple_index) {
         current->set_load_column(input_column_index);

@@ -14,7 +14,7 @@ class AbstractLQPNode;
 class LimitPushdownRule : public AbstractRule {
  public:
   std::string name() const override;
-  bool apply_to(const std::shared_ptr<AbstractLQPNode>& node) override;
+  bool apply_to(const std::shared_ptr<AbstractLQPNode>& node) const override;
 };
 
 }  // namespace opossum

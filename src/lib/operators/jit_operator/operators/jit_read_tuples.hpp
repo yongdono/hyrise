@@ -6,6 +6,8 @@
 
 namespace opossum {
 
+class AbstractExpression;
+
 /* Base class for all column readers.
  * We need this class, so we can store a number of JitColumnReaders with different template
  * specializations in a common data structure.
@@ -86,7 +88,7 @@ class JitReadTuples : public AbstractJittable {
   };
 
  public:
-  explicit JitReadTuples(const bool has_validate = false, const size_t limit_rows = 0);
+  explicit JitReadTuples(const bool has_validate = false, const std::shared_ptr<AbstractExpression>& row_count_expression = nullptr);
 
   std::string description() const final;
 
@@ -113,7 +115,7 @@ class JitReadTuples : public AbstractJittable {
  private:
   void _consume(JitRuntimeContext& context) const final {}
   const bool _has_validate;
-  const size_t _limit_rows;
+  const std::shared_ptr<AbstractExpression> _row_count_expression;
 };
 
 }  // namespace opossum
