@@ -52,7 +52,7 @@ const char* const tpch_query_101 =
       FROM lineitem
       WHERE l_shipdate <= '1998-12-01'
       GROUP BY l_returnflag, l_linestatus
-      ORDER BY l_returnflag, l_linestatus LIMIT 20;)";
+      ORDER BY l_returnflag, l_linestatus LIMIT 10;)";
 
 /**
  * TPC-H 2
@@ -124,7 +124,7 @@ const char* const tpch_query_103 =
       WHERE c_mktsegment = 'BUILDING' AND c_custkey = o_custkey AND l_orderkey = o_orderkey
       AND o_orderdate < '1995-03-15' AND l_shipdate > '1995-03-15'
       GROUP BY l_orderkey, o_orderdate, o_shippriority
-      ORDER BY revenue DESC, o_orderdate LIMIT 20;)";
+      ORDER BY revenue DESC, o_orderdate LIMIT 10;)";
 
 /**
  * TPC-H 4
@@ -213,7 +213,7 @@ const char* const tpch_query_105 =
       AND s_nationkey = n_nationkey AND n_regionkey = r_regionkey AND r_name = 'AMERICA' AND o_orderdate >= '1994-01-01'
       AND o_orderdate < '1995-01-01'
       GROUP BY n_name
-      ORDER BY revenue DESC LIMIT 20;)";
+      ORDER BY revenue DESC LIMIT 10;)";
 
 /**
  * TPC-H 6
@@ -240,7 +240,7 @@ const char* const tpch_query_106 =
     R"(SELECT sum(l_extendedprice*l_discount) AS REVENUE
       FROM lineitem
       WHERE l_shipdate >= '1994-01-01' AND l_shipdate < '1995-01-01'
-      AND l_discount BETWEEN .05 AND .07 AND l_quantity < 24 LIMIT 20;)";
+      AND l_discount BETWEEN .05 AND .07 AND l_quantity < 24 LIMIT 10;)";
 
 /**
  * TPC-H 7
@@ -345,7 +345,7 @@ const char* const tpch_query_107 =
       GROUP BY
           supp_nation, cust_nation, l_year
       ORDER BY
-          supp_nation, cust_nation, l_year LIMIT 20;)";
+          supp_nation, cust_nation, l_year LIMIT 10;)";
 
 /**
  * TPC-H 8
@@ -454,7 +454,7 @@ const char* const tpch_query_109 =
       FROM supplier, lineitem, partsupp, orders, nation, "part" WHERE s_suppkey = l_suppkey
       AND ps_suppkey = l_suppkey AND ps_partkey = l_partkey AND p_partkey = l_partkey AND o_orderkey = l_orderkey
       AND s_nationkey = n_nationkey AND p_name like '%green%') as profit
-      GROUP BY nation, o_year ORDER BY nation, o_year DESC LIMIT 20;)";
+      GROUP BY nation, o_year ORDER BY nation, o_year DESC LIMIT 10;)";
 
 /**
  * TPC-H 10
@@ -517,7 +517,7 @@ const char* const tpch_query_110 =
       WHERE c_custkey = o_custkey AND l_orderkey = o_orderkey AND o_orderdate >= '1993-10-01'
       AND o_orderdate < '1994-01-01' AND l_returnflag = 'R' AND c_nationkey = n_nationkey
       GROUP BY c_custkey, c_name, c_acctbal, c_phone, n_name, c_address, c_comment
-      ORDER BY revenue DESC LIMIT 20;)";
+      ORDER BY revenue DESC LIMIT 10;)";
 
 /**
  * TPC-H 11
