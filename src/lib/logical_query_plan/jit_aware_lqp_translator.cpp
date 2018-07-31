@@ -145,7 +145,7 @@ std::shared_ptr<JitOperatorWrapper> JitAwareLQPTranslator::_try_translate_node_t
   }
 
   if (use_validate) {
-    if (input_table_type(node) == TableType::Data) {
+    if (input_table_type(input_node) == TableType::Data) {
       jit_operator->add_jit_operator(std::make_shared<JitValidate<TableType::Data>>());
     } else {
       jit_operator->add_jit_operator(std::make_shared<JitValidate<TableType::References>>());
