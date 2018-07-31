@@ -25,6 +25,8 @@
 
 namespace opossum {
 
+namespace {
+
 void column_name_for_aggregate_rec(const std::shared_ptr<opossum::LQPExpression>& expression, std::stringstream& stream,
                                    const bool brackets = true) {
   if (expression->type() == ExpressionType::Column) {
@@ -49,6 +51,22 @@ std::string column_name_for_aggregate(const std::shared_ptr<opossum::LQPExpressi
   return stream.str();
 }
 
+TableType input_table_type(const std::shared_ptr<AbstractLQPNode>& node) {
+  switch (node->type()) {
+    case LQPNodeType::Validate:
+    case LQPNodeType::Predicate:
+    case LQPNodeType::Aggregate:
+    case LQPNodeType::Join:
+    case LQPNodeType::Limit:
+    case LQPNodeType::Sort:
+      return TableType::References;
+    default:
+      return TableType::Data;
+  }
+}
+
+}  // namespace
+
 JitAwareLQPTranslator::JitAwareLQPTranslator() {
 #if !HYRISE_JIT_SUPPORT
   Fail("Query translation with JIT operators requested, but jitting is not available");
@@ -67,16 +85,7 @@ std::shared_ptr<JitOperatorWrapper> JitAwareLQPTranslator::_try_translate_node_t
   uint32_t num_jittable_nodes{0};
   std::unordered_set<std::shared_ptr<AbstractLQPNode>> input_nodes;
 
-  // Check for altering query
-  bool select_query = true;
-  _visit(node, [&](auto& current_node) {
-    select_query &= current_node->type() != LQPNodeType::Update && current_node->type() != LQPNodeType::Delete;
-    return true;
-  });
-  if (!select_query) return nullptr;
-
   bool use_validate = false;
-  TableType input_table_type = TableType::Data;
   bool allow_aggregate = true;
 
   // Traverse query tree until a non-jittable nodes is found in each branch
@@ -88,16 +97,6 @@ std::shared_ptr<JitOperatorWrapper> JitAwareLQPTranslator::_try_translate_node_t
       allow_aggregate &= current_node->type() == LQPNodeType::Limit;
       return true;
     } else {
-      switch (current_node->type()) {
-        case LQPNodeType::Validate:
-        case LQPNodeType::Predicate:
-        case LQPNodeType::Aggregate:
-        case LQPNodeType::Join:
-        case LQPNodeType::Limit:
-        case LQPNodeType::Sort:
-          input_table_type = TableType::References;
-        default: {}
-      }
       input_nodes.insert(current_node);
       return false;
     }
@@ -146,7 +145,7 @@ std::shared_ptr<JitOperatorWrapper> JitAwareLQPTranslator::_try_translate_node_t
   }
 
   if (use_validate) {
-    if (input_table_type == TableType::Data) {
+    if (input_table_type(node) == TableType::Data) {
       jit_operator->add_jit_operator(std::make_shared<JitValidate<TableType::Data>>());
     } else {
       jit_operator->add_jit_operator(std::make_shared<JitValidate<TableType::References>>());
@@ -411,8 +410,7 @@ bool JitAwareLQPTranslator::_input_is_filtered(const std::shared_ptr<AbstractLQP
   while (current_node->type() == LQPNodeType::Projection) {
     current_node = current_node->left_input();
   }
-  if (current_node->type() == LQPNodeType::Predicate) {
-    auto predicate_node = std::static_pointer_cast<PredicateNode>(node);
+  if (auto predicate_node = std::dynamic_pointer_cast<PredicateNode>(current_node)) {
     return predicate_node->scan_type() == ScanType::TableScan;
   }
   return current_node->type() == LQPNodeType::Union;
@@ -431,8 +429,7 @@ bool JitAwareLQPTranslator::_node_is_jittable(const std::shared_ptr<AbstractLQPN
     return allow_aggregate_node && !has_count_distict;
   }
 
-  if (node->type() == LQPNodeType::Predicate) {
-    auto predicate_node = std::static_pointer_cast<PredicateNode>(node);
+  if (auto predicate_node = std::dynamic_pointer_cast<PredicateNode>(node)) {
     return predicate_node->scan_type() == ScanType::TableScan;
   }
 
