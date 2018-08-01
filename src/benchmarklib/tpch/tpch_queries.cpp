@@ -1096,15 +1096,14 @@ const char* const tpch_query_122 =
 namespace opossum {
 
 const std::map<size_t, const char*> tpch_queries = {
-    {1, tpch_query_1},   {2, tpch_query_2},   {3, tpch_query_3},   {4, tpch_query_4},   {5, tpch_query_5},
-    {6, tpch_query_6},   {7, tpch_query_7},   {8, tpch_query_8},   {9, tpch_query_9},   {10, tpch_query_10},
-    {11, tpch_query_11}, {12, tpch_query_12}, {13, tpch_query_13}, {14, tpch_query_14}, {15, tpch_query_15},
-    {16, tpch_query_16}, {17, tpch_query_17}, {18, tpch_query_18}, {19, tpch_query_19}, {20, tpch_query_20},
-    {21, tpch_query_21}, {22, tpch_query_22},
-    {101, tpch_query_101},   {102, tpch_query_102},   {103, tpch_query_103},   {104, tpch_query_104},   {105, tpch_query_105},
-    {106, tpch_query_106},   {107, tpch_query_107},   {108, tpch_query_108},   {109, tpch_query_109},   {110, tpch_query_110},
-    {111, tpch_query_111}, {112, tpch_query_112}, {113, tpch_query_113}, {114, tpch_query_114}, {115, tpch_query_115},
-    {116, tpch_query_116}, {117, tpch_query_117}, {118, tpch_query_118}, {119, tpch_query_119}, {120, tpch_query_120},
-    {121, tpch_query_121}, {122, tpch_query_122}};
+    {1, tpch_query_1},     {2, tpch_query_2},     {3, tpch_query_3},     {4, tpch_query_4},     {5, tpch_query_5},
+    {6, tpch_query_6},     {7, tpch_query_7},     {8, tpch_query_8},     {9, tpch_query_9},     {10, tpch_query_10},
+    {11, tpch_query_11},   {12, tpch_query_12},   {13, tpch_query_13},   {14, tpch_query_14},   {15, tpch_query_15},
+    {16, tpch_query_16},   {17, tpch_query_17},   {18, tpch_query_18},   {19, tpch_query_19},   {20, tpch_query_20},
+    {21, tpch_query_21},   {22, tpch_query_22},   {101, tpch_query_101}, {102, tpch_query_102}, {103, tpch_query_103},
+    {104, tpch_query_104}, {105, tpch_query_105}, {106, tpch_query_106}, {107, tpch_query_107}, {108, tpch_query_108},
+    {109, tpch_query_109}, {110, tpch_query_110}, {111, tpch_query_111}, {112, tpch_query_112}, {113, tpch_query_113},
+    {114, tpch_query_114}, {115, tpch_query_115}, {116, tpch_query_116}, {117, tpch_query_117}, {118, tpch_query_118},
+    {119, tpch_query_119}, {120, tpch_query_120}, {121, tpch_query_121}, {122, tpch_query_122}};
 
 }  // namespace opossum

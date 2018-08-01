@@ -86,6 +86,9 @@ TEST_F(JitAwareLQPTranslatorTest, JitPipelineRequiresASingleInputNode) {
     const auto jit_operator_wrapper =
         std::dynamic_pointer_cast<JitOperatorWrapper>(lqp_translator.translate_node(union_node));
     ASSERT_EQ(jit_operator_wrapper, nullptr);
+
+    // outputs of nodes are accessed in test below and stored_table_node_a has a weak ptr to then deleted union_node
+    stored_table_node_a->remove_output(union_node);
   }
   {
     // Although both inputs of the UnionNode eventually lead to the same StoredTableNode (i.e., the LQP has a diamond

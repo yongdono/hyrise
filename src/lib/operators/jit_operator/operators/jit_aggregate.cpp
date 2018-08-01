@@ -172,6 +172,17 @@ void JitAggregate::after_query(Table& out_table, JitRuntimeContext& context) con
   out_table.append_chunk(chunk_columns);
 }
 
+DataType sum_data_type(const DataType data_type) {
+  switch (data_type) {
+    case DataType::Int:
+      return DataType::Long;
+    case DataType::Float:
+      return DataType::Double;
+    default:
+      return data_type;
+  }
+}
+
 void JitAggregate::add_aggregate_column(const std::string& column_name, const JitTupleValue& value,
                                         const AggregateFunction function) {
   auto column_position = _aggregate_columns.size() + _groupby_columns.size();
@@ -184,21 +195,23 @@ void JitAggregate::add_aggregate_column(const std::string& column_name, const Ji
       break;
     case AggregateFunction::Sum:
     case AggregateFunction::Max:
-    case AggregateFunction::Min:
+    case AggregateFunction::Min: {
       Assert(value.data_type() != DataType::String && value.data_type() != DataType::Null,
              "Invalid data type for aggregate function.");
       // The data type depends on the input value.
-      _aggregate_columns.push_back(
-          JitAggregateColumn{column_name, column_position, function, value,
-                             JitHashmapValue(value.data_type(), true, _num_hashmap_columns++)});
+      const auto data_type = function == AggregateFunction::Sum ? sum_data_type(value.data_type()) : value.data_type();
+      _aggregate_columns.push_back(JitAggregateColumn{column_name, column_position, function, value,
+                                                      JitHashmapValue(data_type, true, _num_hashmap_columns++)});
       break;
+    }
     case AggregateFunction::Avg:
       Assert(value.data_type() != DataType::String && value.data_type() != DataType::Null,
              "Invalid data type for aggregate function.");
       // Average aggregates are computed by first computing two aggregates: a SUM and a COUNT
-      _aggregate_columns.push_back(JitAggregateColumn{column_name, column_position, function, value,
-                                                      JitHashmapValue(value.data_type(), true, _num_hashmap_columns++),
-                                                      JitHashmapValue(DataType::Long, false, _num_hashmap_columns++)});
+      _aggregate_columns.push_back(
+          JitAggregateColumn{column_name, column_position, function, value,
+                             JitHashmapValue(sum_data_type(value.data_type()), true, _num_hashmap_columns++),
+                             JitHashmapValue(DataType::Long, false, _num_hashmap_columns++)});
       break;
     case AggregateFunction::CountDistinct:
       Fail("Not supported");

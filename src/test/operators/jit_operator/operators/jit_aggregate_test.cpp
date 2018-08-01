@@ -72,7 +72,7 @@ TEST_F(JitAggregateTest, AddsAggregateColumnsToOutputTable) {
                                                                    {"avg", DataType::Double, true},
                                                                    {"avg_nullable", DataType::Double, true},
                                                                    {"sum", DataType::Long, true},
-                                                                   {"sum_nullable", DataType::Int, true}});
+                                                                   {"sum_nullable", DataType::Long, true}});
 
   EXPECT_EQ(output_table->column_definitions(), expected_column_definitions);
 }
@@ -230,7 +230,7 @@ TEST_F(JitAggregateTest, CorrectlyComputesAggregates) {
 
   const auto expected_column_definitions = TableColumnDefinitions({{"groupby", DataType::Int, false},
                                                                    {"count", DataType::Long, false},
-                                                                   {"sum", DataType::Int, true},
+                                                                   {"sum", DataType::Long, true},
                                                                    {"max", DataType::Int, true},
                                                                    {"min", DataType::Int, true},
                                                                    {"avg", DataType::Double, true}});
@@ -268,7 +268,7 @@ TEST_F(JitAggregateTest, NoGroupByColumns) {
   _aggregate->after_query(*output_table, context);
 
   const auto expected_column_definitions = TableColumnDefinitions({{"count", DataType::Long, false},
-                                                                   {"sum", DataType::Int, true},
+                                                                   {"sum", DataType::Long, true},
                                                                    {"max", DataType::Int, true},
                                                                    {"min", DataType::Int, true},
                                                                    {"avg", DataType::Double, true}});
@@ -302,7 +302,7 @@ TEST_F(JitAggregateTest, EmptyInputTable) {
 
   const auto expected_column_definitions = TableColumnDefinitions({{"groupby", DataType::Int, false},
                                                                    {"count", DataType::Long, false},
-                                                                   {"sum", DataType::Int, true},
+                                                                   {"sum", DataType::Long, true},
                                                                    {"max", DataType::Int, true},
                                                                    {"min", DataType::Int, true},
                                                                    {"avg", DataType::Double, true}});
@@ -331,7 +331,7 @@ TEST_F(JitAggregateTest, EmptyInputTableNoGroupbyColumns) {
   _aggregate->after_query(*output_table, context);
 
   const auto expected_column_definitions = TableColumnDefinitions({{"count", DataType::Long, false},
-                                                                   {"sum", DataType::Int, true},
+                                                                   {"sum", DataType::Long, true},
                                                                    {"max", DataType::Int, true},
                                                                    {"min", DataType::Int, true},
                                                                    {"avg", DataType::Double, true}});

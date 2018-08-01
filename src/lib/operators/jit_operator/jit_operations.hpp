@@ -227,6 +227,13 @@ __attribute__((noinline)) void jit_aggregate_compute(const T& op_func, const Jit
 
   const auto catching_func = InvalidTypeCatcher<decltype(store_result_wrapper), void>(store_result_wrapper);
 
+  // this is only the case for lhs = int and rhs = float which become long / double
+  if (lhs.data_type() == DataType::Int && rhs.data_type() == DataType::Long) {
+    return catching_func(static_cast<int64_t>(lhs.get<int32_t>(context)), rhs.get<int64_t>(rhs_index, context));
+  } else if (lhs.data_type() == DataType::Float && rhs.data_type() == DataType::Double) {
+    catching_func(static_cast<double>(lhs.get<float>(context)), rhs.get<double>(rhs_index, context));
+  }
+
   switch (rhs.data_type()) {
     BOOST_PP_SEQ_FOR_EACH_PRODUCT(JIT_AGGREGATE_COMPUTE_CASE, (JIT_DATA_TYPE_INFO))
     default:

@@ -1,9 +1,9 @@
 #include "jit_read_tuples.hpp"
 
 #include "constant_mappings.hpp"
+#include "expression/evaluation/expression_evaluator.hpp"
 #include "resolve_type.hpp"
 #include "storage/create_iterable_from_column.hpp"
-#include "expression/evaluation/expression_evaluator.hpp"
 
 namespace opossum {
 
@@ -27,7 +27,7 @@ void JitReadTuples::before_query(const Table& in_table, JitRuntimeContext& conte
   context.tuple.resize(_num_tuple_values);
   if (_row_count_expression) {
     const auto num_rows_expression_result =
-            ExpressionEvaluator{}.evaluate_expression_to_result<int64_t>(*_row_count_expression);
+        ExpressionEvaluator{}.evaluate_expression_to_result<int64_t>(*_row_count_expression);
     context.limit_rows = num_rows_expression_result->value(0);
   }
 
@@ -87,6 +87,8 @@ void JitReadTuples::execute(JitRuntimeContext& context) const {
     }
   }
 }
+
+std::shared_ptr<AbstractExpression> JitReadTuples::row_count_expression() const { return _row_count_expression; }
 
 JitTupleValue JitReadTuples::add_input_column(const DataType data_type, const bool is_nullable,
                                               const ColumnID column_id) {
