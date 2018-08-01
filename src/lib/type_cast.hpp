@@ -57,4 +57,10 @@ std::enable_if_t<std::is_integral<T>::value, T> type_cast(const AllTypeVariant& 
   }
 }
 
+template <typename Result, typename Source>
+std::enable_if_t<std::is_convertible_v<Source, Result>, Result> type_cast(const Source& value) {
+  abort();
+  return value;
+}
+
 }  // namespace opossum
