@@ -275,14 +275,22 @@ std::shared_ptr<const JitExpression> JitAwareLQPTranslator::_try_translate_expre
     case ExpressionType::Predicate:
     case ExpressionType::Arithmetic:
     case ExpressionType::Logical: {
+      const auto jit_expression_type = _expression_to_jit_expression_type(expression);
+
+      // Remove in jit unnecessary predicate [<bool expression> != false] added by sql translator
+      if (jit_expression_type == JitExpressionType::NotEquals && expression.arguments[1]->type == ExpressionType::Value) {
+        const auto& value = std::static_pointer_cast<ValueExpression>(expression.arguments[1])->value;
+        if (value.type() == typeid(int) && boost::get<int>(value) == 0 && !variant_is_null(value)) {
+          return _try_translate_expression_to_jit_expression(*expression.arguments[0], jit_source, input_node);
+        }
+      }
+
       std::vector<std::shared_ptr<const JitExpression>> jit_expression_arguments;
       for (const auto& argument : expression.arguments) {
         const auto jit_expression = _try_translate_expression_to_jit_expression(*argument, jit_source, input_node);
         if (!jit_expression) return nullptr;
         jit_expression_arguments.emplace_back(jit_expression);
       }
-
-      const auto jit_expression_type = _expression_to_jit_expression_type(expression);
 
       if (jit_expression_arguments.size() == 1) {
         return std::make_shared<JitExpression>(jit_expression_arguments[0], jit_expression_type,
