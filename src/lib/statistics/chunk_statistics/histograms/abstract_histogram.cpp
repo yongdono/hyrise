@@ -73,9 +73,10 @@ std::string AbstractHistogram<T>::description() const {
   // stream << "  non-null " << non_null_value_ratio() << std::endl;
   stream << "  buckets     " << num_buckets() << std::endl;
 
-  stream << "  boundaries  " << std::endl;
+  stream << "  boundaries / counts " << std::endl;
   for (auto bucket = 0u; bucket < num_buckets(); bucket++) {
-    stream << "              [" << _bucket_min(bucket) << ", " << _bucket_max(bucket) << "]" << std::endl;
+    stream << "              [" << _bucket_min(bucket) << ", " << _bucket_max(bucket) << "]: ";
+    stream << _bucket_count(bucket) << std::endl;
   }
 
   return stream.str();
