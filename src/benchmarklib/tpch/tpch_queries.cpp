@@ -733,9 +733,9 @@ const char* const tpch_query_115 =
 
       SELECT s_suppkey, s_name, s_address, s_phone, total_revenue FROM supplier, revenue
       WHERE s_suppkey = supplier_no AND total_revenue = (SELECT max(total_revenue)
-      FROM revenue) ORDER BY s_suppkey;
+      FROM revenue) ORDER BY s_suppkey LIMIT 10;
 
-      drop view revenue LIMIT 10;)";
+      drop view revenue;)";
 
 /**
  * TPC-H 16
@@ -836,7 +836,7 @@ const char* const tpch_query_118 =
     R"(SELECT c_name, c_custkey, o_orderkey, o_orderdate, o_totalprice, SUM(l_quantity)
       FROM customer, orders, lineitem WHERE o_orderkey in (SELECT l_orderkey FROM lineitem
       GROUP BY l_orderkey having SUM(l_quantity) > 300) AND c_custkey = o_custkey AND o_orderkey = l_orderkey
-      GROUP BY c_name, c_custkey, o_orderkey, o_orderdate, o_totalprice ORDER BY o_totalprice DESC, o_orderdate LIMIT10;)";
+      GROUP BY c_name, c_custkey, o_orderkey, o_orderdate, o_totalprice ORDER BY o_totalprice DESC, o_orderdate LIMIT 10;)";
 
 /**
  * TPC-H 19

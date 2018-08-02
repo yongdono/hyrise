@@ -49,7 +49,8 @@ const std::unordered_map<PredicateCondition, JitExpressionType> predicate_condit
     {PredicateCondition::Like, JitExpressionType::Like},
     {PredicateCondition::NotLike, JitExpressionType::NotLike},
     {PredicateCondition::IsNull, JitExpressionType::IsNull},
-    {PredicateCondition::IsNotNull, JitExpressionType::IsNotNull}};
+    {PredicateCondition::IsNotNull, JitExpressionType::IsNotNull},
+    {PredicateCondition::In, JitExpressionType::In}};
 
 const std::unordered_map<ArithmeticOperator, JitExpressionType> arithmetic_operator_to_jit_expression_type = {
     {ArithmeticOperator::Addition, JitExpressionType::Addition},
@@ -134,7 +135,9 @@ std::shared_ptr<JitOperatorWrapper> JitAwareLQPTranslator::_try_translate_sub_pl
   //   - Always JIT AggregateNodes, as the JitAggregate is significantly faster than the Aggregate operator
   //   - Otherwise, JIT if there are two or more jittable nodes
   if (input_nodes.size() != 1 || jittable_node_count < 1) return nullptr;
-  if (jittable_node_count == 1 && node->type == LQPNodeType::Projection) return nullptr;
+  if (jittable_node_count == 1 && (node->type == LQPNodeType::Projection || node->type == LQPNodeType::Validate ||
+                                   node->type == LQPNodeType::Limit))
+    return nullptr;
 
   // limit can only be the root node
   const bool use_limit = node->type == LQPNodeType::Limit;
@@ -278,9 +281,11 @@ std::shared_ptr<const JitExpression> JitAwareLQPTranslator::_try_translate_expre
       const auto jit_expression_type = _expression_to_jit_expression_type(expression);
 
       // Remove in jit unnecessary predicate [<bool expression> != false] added by sql translator
-      if (jit_expression_type == JitExpressionType::NotEquals && expression.arguments[1]->type == ExpressionType::Value) {
+      if (jit_expression_type == JitExpressionType::NotEquals &&
+          expression.arguments[1]->type == ExpressionType::Value) {
         const auto& value = std::static_pointer_cast<ValueExpression>(expression.arguments[1])->value;
-        if (value.type() == typeid(int) && boost::get<int>(value) == 0 && !variant_is_null(value)) {
+        if (data_type_from_all_type_variant(value) == DataType::Int && boost::get<int32_t>(value) == 0 &&
+            !variant_is_null(value)) {
           return _try_translate_expression_to_jit_expression(*expression.arguments[0], jit_source, input_node);
         }
       }

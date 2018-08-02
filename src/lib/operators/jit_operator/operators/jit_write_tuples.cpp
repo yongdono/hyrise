@@ -22,8 +22,9 @@ std::shared_ptr<Table> JitWriteTuples::create_output_table(const ChunkOffset inp
   for (const auto& output_column : _output_columns) {
     // Add a column definition for each output column
     const auto data_type = output_column.tuple_value.data_type();
+    const auto output_column_type = data_type == DataType::Bool ? DataType::Int : data_type;
     const auto is_nullable = output_column.tuple_value.is_nullable();
-    column_definitions.emplace_back(output_column.column_name, data_type, is_nullable);
+    column_definitions.emplace_back(output_column.column_name, output_column_type, is_nullable);
   }
 
   return std::make_shared<Table>(column_definitions, TableType::Data, input_table_chunk_size);
@@ -68,7 +69,7 @@ void JitWriteTuples::_create_output_chunk(JitRuntimeContext& context) const {
     const auto is_nullable = output_column.tuple_value.is_nullable();
 
     // Create the appropriate column writer for the output column
-    resolve_data_type(data_type, [&](auto type) {
+    const auto func = [&](auto type) {
       using ColumnDataType = typename decltype(type)::type;
       auto column = std::make_shared<ValueColumn<ColumnDataType>>(output_column.tuple_value.is_nullable());
       context.out_chunk.push_back(column);
@@ -80,7 +81,22 @@ void JitWriteTuples::_create_output_chunk(JitRuntimeContext& context) const {
         context.outputs.push_back(std::make_shared<JitColumnWriter<ValueColumn<ColumnDataType>, ColumnDataType, false>>(
             column, output_column.tuple_value));
       }
-    });
+    };
+    // Bool handled separately as the callback is not working for this only in jit code existing data type
+    if (data_type == DataType::Bool) {
+      auto column = std::make_shared<ValueColumn<int32_t>>(output_column.tuple_value.is_nullable());
+      context.out_chunk.push_back(column);
+
+      if (is_nullable) {
+        context.outputs.push_back(
+            std::make_shared<JitColumnWriter<ValueColumn<int32_t>, bool, true>>(column, output_column.tuple_value));
+      } else {
+        context.outputs.push_back(
+            std::make_shared<JitColumnWriter<ValueColumn<int32_t>, bool, false>>(column, output_column.tuple_value));
+      }
+    } else {
+      resolve_data_type(data_type, func);
+    }
   }
 }
 

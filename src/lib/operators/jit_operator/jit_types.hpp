@@ -233,7 +233,8 @@ enum class JitExpressionType {
   Or,
   Not,
   IsNull,
-  IsNotNull
+  IsNotNull,
+  In
 };
 
 bool jit_expression_is_binary(const JitExpressionType expression_type);
