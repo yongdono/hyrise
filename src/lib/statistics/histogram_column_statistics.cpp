@@ -61,102 +61,46 @@ FilterByValueEstimate HistogramColumnStatistics<ColumnDataType>::estimate_predic
     default:
       Fail("Predicate type not supported yet.");
   }
-  //
-  // return {
-  //   selectivity,
-  //
-  // }
-  //
-  // switch (predicate_condition) {
-  //   case PredicateCondition::Equals:
-  //     return estimate_equals_with_value(value);
-  //   case PredicateCondition::NotEquals:
-  //     return estimate_not_equals_with_value(value);
-  //
-  //   case PredicateCondition::LessThan: {
-  //     // distinction between integers and floats
-  //     // for integers "< value" means that the new max is value <= value - 1
-  //     // for floats "< value" means that the new max is value <= value - ε
-  //     if (std::is_integral_v<ColumnDataType>) {
-  //       return estimate_range(_min, value - 1);
-  //     }
-  //     // intentionally no break
-  //     // if ColumnType is a floating point number, OpLessThanEquals behaviour is expected instead of OpLessThan
-  //     [[fallthrough]];
-  //   }
-  //   case PredicateCondition::LessThanEquals:
-  //     return estimate_range(_min, value);
-  //
-  //   case PredicateCondition::GreaterThan: {
-  //     // distinction between integers and floats
-  //     // for integers "> value" means that the new min value is >= value + 1
-  //     // for floats "> value" means that the new min value is >= value + ε
-  //     if (std::is_integral_v<ColumnDataType>) {
-  //       return estimate_range(value + 1, _max);
-  //     }
-  //     // intentionally no break
-  //     // if ColumnType is a floating point number,
-  //     // OpGreaterThanEquals behaviour is expected instead of OpGreaterThan
-  //     [[fallthrough]];
-  //   }
-  //   case PredicateCondition::GreaterThanEquals:
-  //     return estimate_range(value, _max);
-  //
-  //   case PredicateCondition::Between: {
-  //     DebugAssert(static_cast<bool>(value2), "Operator BETWEEN should get two parameters, second is missing!");
-  //     auto casted_value2 = type_cast<ColumnDataType>(*value2);
-  //     return estimate_range(value, casted_value2);
-  //   }
-  //
-  //   default:
-  //     Fail("Estimation not implemented for requested PredicateCondition");
-  // }
 }
 
 template <typename ColumnDataType>
 FilterByValueEstimate HistogramColumnStatistics<ColumnDataType>::estimate_predicate_with_value_placeholder(
     const PredicateCondition predicate_condition, const std::optional<AllTypeVariant>& value2) const {
-  // switch (predicate_condition) {
-  //   // Simply assume the value will be in (_min, _max) and pick _min as the representative
-  //   case PredicateCondition::Equals:
-  //     return estimate_equals_with_value(_min);
-  //   case PredicateCondition::NotEquals:
-  //     return estimate_not_equals_with_value(_min);
-  //
-  //   case PredicateCondition::LessThan:
-  //   case PredicateCondition::LessThanEquals:
-  //   case PredicateCondition::GreaterThan:
-  //   case PredicateCondition::GreaterThanEquals: {
-  //     auto column_statistics = std::make_shared<ColumnStatistics<ColumnDataType>>(
-  //         0.0f, distinct_count() * TableStatistics::DEFAULT_OPEN_ENDED_SELECTIVITY, _min, _max);
-  //     return {non_null_value_ratio() * TableStatistics::DEFAULT_OPEN_ENDED_SELECTIVITY, column_statistics};
-  //   }
-  //   case PredicateCondition::Between: {
-  //     // since the value2 is known,
-  //     // first, statistics for the operation <= value are calculated
-  //     // then, the open ended selectivity is applied on the result
-  //     DebugAssert(static_cast<bool>(value2), "Operator BETWEEN should get two parameters, second is missing!");
-  //     auto casted_value2 = type_cast<ColumnDataType>(*value2);
-  //     auto output = estimate_range(_min, casted_value2);
-  //     // return, if value2 < min
-  //     if (output.selectivity == 0.f) {
-  //       return output;
-  //     }
-  //     // create statistics, if value2 >= max
-  //     if (output.column_statistics.get() == this) {
-  //       output.column_statistics = std::make_shared<ColumnStatistics>(0.0f, distinct_count(), _min, _max);
-  //     }
-  //     // apply default selectivity for open ended
-  //     output.selectivity *= TableStatistics::DEFAULT_OPEN_ENDED_SELECTIVITY;
-  //     // column statistics have just been created, therefore, cast to the column type cannot fail
-  //     auto column_statistics = std::dynamic_pointer_cast<ColumnStatistics<ColumnDataType>>(output.column_statistics);
-  //     column_statistics->_distinct_count *= TableStatistics::DEFAULT_OPEN_ENDED_SELECTIVITY;
-  //     return output;
-  //   }
-  //   default: { return {non_null_value_ratio(), without_null_values()}; }
-  // }
-  // TODO(tim): come up with strategy
-  return {non_null_value_ratio(), without_null_values()};
+  switch (predicate_condition) {
+    // Simply assume the value will be in the domain of the column.
+    // Pick the min as the dummy value and do not update min and max statistics.
+    case PredicateCondition::Equals:
+      return estimate_equals(1.f / _histogram->total_count_distinct(), false, _histogram->min(), false);
+    case PredicateCondition::NotEquals:
+      return estimate_not_equals(1 - 1.f / _histogram->total_count_distinct(), false, _histogram->min(), false);
+
+    case PredicateCondition::LessThan:
+    case PredicateCondition::LessThanEquals:
+    case PredicateCondition::GreaterThan:
+    case PredicateCondition::GreaterThanEquals:
+      return estimate_range(TableStatistics::DEFAULT_OPEN_ENDED_SELECTIVITY, false, _histogram->min(),
+                            _histogram->max());
+
+    case PredicateCondition::Between: {
+      // Since value2 is known first calculate statistics for "<= value2".
+      DebugAssert(static_cast<bool>(value2), "Operator BETWEEN should get two parameters, second is missing!");
+      const auto casted_value2 = type_cast<ColumnDataType>(*value2);
+
+      const auto can_prune = _histogram->can_prune(*value2, PredicateCondition::LessThanEquals);
+      if (can_prune) {
+        return estimate_range(0.f, true, _histogram->min(), casted_value2);
+      }
+
+      // If it cannot be pruned, combine the selectivity for "<= value" with DEFAULT_OPEN_ENDED_SELECTIVITY.
+      const auto value2_selectivity =
+          _histogram->estimate_cardinality(casted_value2, PredicateCondition::LessThanEquals) /
+          _histogram->total_count();
+
+      return estimate_range(value2_selectivity * TableStatistics::DEFAULT_OPEN_ENDED_SELECTIVITY, false,
+                            _histogram->min(), casted_value2);
+    }
+    default: { return {non_null_value_ratio(), without_null_values()}; }
+  }
 }
 
 template <typename ColumnDataType>
@@ -389,22 +333,27 @@ std::string HistogramColumnStatistics<ColumnDataType>::_description() const {
 template <typename ColumnDataType>
 FilterByValueEstimate HistogramColumnStatistics<ColumnDataType>::estimate_equals(const float selectivity,
                                                                                  const bool can_prune,
-                                                                                 const ColumnDataType value) const {
+                                                                                 const ColumnDataType value,
+                                                                                 const bool update_min_max) const {
   const auto new_distinct_count = can_prune ? 0.f : 1.f;
+  const auto new_min = update_min_max ? value : _histogram->min();
+  const auto new_max = update_min_max ? value : _histogram->max();
   const auto column_statistics =
-      std::make_shared<ColumnStatistics<ColumnDataType>>(0.0f, new_distinct_count, value, value);
+      std::make_shared<ColumnStatistics<ColumnDataType>>(0.0f, new_distinct_count, new_min, new_max);
   return {selectivity, column_statistics};
 }
 
 template <typename ColumnDataType>
 FilterByValueEstimate HistogramColumnStatistics<ColumnDataType>::estimate_not_equals(const float selectivity,
                                                                                      const bool can_prune,
-                                                                                     const ColumnDataType value) const {
+                                                                                     const ColumnDataType value,
+                                                                                     const bool update_min_max) const {
   // If the value filtered for is either the min or max, we can update the min/max.
   // Unfortunately, we do not know exactly which value is the second lowest/highest,
   // so we simply take the next higher/lower one.
-  const auto new_min = _histogram->min() == value ? _histogram->next_value(value) : _histogram->min();
-  const auto new_max = _histogram->max() == value ? _histogram->previous_value(value) : _histogram->max();
+  const auto new_min = _histogram->min() == value && update_min_max ? _histogram->next_value(value) : _histogram->min();
+  const auto new_max =
+      _histogram->max() == value && update_min_max ? _histogram->previous_value(value) : _histogram->max();
 
   const auto new_distinct_count = can_prune ? 0.f : distinct_count() - 1;
   auto column_statistics =
@@ -421,6 +370,10 @@ FilterByValueEstimate HistogramColumnStatistics<ColumnDataType>::estimate_range(
   // new minimum/maximum of table cannot be smaller/larger than the current minimum/maximum
   const auto new_min = std::max(min, _histogram->min());
   const auto new_max = std::min(max, _histogram->max());
+  /**
+   * TODO(tim): think about optimizations
+   * e.g.: use bucket distinct count for more accurate distinct counts in result
+   */
   const auto new_distinct_count = can_prune ? 0.f : distinct_count() * selectivity;
 
   auto column_statistics =

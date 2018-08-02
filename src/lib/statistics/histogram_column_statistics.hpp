@@ -55,14 +55,14 @@ class HistogramColumnStatistics : public BaseColumnStatistics {
   /**
    * @return estimate the predicate `column = value`
    */
-  FilterByValueEstimate estimate_equals(const float selectivity, const bool can_prune,
-                                        const ColumnDataType value) const;
+  FilterByValueEstimate estimate_equals(const float selectivity, const bool can_prune, const ColumnDataType value,
+                                        const bool update_min_max = true) const;
 
   /**
    * @return estimate the predicate `column != value`
    */
-  FilterByValueEstimate estimate_not_equals(const float selectivity, const bool can_prune,
-                                            const ColumnDataType value) const;
+  FilterByValueEstimate estimate_not_equals(const float selectivity, const bool can_prune, const ColumnDataType value,
+                                            const bool update_min_max = true) const;
 
   /**
    * @return estimate the predicate `column BETWEEN minimum AND maximum`
