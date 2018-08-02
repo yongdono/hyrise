@@ -29,6 +29,7 @@
 #include "operators/jit_operator/operators/jit_validate.hpp"
 #include "operators/jit_operator/operators/jit_write_tuples.hpp"
 #include "operators/operator_scan_predicate.hpp"
+#include "resolve_type.hpp"
 #include "storage/storage_manager.hpp"
 #include "types.hpp"
 
