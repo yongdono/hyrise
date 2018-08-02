@@ -37,7 +37,7 @@ class HistogramColumnStatistics : public BaseColumnStatistics {
       const std::optional<AllTypeVariant>& value2 = std::nullopt) const override;
 
   FilterByValueEstimate estimate_predicate_with_value_placeholder(
-      const PredicateCondition predicate_condition, const ValuePlaceholder& value,
+      const PredicateCondition predicate_condition,
       const std::optional<AllTypeVariant>& value2 = std::nullopt) const override;
 
   FilterByColumnComparisonEstimate estimate_predicate_with_column(

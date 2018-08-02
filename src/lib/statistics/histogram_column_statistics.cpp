@@ -115,8 +115,7 @@ FilterByValueEstimate HistogramColumnStatistics<ColumnDataType>::estimate_predic
 
 template <typename ColumnDataType>
 FilterByValueEstimate HistogramColumnStatistics<ColumnDataType>::estimate_predicate_with_value_placeholder(
-    const PredicateCondition predicate_condition, const ValuePlaceholder& value,
-    const std::optional<AllTypeVariant>& value2) const {
+    const PredicateCondition predicate_condition, const std::optional<AllTypeVariant>& value2) const {
   // switch (predicate_condition) {
   //   // Simply assume the value will be in (_min, _max) and pick _min as the representative
   //   case PredicateCondition::Equals:
