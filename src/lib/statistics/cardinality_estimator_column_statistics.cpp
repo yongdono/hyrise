@@ -18,12 +18,13 @@
 namespace opossum {
 
 std::optional<Cardinality> CardinalityEstimatorColumnStatistics::estimate(const std::vector<std::shared_ptr<AbstractLQPNode>>& relations,
-                                                                          const std::vector<std::shared_ptr<const AbstractJoinPlanPredicate>>& predicates) const {
+                                                const std::vector<std::shared_ptr<const AbstractJoinPlanPredicate>>& predicates) const {
   Assert(!relations.empty(), "Can't perform estimation on empty set of statistics");
 
   /**
    * Initialise EstimationState
    */
+
   EstimationState estimation_state;
 
   for (const auto& predicate : predicates) {
@@ -33,8 +34,19 @@ std::optional<Cardinality> CardinalityEstimatorColumnStatistics::estimate(const 
   estimation_state.vertices_not_joined.insert(relations.begin() + 1, relations.end());
   estimation_state.current_cardinality = relations.front()->get_statistics()->row_count();
 
-  while (!estimation_state.vertices_not_joined.empty()) {
-    
+  /**
+   * We could do a Cross Product of all Vertices here and then just apply all Predicates. But doing a Cross would
+   * probably make the temporary Cardinality explode beyond the reasonable. So we're bringing in Vertex by Vertex while
+   * reducing the temporary Cardinality after each Vertex by applying all Predicates that can be executed on the
+   * assembled Vertices.
+   */
+
+  for (const auto& predicate : predicates) {
+    _apply_predicate(*predicate, estimation_state);
+  }
+
+  for (const auto& vertex : estimation_state.vertices_not_joined) {
+    estimation_state.current_cardinality *= vertex->get_statistics()->row_count();
   }
 
   return estimation_state.current_cardinality * _penalty;
