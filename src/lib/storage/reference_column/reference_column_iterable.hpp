@@ -25,18 +25,18 @@ class ReferenceColumnIterable : public ColumnIterable<ReferenceColumnIterable<T>
     const auto begin_it = _column.pos_list()->begin();
     const auto end_it = _column.pos_list()->end();
 
-    if(_column.pos_list()->empty()) {
+    if (_column.pos_list()->empty()) {
       return;
     }
 
     // resolve first column type
     const auto first_chunk = _column.referenced_table()->get_chunk(_column.pos_list()->cbegin()->chunk_id);
     const auto first_column = first_chunk->get_column(_column.referenced_column_id());
-    resolve_column_type<T>(*first_column, [&](const auto& typed_column){
+    resolve_column_type<T>(*first_column, [&](const auto& typed_column) {
       using ConcreteColumnType = std::decay_t<decltype(typed_column)>;
       constexpr auto is_reference_column = std::is_same_v<ConcreteColumnType, ReferenceColumn>;
 
-      if constexpr(!is_reference_column) {
+      if constexpr (!is_reference_column) {
         auto begin = SingleColumnTypeIterator<ConcreteColumnType>{table, column_id, begin_it, begin_it};
         auto end = SingleColumnTypeIterator<ConcreteColumnType>{table, column_id, begin_it, end_it};
         functor(begin, end);
@@ -109,13 +109,14 @@ class ReferenceColumnIterable : public ColumnIterable<ReferenceColumnIterable<T>
   };
 
   template <typename ConcreteColumnType>
-  class SingleColumnTypeIterator : public BaseColumnIterator<SingleColumnTypeIterator<ConcreteColumnType>, ColumnIteratorValue<T>> {
+  class SingleColumnTypeIterator
+      : public BaseColumnIterator<SingleColumnTypeIterator<ConcreteColumnType>, ColumnIteratorValue<T>> {
    public:
     using PosListIterator = PosList::const_iterator;
 
    public:
     explicit SingleColumnTypeIterator(const std::shared_ptr<const Table> table, const ColumnID column_id,
-                      const PosListIterator& begin_pos_list_it, const PosListIterator& pos_list_it)
+                                      const PosListIterator& begin_pos_list_it, const PosListIterator& pos_list_it)
         : _table{table},
           _column_id{column_id},
           _begin_pos_list_it{begin_pos_list_it},
