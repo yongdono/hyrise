@@ -340,14 +340,14 @@ set(
     statistics/chunk_statistics/histograms/equal_num_elements_histogram.hpp
     statistics/chunk_statistics/histograms/equal_width_histogram.cpp
     statistics/chunk_statistics/histograms/equal_width_histogram.hpp
-    statistics/column_statistics.cpp
-    statistics/column_statistics.hpp
     statistics/generate_table_statistics.cpp
     statistics/generate_table_statistics.hpp
     statistics/generate_column_statistics.cpp
     statistics/generate_column_statistics.hpp
     statistics/histogram_column_statistics.cpp
     statistics/histogram_column_statistics.hpp
+    statistics/minimal_column_statistics.cpp
+    statistics/minimal_column_statistics.hpp
     statistics/statistics_import_export.cpp
     statistics/statistics_import_export.hpp
     statistics/table_statistics.cpp

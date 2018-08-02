@@ -14,13 +14,13 @@ namespace opossum {
  * @tparam ColumnDataType   the DataType of the values in the Column that these statistics represent
  */
 template <typename ColumnDataType>
-class ColumnStatistics : public BaseColumnStatistics {
+class MinimalColumnStatistics : public BaseColumnStatistics {
  public:
-  // To be used for columns for which ColumnStatistics can't be computed
-  static ColumnStatistics dummy();
+  // To be used for columns for which MinimalColumnStatistics can't be computed
+  static MinimalColumnStatistics dummy();
 
-  ColumnStatistics(const float null_value_ratio, const float distinct_count, const ColumnDataType min,
-                   const ColumnDataType max);
+  MinimalColumnStatistics(const float null_value_ratio, const float distinct_count, const ColumnDataType min,
+                          const ColumnDataType max);
 
   /**
    * @defgroup Member access

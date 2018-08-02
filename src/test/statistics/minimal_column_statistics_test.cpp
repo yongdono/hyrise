@@ -8,23 +8,23 @@
 #include "gtest/gtest.h"
 #include "operators/table_scan.hpp"
 #include "operators/table_wrapper.hpp"
-#include "statistics/column_statistics.hpp"
 #include "statistics/generate_table_statistics.hpp"
+#include "statistics/minimal_column_statistics.hpp"
 
 namespace opossum {
 
-class ColumnStatisticsTest : public BaseTest {
+class MinimalColumnStatisticsTest : public BaseTest {
  protected:
   void SetUp() override {
     _table_with_different_column_types = load_table("src/test/tables/int_float_double_string.tbl", Chunk::MAX_SIZE);
     auto table_statistics1 = generate_table_statistics(_table_with_different_column_types);
-    _column_statistics_int = std::dynamic_pointer_cast<ColumnStatistics<int32_t>>(
+    _column_statistics_int = std::dynamic_pointer_cast<MinimalColumnStatistics<int32_t>>(
         std::const_pointer_cast<BaseColumnStatistics>(table_statistics1.column_statistics()[0]));
-    _column_statistics_float = std::dynamic_pointer_cast<ColumnStatistics<float>>(
+    _column_statistics_float = std::dynamic_pointer_cast<MinimalColumnStatistics<float>>(
         std::const_pointer_cast<BaseColumnStatistics>(table_statistics1.column_statistics()[1]));
-    _column_statistics_double = std::dynamic_pointer_cast<ColumnStatistics<double>>(
+    _column_statistics_double = std::dynamic_pointer_cast<MinimalColumnStatistics<double>>(
         std::const_pointer_cast<BaseColumnStatistics>(table_statistics1.column_statistics()[2]));
-    _column_statistics_string = std::dynamic_pointer_cast<ColumnStatistics<std::string>>(
+    _column_statistics_string = std::dynamic_pointer_cast<MinimalColumnStatistics<std::string>>(
         std::const_pointer_cast<BaseColumnStatistics>(table_statistics1.column_statistics()[3]));
 
     _table_uniform_distribution = load_table("src/test/tables/int_equal_distribution.tbl", Chunk::MAX_SIZE);
@@ -34,7 +34,7 @@ class ColumnStatisticsTest : public BaseTest {
 
   // For single value scans (i.e. all but BETWEEN)
   template <typename T>
-  void predict_selectivities_and_compare(const std::shared_ptr<ColumnStatistics<T>>& column_statistic,
+  void predict_selectivities_and_compare(const std::shared_ptr<MinimalColumnStatistics<T>>& column_statistic,
                                          const PredicateCondition predicate_condition, const std::vector<T>& values,
                                          const std::vector<float>& expected_selectivities) {
     auto expected_selectivities_itr = expected_selectivities.begin();
@@ -69,7 +69,7 @@ class ColumnStatisticsTest : public BaseTest {
 
   // For BETWEEN
   template <typename T>
-  void predict_selectivities_and_compare(const std::shared_ptr<ColumnStatistics<T>>& column_statistic,
+  void predict_selectivities_and_compare(const std::shared_ptr<MinimalColumnStatistics<T>>& column_statistic,
                                          const PredicateCondition predicate_condition,
                                          const std::vector<std::pair<T, T>>& values,
                                          const std::vector<float>& expected_selectivities) {
@@ -83,7 +83,7 @@ class ColumnStatisticsTest : public BaseTest {
 
   template <typename T>
   void predict_selectivities_for_stored_procedures_and_compare(
-      const std::shared_ptr<ColumnStatistics<T>>& column_statistic, const PredicateCondition predicate_condition,
+      const std::shared_ptr<MinimalColumnStatistics<T>>& column_statistic, const PredicateCondition predicate_condition,
       const std::vector<T>& values2, const std::vector<float>& expected_selectivities) {
     auto expected_selectivities_itr = expected_selectivities.begin();
     for (const auto& value2 : values2) {
@@ -94,10 +94,10 @@ class ColumnStatisticsTest : public BaseTest {
   }
 
   std::shared_ptr<Table> _table_with_different_column_types;
-  std::shared_ptr<ColumnStatistics<int32_t>> _column_statistics_int;
-  std::shared_ptr<ColumnStatistics<float>> _column_statistics_float;
-  std::shared_ptr<ColumnStatistics<double>> _column_statistics_double;
-  std::shared_ptr<ColumnStatistics<std::string>> _column_statistics_string;
+  std::shared_ptr<MinimalColumnStatistics<int32_t>> _column_statistics_int;
+  std::shared_ptr<MinimalColumnStatistics<float>> _column_statistics_float;
+  std::shared_ptr<MinimalColumnStatistics<double>> _column_statistics_double;
+  std::shared_ptr<MinimalColumnStatistics<std::string>> _column_statistics_string;
   std::shared_ptr<Table> _table_uniform_distribution;
   std::vector<std::shared_ptr<const BaseColumnStatistics>> _column_statistics_uniform_columns;
 
@@ -108,7 +108,7 @@ class ColumnStatisticsTest : public BaseTest {
   std::vector<std::string> _string_values{"a", "b", "c", "g", "h"};
 };
 
-TEST_F(ColumnStatisticsTest, NotEqualTest) {
+TEST_F(MinimalColumnStatisticsTest, NotEqualTest) {
   PredicateCondition predicate_condition = PredicateCondition::NotEquals;
 
   std::vector<float> selectivities{1.f, 5.f / 6.f, 5.f / 6.f, 5.f / 6.f, 1.f};
@@ -118,7 +118,7 @@ TEST_F(ColumnStatisticsTest, NotEqualTest) {
   predict_selectivities_and_compare(_column_statistics_string, predicate_condition, _string_values, selectivities);
 }
 
-TEST_F(ColumnStatisticsTest, EqualsTest) {
+TEST_F(MinimalColumnStatisticsTest, EqualsTest) {
   PredicateCondition predicate_condition = PredicateCondition::Equals;
 
   std::vector<float> selectivities{0.f, 1.f / 6.f, 1.f / 6.f, 1.f / 6.f, 0.f};
@@ -128,7 +128,7 @@ TEST_F(ColumnStatisticsTest, EqualsTest) {
   predict_selectivities_and_compare(_column_statistics_string, predicate_condition, _string_values, selectivities);
 }
 
-TEST_F(ColumnStatisticsTest, LessThanTest) {
+TEST_F(MinimalColumnStatisticsTest, LessThanTest) {
   PredicateCondition predicate_condition = PredicateCondition::LessThan;
 
   std::vector<float> selectivities_int{0.f, 0.f, 1.f / 3.f, 5.f / 6.f, 1.f};
@@ -140,7 +140,7 @@ TEST_F(ColumnStatisticsTest, LessThanTest) {
                                     selectivities_float);
 }
 
-TEST_F(ColumnStatisticsTest, LessEqualThanTest) {
+TEST_F(MinimalColumnStatisticsTest, LessEqualThanTest) {
   PredicateCondition predicate_condition = PredicateCondition::LessThanEquals;
 
   std::vector<float> selectivities_int{0.f, 1.f / 6.f, 1.f / 2.f, 1.f, 1.f};
@@ -152,7 +152,7 @@ TEST_F(ColumnStatisticsTest, LessEqualThanTest) {
                                     selectivities_float);
 }
 
-TEST_F(ColumnStatisticsTest, GreaterThanTest) {
+TEST_F(MinimalColumnStatisticsTest, GreaterThanTest) {
   PredicateCondition predicate_condition = PredicateCondition::GreaterThan;
 
   std::vector<float> selectivities_int{1.f, 5.f / 6.f, 1.f / 2.f, 0.f, 0.f};
@@ -164,7 +164,7 @@ TEST_F(ColumnStatisticsTest, GreaterThanTest) {
                                     selectivities_float);
 }
 
-TEST_F(ColumnStatisticsTest, GreaterEqualThanTest) {
+TEST_F(MinimalColumnStatisticsTest, GreaterEqualThanTest) {
   PredicateCondition predicate_condition = PredicateCondition::GreaterThanEquals;
 
   std::vector<float> selectivities_int{1.f, 1.f, 2.f / 3.f, 1.f / 6.f, 0.f};
@@ -176,7 +176,7 @@ TEST_F(ColumnStatisticsTest, GreaterEqualThanTest) {
                                     selectivities_float);
 }
 
-TEST_F(ColumnStatisticsTest, BetweenTest) {
+TEST_F(MinimalColumnStatisticsTest, BetweenTest) {
   PredicateCondition predicate_condition = PredicateCondition::Between;
 
   std::vector<std::pair<int32_t, int32_t>> int_values{{-1, 0}, {-1, 2}, {1, 2}, {0, 7}, {5, 6}, {5, 8}, {7, 8}};
@@ -193,7 +193,7 @@ TEST_F(ColumnStatisticsTest, BetweenTest) {
   predict_selectivities_and_compare(_column_statistics_double, predicate_condition, double_values, selectivities_float);
 }
 
-TEST_F(ColumnStatisticsTest, StoredProcedureNotEqualsTest) {
+TEST_F(MinimalColumnStatisticsTest, StoredProcedureNotEqualsTest) {
   PredicateCondition predicate_condition = PredicateCondition::NotEquals;
 
   auto result_container_int = _column_statistics_int->estimate_predicate_with_value_placeholder(predicate_condition);
@@ -212,7 +212,7 @@ TEST_F(ColumnStatisticsTest, StoredProcedureNotEqualsTest) {
   EXPECT_FLOAT_EQ(result_container_string.selectivity, 5.f / 6.f);
 }
 
-TEST_F(ColumnStatisticsTest, StoredProcedureEqualsTest) {
+TEST_F(MinimalColumnStatisticsTest, StoredProcedureEqualsTest) {
   PredicateCondition predicate_condition = PredicateCondition::Equals;
 
   auto result_container_int = _column_statistics_int->estimate_predicate_with_value_placeholder(predicate_condition);
@@ -231,7 +231,7 @@ TEST_F(ColumnStatisticsTest, StoredProcedureEqualsTest) {
   EXPECT_FLOAT_EQ(result_container_string.selectivity, 1.f / 6.f);
 }
 
-TEST_F(ColumnStatisticsTest, StoredProcedureOpenEndedTest) {
+TEST_F(MinimalColumnStatisticsTest, StoredProcedureOpenEndedTest) {
   // OpLessThan, OpGreaterThan, OpLessThanEquals, OpGreaterThanEquals are same for stored procedures
   PredicateCondition predicate_condition = PredicateCondition::LessThan;
 
@@ -251,7 +251,7 @@ TEST_F(ColumnStatisticsTest, StoredProcedureOpenEndedTest) {
   EXPECT_FLOAT_EQ(result_container_string.selectivity, 1.f / 3.f);
 }
 
-TEST_F(ColumnStatisticsTest, StoredProcedureBetweenTest) {
+TEST_F(MinimalColumnStatisticsTest, StoredProcedureBetweenTest) {
   PredicateCondition predicate_condition = PredicateCondition::Between;
 
   // selectivities = selectivities from LessEqualThan / 0.3f
@@ -267,11 +267,11 @@ TEST_F(ColumnStatisticsTest, StoredProcedureBetweenTest) {
                                                           _double_values, selectivities_float);
 }
 
-TEST_F(ColumnStatisticsTest, TwoColumnsEqualsTest) {
+TEST_F(MinimalColumnStatisticsTest, TwoColumnsEqualsTest) {
   PredicateCondition predicate_condition = PredicateCondition::Equals;
 
-  auto col_stat1 = std::make_shared<ColumnStatistics<int>>(0.0f, 10.f, 0, 10);
-  auto col_stat2 = std::make_shared<ColumnStatistics<int>>(0.0f, 10.f, -10, 20);
+  auto col_stat1 = std::make_shared<MinimalColumnStatistics<int>>(0.0f, 10.f, 0, 10);
+  auto col_stat2 = std::make_shared<MinimalColumnStatistics<int>>(0.0f, 10.f, -10, 20);
 
   auto result1 = col_stat1->estimate_predicate_with_column(predicate_condition, *col_stat2);
   auto result2 = col_stat2->estimate_predicate_with_column(predicate_condition, *col_stat1);
@@ -280,8 +280,8 @@ TEST_F(ColumnStatisticsTest, TwoColumnsEqualsTest) {
   EXPECT_FLOAT_EQ(result1.selectivity, expected_selectivity);
   EXPECT_FLOAT_EQ(result2.selectivity, expected_selectivity);
 
-  auto col_stat3 = std::make_shared<ColumnStatistics<float>>(0.0f, 10.f, 0.f, 10.f);
-  auto col_stat4 = std::make_shared<ColumnStatistics<float>>(0.0f, 3.f, -10.f, 20.f);
+  auto col_stat3 = std::make_shared<MinimalColumnStatistics<float>>(0.0f, 10.f, 0.f, 10.f);
+  auto col_stat4 = std::make_shared<MinimalColumnStatistics<float>>(0.0f, 3.f, -10.f, 20.f);
 
   auto result3 = col_stat3->estimate_predicate_with_column(predicate_condition, *col_stat4);
   auto result4 = col_stat4->estimate_predicate_with_column(predicate_condition, *col_stat3);
@@ -290,7 +290,7 @@ TEST_F(ColumnStatisticsTest, TwoColumnsEqualsTest) {
   EXPECT_FLOAT_EQ(result3.selectivity, expected_selectivity);
   EXPECT_FLOAT_EQ(result4.selectivity, expected_selectivity);
 
-  auto col_stat5 = std::make_shared<ColumnStatistics<float>>(0.0f, 10.f, 20.f, 30.f);
+  auto col_stat5 = std::make_shared<MinimalColumnStatistics<float>>(0.0f, 10.f, 20.f, 30.f);
 
   auto result5 = col_stat3->estimate_predicate_with_column(predicate_condition, *col_stat5);
   auto result6 = col_stat5->estimate_predicate_with_column(predicate_condition, *col_stat3);
@@ -300,11 +300,11 @@ TEST_F(ColumnStatisticsTest, TwoColumnsEqualsTest) {
   EXPECT_FLOAT_EQ(result6.selectivity, expected_selectivity);
 }
 
-TEST_F(ColumnStatisticsTest, TwoColumnsLessThanTest) {
+TEST_F(MinimalColumnStatisticsTest, TwoColumnsLessThanTest) {
   PredicateCondition predicate_condition = PredicateCondition::LessThan;
 
-  auto col_stat1 = std::make_shared<ColumnStatistics<int>>(0.0f, 10.f, 1, 20);
-  auto col_stat2 = std::make_shared<ColumnStatistics<int>>(0.0f, 30.f, 11, 40);
+  auto col_stat1 = std::make_shared<MinimalColumnStatistics<int>>(0.0f, 10.f, 1, 20);
+  auto col_stat2 = std::make_shared<MinimalColumnStatistics<int>>(0.0f, 30.f, 11, 40);
 
   auto result1 = col_stat1->estimate_predicate_with_column(predicate_condition, *col_stat2);
   auto expected_selectivity = ((10.f / 20.f) * (10.f / 30.f) - 0.5f * 1.f / 30.f) * 0.5f + (10.f / 20.f) +
@@ -315,8 +315,8 @@ TEST_F(ColumnStatisticsTest, TwoColumnsLessThanTest) {
   expected_selectivity = ((10.f / 20.f) * (10.f / 30.f) - 0.5f * 1.f / 30.f) * 0.5f;
   EXPECT_FLOAT_EQ(result2.selectivity, expected_selectivity);
 
-  auto col_stat3 = std::make_shared<ColumnStatistics<float>>(0.0f, 6.f, 0, 10);
-  auto col_stat4 = std::make_shared<ColumnStatistics<float>>(0.0f, 12.f, -10, 30);
+  auto col_stat3 = std::make_shared<MinimalColumnStatistics<float>>(0.0f, 6.f, 0, 10);
+  auto col_stat4 = std::make_shared<MinimalColumnStatistics<float>>(0.0f, 12.f, -10, 30);
 
   auto result3 = col_stat3->estimate_predicate_with_column(predicate_condition, *col_stat4);
   expected_selectivity = ((10.f / 10.f) * (10.f / 40.f) - 1.f / (4 * 6)) * 0.5f + (20.f / 40.f);
@@ -327,7 +327,7 @@ TEST_F(ColumnStatisticsTest, TwoColumnsLessThanTest) {
   EXPECT_FLOAT_EQ(result4.selectivity, expected_selectivity);
 }
 
-TEST_F(ColumnStatisticsTest, TwoColumnsRealDataTest) {
+TEST_F(MinimalColumnStatisticsTest, TwoColumnsRealDataTest) {
   // test selectivity calculations for all predicate conditions and all column combinations of
   // int_equal_distribution.tbl
   std::vector<PredicateCondition> predicate_conditions{PredicateCondition::Equals, PredicateCondition::NotEquals,
@@ -339,7 +339,7 @@ TEST_F(ColumnStatisticsTest, TwoColumnsRealDataTest) {
   }
 }
 
-TEST_F(ColumnStatisticsTest, NonNullRatioOneColumnTest) {
+TEST_F(MinimalColumnStatisticsTest, NonNullRatioOneColumnTest) {
   // null value ratio of 0 not tested here, since this is done in all other tests
   _column_statistics_int->set_null_value_ratio(0.25f);   // non-null value ratio: 0.75
   _column_statistics_float->set_null_value_ratio(0.5f);  // non-null value ratio: 0.5
@@ -389,7 +389,7 @@ TEST_F(ColumnStatisticsTest, NonNullRatioOneColumnTest) {
   EXPECT_FLOAT_EQ(result.selectivity, 0.f);
 }
 
-TEST_F(ColumnStatisticsTest, NonNullRatioTwoColumnTest) {
+TEST_F(MinimalColumnStatisticsTest, NonNullRatioTwoColumnTest) {
   auto stats_0 =
       std::const_pointer_cast<BaseColumnStatistics>(_column_statistics_uniform_columns[0]);  // values from 0 to 5
   auto stats_1 =

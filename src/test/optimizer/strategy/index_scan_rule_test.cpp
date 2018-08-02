@@ -14,7 +14,7 @@
 #include "logical_query_plan/stored_table_node.hpp"
 #include "optimizer/strategy/index_scan_rule.hpp"
 #include "optimizer/strategy/strategy_base_test.hpp"
-#include "statistics/column_statistics.hpp"
+#include "statistics/minimal_column_statistics.hpp"
 #include "statistics/table_statistics.hpp"
 #include "storage/chunk_encoder.hpp"
 #include "storage/dictionary_column.hpp"
@@ -45,9 +45,9 @@ class IndexScanRuleTest : public StrategyBaseTest {
 
   std::shared_ptr<TableStatistics> generate_mock_statistics(float row_count = 0.0f) {
     std::vector<std::shared_ptr<const BaseColumnStatistics>> column_statistics;
-    column_statistics.emplace_back(std::make_shared<ColumnStatistics<int32_t>>(0.0f, 10, 0, 20));
-    column_statistics.emplace_back(std::make_shared<ColumnStatistics<int32_t>>(0.0f, 10, 0, 20));
-    column_statistics.emplace_back(std::make_shared<ColumnStatistics<int32_t>>(0.0f, 10, 0, 20'000));
+    column_statistics.emplace_back(std::make_shared<MinimalColumnStatistics<int32_t>>(0.0f, 10, 0, 20));
+    column_statistics.emplace_back(std::make_shared<MinimalColumnStatistics<int32_t>>(0.0f, 10, 0, 20));
+    column_statistics.emplace_back(std::make_shared<MinimalColumnStatistics<int32_t>>(0.0f, 10, 0, 20'000));
     return std::make_shared<TableStatistics>(TableStatistics{TableType::Data, row_count, column_statistics});
   }
 

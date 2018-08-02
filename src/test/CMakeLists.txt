@@ -83,10 +83,6 @@ set(
     operators/update_test.cpp
     operators/validate_test.cpp
     operators/validate_visibility_test.cpp
-    statistics/chunk_statistics/pruning_filters_test.cpp
-    statistics/column_statistics_test.cpp
-    statistics/table_statistics_join_test.cpp
-    statistics/table_statistics_test.cpp
     optimizer/lqp_translator_test.cpp
     optimizer/optimizer_test.cpp
     optimizer/strategy/chunk_pruning_test.cpp
@@ -113,13 +109,12 @@ set(
     sql/sql_translator_test.cpp
     statistics/chunk_statistics/histograms/histogram_test.cpp
     statistics/chunk_statistics/pruning_filters_test.cpp
-    statistics/column_statistics_test.cpp
     statistics/generate_table_statistics_test.cpp
     statistics/histogram_column_statistics_test.cpp
+    statistics/minimal_column_statistics_test.cpp
     statistics/statistics_import_export_test.cpp
     statistics/statistics_test_utils.hpp
     statistics/table_statistics_test.cpp
-    statistics/table_statistics_join_test.cpp
     statistics/table_statistics_join_test.cpp
     storage/adaptive_radix_tree_index_test.cpp
     storage/any_column_iterable_test.cpp

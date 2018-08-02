@@ -18,7 +18,7 @@
 #include "logical_query_plan/union_node.hpp"
 #include "optimizer/strategy/predicate_reordering_rule.hpp"
 #include "optimizer/strategy/strategy_base_test.hpp"
-#include "statistics/column_statistics.hpp"
+#include "statistics/minimal_column_statistics.hpp"
 #include "statistics/table_statistics.hpp"
 #include "storage/storage_manager.hpp"
 
@@ -38,9 +38,9 @@ class PredicateReorderingTest : public StrategyBaseTest {
     _rule = std::make_shared<PredicateReorderingRule>();
 
     std::vector<std::shared_ptr<const BaseColumnStatistics>> column_statistics(
-        {std::make_shared<ColumnStatistics<int32_t>>(0.0f, 20, 10, 100),
-         std::make_shared<ColumnStatistics<int32_t>>(0.0f, 5, 50, 60),
-         std::make_shared<ColumnStatistics<int32_t>>(0.0f, 2, 110, 1100)});
+        {std::make_shared<MinimalColumnStatistics<int32_t>>(0.0f, 20, 10, 100),
+         std::make_shared<MinimalColumnStatistics<int32_t>>(0.0f, 5, 50, 60),
+         std::make_shared<MinimalColumnStatistics<int32_t>>(0.0f, 2, 110, 1100)});
 
     auto table_statistics = std::make_shared<TableStatistics>(TableType::Data, 100, column_statistics);
 
@@ -172,7 +172,7 @@ TEST_F(PredicateReorderingTest, PredicatesAsRightInput) {
   /**
    * The mocked table has one column of int32_ts with the value range 0..100
    */
-  auto column_statistics = std::make_shared<ColumnStatistics<int32_t>>(ColumnID{0}, 100.0f, 0.0f, 100.0f);
+  auto column_statistics = std::make_shared<MinimalColumnStatistics<int32_t>>(ColumnID{0}, 100.0f, 0.0f, 100.0f);
   auto table_statistics = std::make_shared<TableStatistics>(
       TableType::Data, 100, std::vector<std::shared_ptr<const BaseColumnStatistics>>{column_statistics});
 
@@ -223,7 +223,7 @@ TEST_F(PredicateReorderingTest, PredicatesWithMultipleOutputs) {
   /**
    * The mocked table has one column of int32_ts with the value range 0..100
    */
-  auto column_statistics = std::make_shared<ColumnStatistics<int32_t>>(ColumnID{0}, 100.0f, 0.0f, 100.0f);
+  auto column_statistics = std::make_shared<MinimalColumnStatistics<int32_t>>(ColumnID{0}, 100.0f, 0.0f, 100.0f);
   auto table_statistics = std::make_shared<TableStatistics>(
       TableType::Data, 100, std::vector<std::shared_ptr<const BaseColumnStatistics>>{column_statistics});
 

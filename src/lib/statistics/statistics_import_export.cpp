@@ -2,8 +2,8 @@
 
 #include <fstream>
 
-#include "column_statistics.hpp"
 #include "constant_mappings.hpp"
+#include "minimal_column_statistics.hpp"
 #include "resolve_type.hpp"
 #include "utils/assert.hpp"
 
@@ -67,7 +67,7 @@ std::shared_ptr<BaseColumnStatistics> import_column_statistics(const nlohmann::j
     const auto max = json["max"].get<ColumnDataType>();
 
     result_column_statistics =
-        std::make_shared<ColumnStatistics<ColumnDataType>>(null_value_ratio, distinct_count, min, max);
+        std::make_shared<MinimalColumnStatistics<ColumnDataType>>(null_value_ratio, distinct_count, min, max);
   });
 
   Assert(result_column_statistics, "resolve_data_type() apparently failed.");
@@ -94,7 +94,7 @@ nlohmann::json export_column_statistics(const BaseColumnStatistics& base_column_
 
   resolve_data_type(base_column_statistics.data_type(), [&](const auto type) {
     using ColumnDataType = typename decltype(type)::type;
-    const auto& column_statistics = static_cast<const ColumnStatistics<ColumnDataType>&>(base_column_statistics);
+    const auto& column_statistics = static_cast<const MinimalColumnStatistics<ColumnDataType>&>(base_column_statistics);
     // TODO(tim): check for column statistics type
     column_statistics_json["min"] = column_statistics.min();
     column_statistics_json["max"] = column_statistics.max();

@@ -17,7 +17,7 @@
 #include "operators/get_table.hpp"
 #include "optimizer/strategy/chunk_pruning_rule.hpp"
 #include "optimizer/strategy/strategy_base_test.hpp"
-#include "statistics/column_statistics.hpp"
+#include "statistics/minimal_column_statistics.hpp"
 #include "statistics/table_statistics.hpp"
 #include "storage/chunk_encoder.hpp"
 #include "storage/storage_manager.hpp"

@@ -4,7 +4,7 @@
 
 #include "expression/expression_utils.hpp"
 #include "resolve_type.hpp"
-#include "statistics/column_statistics.hpp"
+#include "statistics/minimal_column_statistics.hpp"
 #include "statistics/table_statistics.hpp"
 #include "utils/assert.hpp"
 
@@ -46,8 +46,8 @@ std::shared_ptr<TableStatistics> ProjectionNode::derive_statistics_from(
       // TODO(anybody) Statistics for expressions not yet supported
       resolve_data_type(expression->data_type(), [&](const auto data_type_t) {
         using ExpressionDataType = typename decltype(data_type_t)::type;
-        column_statistics.emplace_back(
-            std::make_shared<ColumnStatistics<ExpressionDataType>>(ColumnStatistics<ExpressionDataType>::dummy()));
+        column_statistics.emplace_back(std::make_shared<MinimalColumnStatistics<ExpressionDataType>>(
+            MinimalColumnStatistics<ExpressionDataType>::dummy()));
       });
 
       table_type = TableType::Data;

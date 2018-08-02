@@ -4,8 +4,8 @@
 
 #include "base_column_statistics.hpp"
 #include "chunk_statistics/histograms/equal_num_elements_histogram.hpp"
-#include "column_statistics.hpp"
 #include "histogram_column_statistics.hpp"
+#include "minimal_column_statistics.hpp"
 #include "resolve_type.hpp"
 #include "storage/create_iterable_from_column.hpp"
 #include "storage/table.hpp"
@@ -52,7 +52,7 @@ std::shared_ptr<BaseColumnStatistics> generate_column_statistics(const std::shar
     max = std::numeric_limits<ColumnDataType>::max();
   }
 
-  return std::make_shared<ColumnStatistics<ColumnDataType>>(null_value_ratio, distinct_count, min, max);
+  return std::make_shared<MinimalColumnStatistics<ColumnDataType>>(null_value_ratio, distinct_count, min, max);
 }
 
 template <>

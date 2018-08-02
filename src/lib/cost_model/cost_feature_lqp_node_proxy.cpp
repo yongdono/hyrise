@@ -10,7 +10,7 @@
 #include "operators/operator_join_predicate.hpp"
 #include "operators/operator_scan_predicate.hpp"
 #include "resolve_type.hpp"
-#include "statistics/column_statistics.hpp"
+#include "statistics/minimal_column_statistics.hpp"
 #include "statistics/table_statistics.hpp"
 
 namespace opossum {

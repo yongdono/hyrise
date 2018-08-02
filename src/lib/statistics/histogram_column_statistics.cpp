@@ -2,7 +2,7 @@
 
 #include <sstream>
 
-#include "column_statistics.hpp"
+#include "minimal_column_statistics.hpp"
 #include "table_statistics.hpp"
 
 #include "resolve_type.hpp"
@@ -14,6 +14,13 @@ template <typename ColumnDataType>
 HistogramColumnStatistics<ColumnDataType>::HistogramColumnStatistics(
     const std::shared_ptr<AbstractHistogram<ColumnDataType>>& histogram, const float null_value_ratio)
     : BaseColumnStatistics(data_type_from_type<ColumnDataType>(), null_value_ratio), _histogram(histogram) {}
+
+template <typename ColumnDataType>
+std::string HistogramColumnStatistics<ColumnDataType>::_description() const {
+  std::stringstream stream;
+  stream << _histogram->description();
+  return stream.str();
+}
 
 template <typename ColumnDataType>
 const std::shared_ptr<AbstractHistogram<ColumnDataType>>& HistogramColumnStatistics<ColumnDataType>::histogram() const {
@@ -105,7 +112,7 @@ FilterByValueEstimate HistogramColumnStatistics<ColumnDataType>::estimate_predic
 
 template <typename ColumnDataType>
 FilterByColumnComparisonEstimate HistogramColumnStatistics<ColumnDataType>::estimate_predicate_with_column(
-    const PredicateCondition predicate_condition, const BaseColumnStatistics& abstract_right_column_statistics) const {
+    const PredicateCondition predicate_condition, const BaseColumnStatistics& base_right_column_statistics) const {
   // /**
   //  * Calculate expected selectivity by looking at what ratio of values of both columns are in the overlapping value
   //  * range of both columns.
@@ -156,10 +163,10 @@ FilterByColumnComparisonEstimate HistogramColumnStatistics<ColumnDataType>::esti
   //  *  = 29 / 40 = 72.5 % // NOLINT
   //  */
   //
-  // Assert(_data_type == abstract_right_column_statistics.data_type(), "Cannot compare columns of different type");
+  // Assert(_data_type == base_right_column_statistics.data_type(), "Cannot compare columns of different type");
   //
   // const auto& right_column_statistics =
-  //     static_cast<const ColumnStatistics<ColumnDataType>&>(abstract_right_column_statistics);
+  //     static_cast<const ColumnStatistics<ColumnDataType>&>(base_right_column_statistics);
   //
   // // if columns have no distinct values, they can only have null values which cannot be selected with this predicate
   // if (distinct_count() == 0 || right_column_statistics.distinct_count() == 0) {
@@ -294,10 +301,10 @@ FilterByColumnComparisonEstimate HistogramColumnStatistics<ColumnDataType>::esti
   //   default: { return {combined_non_null_ratio, without_null_values(), right_column_statistics.without_null_values()}; }
   // }
   // TODO(tim): come up with strategy
-  Assert(_data_type == abstract_right_column_statistics.data_type(), "Cannot compare columns of different type");
+  Assert(_data_type == base_right_column_statistics.data_type(), "Cannot compare columns of different type");
 
   const auto& right_column_statistics =
-      static_cast<const ColumnStatistics<ColumnDataType>&>(abstract_right_column_statistics);
+      static_cast<const MinimalColumnStatistics<ColumnDataType>&>(base_right_column_statistics);
   const auto combined_non_null_ratio = non_null_value_ratio() * right_column_statistics.non_null_value_ratio();
   return {combined_non_null_ratio, without_null_values(), right_column_statistics.without_null_values()};
 }
@@ -307,12 +314,12 @@ FilterByColumnComparisonEstimate HistogramColumnStatistics<ColumnDataType>::esti
 //  */
 // template <>
 // FilterByColumnComparisonEstimate ColumnStatistics<std::string>::estimate_predicate_with_column(
-//     const PredicateCondition predicate_condition, const BaseColumnStatistics& abstract_right_column_statistics) const {
+//     const PredicateCondition predicate_condition, const BaseColumnStatistics& base_right_column_statistics) const {
 //   // TODO(anybody) implement special case for strings
-//   Assert(_data_type == abstract_right_column_statistics.data_type(), "Cannot compare columns of different type");
+//   Assert(_data_type == base_right_column_statistics.data_type(), "Cannot compare columns of different type");
 //
 //   const auto& right_column_statistics =
-//       static_cast<const ColumnStatistics<std::string>&>(abstract_right_column_statistics);
+//       static_cast<const ColumnStatistics<std::string>&>(base_right_column_statistics);
 //
 //   // if columns have no distinct values, they can only have null values which cannot be selected with this predicate
 //   if (distinct_count() == 0 || right_column_statistics.distinct_count() == 0) {
@@ -324,13 +331,6 @@ FilterByColumnComparisonEstimate HistogramColumnStatistics<ColumnDataType>::esti
 // }
 
 template <typename ColumnDataType>
-std::string HistogramColumnStatistics<ColumnDataType>::_description() const {
-  std::stringstream stream;
-  stream << _histogram->description();
-  return stream.str();
-}
-
-template <typename ColumnDataType>
 FilterByValueEstimate HistogramColumnStatistics<ColumnDataType>::estimate_equals(const float selectivity,
                                                                                  const bool can_prune,
                                                                                  const ColumnDataType value,
@@ -339,7 +339,7 @@ FilterByValueEstimate HistogramColumnStatistics<ColumnDataType>::estimate_equals
   const auto new_min = update_min_max ? value : _histogram->min();
   const auto new_max = update_min_max ? value : _histogram->max();
   const auto column_statistics =
-      std::make_shared<ColumnStatistics<ColumnDataType>>(0.0f, new_distinct_count, new_min, new_max);
+      std::make_shared<MinimalColumnStatistics<ColumnDataType>>(0.0f, new_distinct_count, new_min, new_max);
   return {selectivity, column_statistics};
 }
 
@@ -357,7 +357,7 @@ FilterByValueEstimate HistogramColumnStatistics<ColumnDataType>::estimate_not_eq
 
   const auto new_distinct_count = can_prune ? 0.f : distinct_count() - 1;
   auto column_statistics =
-      std::make_shared<ColumnStatistics<ColumnDataType>>(0.0f, new_distinct_count, new_min, new_max);
+      std::make_shared<MinimalColumnStatistics<ColumnDataType>>(0.0f, new_distinct_count, new_min, new_max);
   return {selectivity, column_statistics};
 }
 
@@ -377,7 +377,7 @@ FilterByValueEstimate HistogramColumnStatistics<ColumnDataType>::estimate_range(
   const auto new_distinct_count = can_prune ? 0.f : distinct_count() * selectivity;
 
   auto column_statistics =
-      std::make_shared<ColumnStatistics<ColumnDataType>>(0.0f, new_distinct_count, new_min, new_max);
+      std::make_shared<MinimalColumnStatistics<ColumnDataType>>(0.0f, new_distinct_count, new_min, new_max);
   return {selectivity, column_statistics};
 }
 
