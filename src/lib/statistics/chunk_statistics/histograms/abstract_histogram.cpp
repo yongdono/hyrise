@@ -258,18 +258,19 @@ std::string AbstractHistogram<std::string>::_convert_number_representation_to_st
 }
 
 template <typename T>
-float AbstractHistogram<T>::estimate_cardinality(const T value, const PredicateCondition predicate_condition) const {
+float AbstractHistogram<T>::estimate_cardinality(const PredicateCondition predicate_type, const T value,
+                                                 const std::optional<T>& value2) const {
   DebugAssert(num_buckets() > 0u, "Called method on histogram before initialization.");
 
   if constexpr (std::is_same_v<T, std::string>) {
     Assert(value.find_first_not_of(_supported_characters) == std::string::npos, "Unsupported characters.");
   }
 
-  if (can_prune(AllTypeVariant{value}, predicate_condition)) {
+  if (can_prune(predicate_type, AllTypeVariant{value}, std::optional<AllTypeVariant>(*value2))) {
     return 0.f;
   }
 
-  switch (predicate_condition) {
+  switch (predicate_type) {
     case PredicateCondition::Equals: {
       const auto index = _bucket_for_value(value);
 
@@ -374,10 +375,10 @@ float AbstractHistogram<T>::estimate_cardinality(const T value, const PredicateC
       return std::min(cardinality, static_cast<float>(total_count()));
     }
     case PredicateCondition::LessThanEquals: {
-      return estimate_cardinality(next_value(value), PredicateCondition::LessThan);
+      return estimate_cardinality(PredicateCondition::LessThan, next_value(value));
     }
     case PredicateCondition::GreaterThanEquals: {
-      return estimate_cardinality(previous_value(value), PredicateCondition::GreaterThan);
+      return estimate_cardinality(PredicateCondition::GreaterThan, previous_value(value));
     }
     case PredicateCondition::GreaterThan: {
       // if (value < min()) {
@@ -415,50 +416,58 @@ float AbstractHistogram<T>::estimate_cardinality(const T value, const PredicateC
       // }
       //
       // return cardinality;
-      return total_count() - estimate_cardinality(value, PredicateCondition::LessThanEquals);
+      return total_count() - estimate_cardinality(PredicateCondition::LessThanEquals, value);
+    }
+    case PredicateCondition::Between: {
+      Assert(static_cast<bool>(value2), "Between operator needs two values.");
+      return estimate_cardinality(PredicateCondition::LessThanEquals, *value2) -
+             estimate_cardinality(PredicateCondition::LessThan, value);
     }
     // TODO(tim): implement more meaningful things here
     case PredicateCondition::Like:
     case PredicateCondition::NotLike:
-    case PredicateCondition::Between: {
       return total_count();
-      // return estimate_cardinality(value2, PredicateCondition::LessThanEquals) -
-      //        estimate_cardinality(value, PredicateCondition::LessThan);
-    }
     default:
       Fail("Predicate condition not yet supported.");
   }
 }
 
 template <typename T>
-bool AbstractHistogram<T>::can_prune(const AllTypeVariant& value, const PredicateCondition predicate_type) const {
+float AbstractHistogram<T>::estimate_selectivity(const PredicateCondition predicate_type, const T variant_value,
+                                                 const std::optional<T>& variant_value2) const {
+  return estimate_cardinality(predicate_type, variant_value, variant_value2) / total_count();
+}
+
+template <typename T>
+bool AbstractHistogram<T>::can_prune(const PredicateCondition predicate_type, const AllTypeVariant& variant_value,
+                                     const std::optional<AllTypeVariant>& variant_value2) const {
   DebugAssert(num_buckets() > 0, "Called method on histogram before initialization.");
 
-  T t_value = type_cast<T>(value);
+  T value = type_cast<T>(variant_value);
   if constexpr (std::is_same_v<T, std::string>) {
-    t_value = t_value.substr(0, _string_prefix_length);
+    value = value.substr(0, _string_prefix_length);
   }
 
   switch (predicate_type) {
     case PredicateCondition::Equals:
-      return _bucket_for_value(t_value) == INVALID_BUCKET_ID;
+      return _bucket_for_value(value) == INVALID_BUCKET_ID;
     case PredicateCondition::NotEquals:
-      return num_buckets() == 1 && _bucket_min(0) == t_value && _bucket_max(0) == t_value;
+      return num_buckets() == 1 && _bucket_min(0) == value && _bucket_max(0) == value;
     case PredicateCondition::LessThan:
-      return t_value <= min();
+      return value <= min();
     case PredicateCondition::LessThanEquals:
-      return t_value < min();
+      return value < min();
     case PredicateCondition::GreaterThanEquals:
-      return t_value > max();
+      return value > max();
     case PredicateCondition::GreaterThan:
-      return t_value >= max();
-    // TODO(tim): change signature to support two values
-    // talk to Moritz about new expression interface first
-    // case PredicateCondition::Between:
-    //   return can_prune(value, PredicateCondition::GreaterThanEquals) ||
-    //          can_prune(value2, PredicateCondition::LessThanEquals) ||
-    //          (bucket_for_value(t_value) == INVALID_BUCKET_ID && _bucket_for_value(t_value2) == INVALID_BUCKET_ID &&
-    //           upper_bound_for_value(t_value) == _upper_bound_for_value(t_value2));
+      return value >= max();
+    case PredicateCondition::Between: {
+      Assert(static_cast<bool>(variant_value2), "Between operator needs two values.");
+      const auto value2 = type_cast<T>(*variant_value2);
+      return value > max() || value2 < min() ||
+             (_bucket_for_value(value) == INVALID_BUCKET_ID && _bucket_for_value(value2) == INVALID_BUCKET_ID &&
+              _upper_bound_for_value(value) == _upper_bound_for_value(value2));
+    }
     default:
       // Rather than failing we simply do not prune for things we cannot (yet) handle.
       // TODO(tim): think about like and not like

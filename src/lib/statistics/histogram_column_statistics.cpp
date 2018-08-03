@@ -40,12 +40,16 @@ std::shared_ptr<BaseColumnStatistics> HistogramColumnStatistics<ColumnDataType>:
 template <typename ColumnDataType>
 FilterByValueEstimate HistogramColumnStatistics<ColumnDataType>::estimate_predicate_with_value(
     const PredicateCondition predicate_condition, const AllTypeVariant& variant_value,
-    const std::optional<AllTypeVariant>& variant_value_2) const {
-  const auto value = type_cast<ColumnDataType>(variant_value);
+    const std::optional<AllTypeVariant>& variant_value2) const {
+  const auto can_prune = _histogram->can_prune(predicate_condition, variant_value, variant_value2);
 
-  const auto can_prune = _histogram->can_prune(variant_value, predicate_condition);
-  const auto selectivity =
-      can_prune ? 0.f : _histogram->estimate_cardinality(value, predicate_condition) / _histogram->total_count();
+  const auto value = type_cast<ColumnDataType>(variant_value);
+  ColumnDataType value2;
+  if (predicate_condition == PredicateCondition::Between) {
+    Assert(static_cast<bool>(variant_value2), "Between operator needs two values.");
+    value2 = type_cast<ColumnDataType>(*variant_value2);
+  }
+  const auto selectivity = can_prune ? 0.f : _histogram->estimate_selectivity(predicate_condition, value, value2);
 
   switch (predicate_condition) {
     case PredicateCondition::Equals:
@@ -60,11 +64,8 @@ FilterByValueEstimate HistogramColumnStatistics<ColumnDataType>::estimate_predic
       return estimate_range(selectivity, can_prune, value, _histogram->max());
     case PredicateCondition::GreaterThan:
       return estimate_range(selectivity, can_prune, _histogram->next_value(value), _histogram->max());
-    case PredicateCondition::Between: {
-      DebugAssert(static_cast<bool>(variant_value_2), "Operator BETWEEN must have two parameters.");
-      const auto value2 = type_cast<ColumnDataType>(*variant_value_2);
+    case PredicateCondition::Between:
       return estimate_range(selectivity, can_prune, value, value2);
-    }
     default:
       Fail("Predicate type not supported yet.");
   }
@@ -72,7 +73,7 @@ FilterByValueEstimate HistogramColumnStatistics<ColumnDataType>::estimate_predic
 
 template <typename ColumnDataType>
 FilterByValueEstimate HistogramColumnStatistics<ColumnDataType>::estimate_predicate_with_value_placeholder(
-    const PredicateCondition predicate_condition, const std::optional<AllTypeVariant>& value2) const {
+    const PredicateCondition predicate_condition, const std::optional<AllTypeVariant>& variant_value2) const {
   switch (predicate_condition) {
     // Simply assume the value will be in the domain of the column.
     // Pick the min as the dummy value and do not update min and max statistics.
@@ -90,18 +91,17 @@ FilterByValueEstimate HistogramColumnStatistics<ColumnDataType>::estimate_predic
 
     case PredicateCondition::Between: {
       // Since value2 is known first calculate statistics for "<= value2".
-      DebugAssert(static_cast<bool>(value2), "Operator BETWEEN should get two parameters, second is missing!");
-      const auto casted_value2 = type_cast<ColumnDataType>(*value2);
+      DebugAssert(static_cast<bool>(variant_value2), "Operator BETWEEN should get two parameters, second is missing!");
+      const auto casted_value2 = type_cast<ColumnDataType>(*variant_value2);
 
-      const auto can_prune = _histogram->can_prune(*value2, PredicateCondition::LessThanEquals);
+      const auto can_prune = _histogram->can_prune(PredicateCondition::LessThanEquals, *variant_value2);
       if (can_prune) {
         return estimate_range(0.f, true, _histogram->min(), casted_value2);
       }
 
       // If it cannot be pruned, combine the selectivity for "<= value" with DEFAULT_OPEN_ENDED_SELECTIVITY.
       const auto value2_selectivity =
-          _histogram->estimate_cardinality(casted_value2, PredicateCondition::LessThanEquals) /
-          _histogram->total_count();
+          _histogram->estimate_selectivity(PredicateCondition::LessThanEquals, casted_value2);
 
       return estimate_range(value2_selectivity * TableStatistics::DEFAULT_OPEN_ENDED_SELECTIVITY, false,
                             _histogram->min(), casted_value2);

@@ -26,8 +26,12 @@ class AbstractHistogram : public AbstractFilter {
   const std::string& supported_characters() const;
 
   void generate(const ColumnID column_id, const size_t max_num_buckets);
-  float estimate_cardinality(const T value, const PredicateCondition predicate_condition) const;
-  bool can_prune(const AllTypeVariant& value, const PredicateCondition predicate_type) const override;
+  float estimate_selectivity(const PredicateCondition predicate_type, const T value,
+                             const std::optional<T>& value2 = std::nullopt) const;
+  float estimate_cardinality(const PredicateCondition predicate_type, const T value,
+                             const std::optional<T>& value2 = std::nullopt) const;
+  bool can_prune(const PredicateCondition predicate_type, const AllTypeVariant& variant_value,
+                 const std::optional<AllTypeVariant>& variant_value2 = std::nullopt) const override;
 
   T min() const;
   T max() const;

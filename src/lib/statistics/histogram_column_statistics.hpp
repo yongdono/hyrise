@@ -33,12 +33,12 @@ class HistogramColumnStatistics : public BaseColumnStatistics {
    */
   std::shared_ptr<BaseColumnStatistics> clone() const override;
   FilterByValueEstimate estimate_predicate_with_value(
-      const PredicateCondition predicate_condition, const AllTypeVariant& value,
-      const std::optional<AllTypeVariant>& value2 = std::nullopt) const override;
+      const PredicateCondition predicate_condition, const AllTypeVariant& variant_value,
+      const std::optional<AllTypeVariant>& variant_value2 = std::nullopt) const override;
 
   FilterByValueEstimate estimate_predicate_with_value_placeholder(
       const PredicateCondition predicate_condition,
-      const std::optional<AllTypeVariant>& value2 = std::nullopt) const override;
+      const std::optional<AllTypeVariant>& variant_value2 = std::nullopt) const override;
 
   FilterByColumnComparisonEstimate estimate_predicate_with_column(
       const PredicateCondition predicate_condition, const BaseColumnStatistics& right_column_statistics) const override;

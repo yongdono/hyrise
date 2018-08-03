@@ -24,19 +24,19 @@ TYPED_TEST_CASE(BasicHistogramTest, HistogramTypes);
 TYPED_TEST(BasicHistogramTest, CanPruneLowerBound) {
   TypeParam hist(this->_int_float4);
   hist.generate(ColumnID{0}, 2u);
-  EXPECT_TRUE(hist.can_prune(AllTypeVariant{0}, PredicateCondition::Equals));
+  EXPECT_TRUE(hist.can_prune(PredicateCondition::Equals, AllTypeVariant{0}));
 }
 
 TYPED_TEST(BasicHistogramTest, CanPruneUpperBound) {
   TypeParam hist(this->_int_float4);
   hist.generate(ColumnID{0}, 2u);
-  EXPECT_TRUE(hist.can_prune(AllTypeVariant{1'000'000}, PredicateCondition::Equals));
+  EXPECT_TRUE(hist.can_prune(PredicateCondition::Equals, AllTypeVariant{1'000'000}));
 }
 
 TYPED_TEST(BasicHistogramTest, CannotPruneExistingValue) {
   TypeParam hist(this->_int_float4);
   hist.generate(ColumnID{0}, 2u);
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{12}, PredicateCondition::Equals));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::Equals, AllTypeVariant{12}));
 }
 
 class HistogramTest : public BaseTest {
@@ -62,136 +62,136 @@ TEST_F(HistogramTest, EqualNumElementsBasic) {
   auto hist = EqualNumElementsHistogram<int32_t>(_int_float4);
   hist.generate(ColumnID{0}, 2u);
 
-  EXPECT_TRUE(hist.can_prune(AllTypeVariant{0}, PredicateCondition::Equals));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{12}, PredicateCondition::Equals));
-  EXPECT_TRUE(hist.can_prune(AllTypeVariant{1'234}, PredicateCondition::Equals));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{123'456}, PredicateCondition::Equals));
-  EXPECT_TRUE(hist.can_prune(AllTypeVariant{1'000'000}, PredicateCondition::Equals));
+  EXPECT_TRUE(hist.can_prune(PredicateCondition::Equals, AllTypeVariant{0}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::Equals, AllTypeVariant{12}));
+  EXPECT_TRUE(hist.can_prune(PredicateCondition::Equals, AllTypeVariant{1'234}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::Equals, AllTypeVariant{123'456}));
+  EXPECT_TRUE(hist.can_prune(PredicateCondition::Equals, AllTypeVariant{1'000'000}));
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(0, PredicateCondition::Equals), 0.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(12, PredicateCondition::Equals), 1.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(1'234, PredicateCondition::Equals), 0.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(123'456, PredicateCondition::Equals), 2.5f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(1'000'000, PredicateCondition::Equals), 0.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 0), 0.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 12), 1.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 1'234), 0.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 123'456), 2.5f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 1'000'000), 0.f);
 }
 
 TEST_F(HistogramTest, EqualNumElementsUnevenBuckets) {
   auto hist = EqualNumElementsHistogram<int32_t>(_int_float4);
   hist.generate(ColumnID{0}, 3u);
 
-  EXPECT_TRUE(hist.can_prune(AllTypeVariant{0}, PredicateCondition::Equals));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{12}, PredicateCondition::Equals));
-  EXPECT_TRUE(hist.can_prune(AllTypeVariant{1'234}, PredicateCondition::Equals));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{123'456}, PredicateCondition::Equals));
-  EXPECT_TRUE(hist.can_prune(AllTypeVariant{1'000'000}, PredicateCondition::Equals));
+  EXPECT_TRUE(hist.can_prune(PredicateCondition::Equals, AllTypeVariant{0}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::Equals, AllTypeVariant{12}));
+  EXPECT_TRUE(hist.can_prune(PredicateCondition::Equals, AllTypeVariant{1'234}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::Equals, AllTypeVariant{123'456}));
+  EXPECT_TRUE(hist.can_prune(PredicateCondition::Equals, AllTypeVariant{1'000'000}));
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(0, PredicateCondition::Equals), 0.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(12, PredicateCondition::Equals), 1.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(1'234, PredicateCondition::Equals), 0.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(123'456, PredicateCondition::Equals), 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(1'000'000, PredicateCondition::Equals), 0.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 0), 0.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 12), 1.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 1'234), 0.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 123'456), 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 1'000'000), 0.f);
 }
 
 TEST_F(HistogramTest, EqualNumElementsFloat) {
   auto hist = EqualNumElementsHistogram<float>(_float2);
   hist.generate(ColumnID{0}, 3u);
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(0.4f, PredicateCondition::Equals), 0.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(0.5f, PredicateCondition::Equals), 4 / 4.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(1.1f, PredicateCondition::Equals), 4 / 4.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(1.3f, PredicateCondition::Equals), 4 / 4.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(2.2f, PredicateCondition::Equals), 4 / 4.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(2.3f, PredicateCondition::Equals), 0.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(2.5f, PredicateCondition::Equals), 6 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(2.9f, PredicateCondition::Equals), 6 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(3.3f, PredicateCondition::Equals), 6 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(3.5f, PredicateCondition::Equals), 0.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(3.6f, PredicateCondition::Equals), 4 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(3.9f, PredicateCondition::Equals), 4 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(6.1f, PredicateCondition::Equals), 4 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(6.2f, PredicateCondition::Equals), 0.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 0.4f), 0.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 0.5f), 4 / 4.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 1.1f), 4 / 4.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 1.3f), 4 / 4.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 2.2f), 4 / 4.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 2.3f), 0.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 2.5f), 6 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 2.9f), 6 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 3.3f), 6 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 3.5f), 0.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 3.6f), 4 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 3.9f), 4 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 6.1f), 4 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 6.2f), 0.f);
 }
 
 TEST_F(HistogramTest, EqualNumElementsString) {
   auto hist = EqualNumElementsHistogram<std::string>(_string2);
   hist.generate(ColumnID{0}, 4u);
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("a", PredicateCondition::Equals), 0.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("aa", PredicateCondition::Equals), 3 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("ab", PredicateCondition::Equals), 3 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("b", PredicateCondition::Equals), 3 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("birne", PredicateCondition::Equals), 3 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("biscuit", PredicateCondition::Equals), 0.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("bla", PredicateCondition::Equals), 4 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("blubb", PredicateCondition::Equals), 4 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("bums", PredicateCondition::Equals), 4 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("ttt", PredicateCondition::Equals), 4 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("turkey", PredicateCondition::Equals), 0.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("uuu", PredicateCondition::Equals), 4 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("vvv", PredicateCondition::Equals), 4 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("www", PredicateCondition::Equals), 4 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("xxx", PredicateCondition::Equals), 4 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("yyy", PredicateCondition::Equals), 4 / 2.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("zzz", PredicateCondition::Equals), 4 / 2.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("zzzzzz", PredicateCondition::Equals), 0.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, "a"), 0.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, "aa"), 3 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, "ab"), 3 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, "b"), 3 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, "birne"), 3 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, "biscuit"), 0.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, "bla"), 4 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, "blubb"), 4 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, "bums"), 4 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, "ttt"), 4 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, "turkey"), 0.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, "uuu"), 4 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, "vvv"), 4 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, "www"), 4 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, "xxx"), 4 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, "yyy"), 4 / 2.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, "zzz"), 4 / 2.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, "zzzzzz"), 0.f);
 }
 
 TEST_F(HistogramTest, EqualNumElementsLessThan) {
   auto hist = EqualNumElementsHistogram<int32_t>(_int_float4);
   hist.generate(ColumnID{0}, 3u);
 
-  EXPECT_TRUE(hist.can_prune(AllTypeVariant{12}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{70}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{1'234}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{12'346}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{123'456}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{123'457}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{1'000'000}, PredicateCondition::LessThan));
+  EXPECT_TRUE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{12}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{70}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{1'234}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{12'346}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{123'456}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{123'457}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{1'000'000}));
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(12, PredicateCondition::LessThan), 0.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(70, PredicateCondition::LessThan), (70.f - 12) / (123 - 12 + 1) * 2);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(1'234, PredicateCondition::LessThan), 2.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(12'346, PredicateCondition::LessThan), 4.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(123'456, PredicateCondition::LessThan), 4.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(123'457, PredicateCondition::LessThan), 7.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(1'000'000, PredicateCondition::LessThan), 7.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 12), 0.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 70), (70.f - 12) / (123 - 12 + 1) * 2);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 1'234), 2.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 12'346), 4.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 123'456), 4.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 123'457), 7.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 1'000'000), 7.f);
 }
 
 TEST_F(HistogramTest, EqualNumElementsFloatLessThan) {
   auto hist = EqualNumElementsHistogram<float>(_float2);
   hist.generate(ColumnID{0}, 3u);
 
-  EXPECT_TRUE(hist.can_prune(AllTypeVariant{0.5f}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{1.0f}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{1.7f}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{std::nextafter(2.2f, 2.2f + 1)}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{2.5f}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{3.0f}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{3.3f}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{std::nextafter(3.3f, 3.3f + 1)}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{3.6f}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{3.9f}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{5.9f}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{std::nextafter(6.1f, 6.1f + 1)}, PredicateCondition::LessThan));
+  EXPECT_TRUE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{0.5f}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{1.0f}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{1.7f}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{std::nextafter(2.2f, 2.2f + 1)}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{2.5f}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{3.0f}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{3.3f}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{std::nextafter(3.3f, 3.3f + 1)}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{3.6f}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{3.9f}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{5.9f}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{std::nextafter(6.1f, 6.1f + 1)}));
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(0.5f, PredicateCondition::LessThan), 0.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(1.0f, PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 0.5f), 0.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 1.0f),
                   (1.0f - 0.5f) / std::nextafter(2.2f - 0.5f, 2.2f - 0.5f + 1) * 4);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(1.7f, PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 1.7f),
                   (1.7f - 0.5f) / std::nextafter(2.2f - 0.5f, 2.2f - 0.5f + 1) * 4);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(std::nextafter(2.2f, 2.2f + 1), PredicateCondition::LessThan), 4.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(2.5f, PredicateCondition::LessThan), 4.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(3.0f, PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, std::nextafter(2.2f, 2.2f + 1)), 4.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 2.5f), 4.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 3.0f),
                   4.f + (3.0f - 2.5f) / std::nextafter(3.3f - 2.5f, 3.3f - 2.5f + 1) * 6);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(3.3f, PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 3.3f),
                   4.f + (3.3f - 2.5f) / std::nextafter(3.3f - 2.5f, 3.3f - 2.5f + 1) * 6);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(std::nextafter(3.3f, 3.3f + 1), PredicateCondition::LessThan), 4.f + 6.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(3.6f, PredicateCondition::LessThan), 4.f + 6.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(3.9f, PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, std::nextafter(3.3f, 3.3f + 1)), 4.f + 6.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 3.6f), 4.f + 6.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 3.9f),
                   4.f + 6.f + (3.9f - 3.6f) / std::nextafter(6.1f - 3.6f, 6.1f - 3.6f + 1) * 4);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(5.9f, PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 5.9f),
                   4.f + 6.f + (5.9f - 3.6f) / std::nextafter(6.1f - 3.6f, 6.1f - 3.6f + 1) * 4);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(std::nextafter(6.1f, 6.1f + 1), PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, std::nextafter(6.1f, 6.1f + 1)),
                   4.f + 6.f + 4.f);
 }
 
@@ -227,186 +227,186 @@ TEST_F(HistogramTest, EqualNumElementsStringLessThan) {
   constexpr auto bucket_4_count = 3.f;
   constexpr auto total_count = bucket_1_count + bucket_2_count + bucket_3_count + bucket_4_count;
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("aaaa", PredicateCondition::LessThan), 0.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("abcd", PredicateCondition::LessThan), 0.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "aaaa"), 0.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "abcd"), 0.f);
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("abce", PredicateCondition::LessThan), 1 / bucket_1_width * bucket_1_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("abcf", PredicateCondition::LessThan), 2 / bucket_1_width * bucket_1_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("cccc", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "abce"), 1 / bucket_1_width * bucket_1_count);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "abcf"), 2 / bucket_1_width * bucket_1_count);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "cccc"),
                   (2 * 26 * 26 * 26 + 2 * 26 * 26 + 2 * 26 + 2 - bucket_1_lower) / bucket_1_width * bucket_1_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("dddd", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "dddd"),
                   (3 * 26 * 26 * 26 + 3 * 26 * 26 + 3 * 26 + 3 - bucket_1_lower) / bucket_1_width * bucket_1_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("efgg", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "efgg"),
                   (bucket_1_width - 2) / bucket_1_width * bucket_1_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("efgh", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "efgh"),
                   (bucket_1_width - 1) / bucket_1_width * bucket_1_count);
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("efgi", PredicateCondition::LessThan), bucket_1_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("ijkl", PredicateCondition::LessThan), bucket_1_count);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "efgi"), bucket_1_count);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "ijkl"), bucket_1_count);
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("ijkm", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "ijkm"),
                   1 / bucket_2_width * bucket_2_count + bucket_1_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("ijkn", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "ijkn"),
                   2 / bucket_2_width * bucket_2_count + bucket_1_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("jjjj", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "jjjj"),
                   (9 * 26 * 26 * 26 + 9 * 26 * 26 + 9 * 26 + 9 - bucket_2_lower) / bucket_2_width * bucket_2_count +
                       bucket_1_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("kkkk", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "kkkk"),
                   (10 * 26 * 26 * 26 + 10 * 26 * 26 + 10 * 26 + 10 - bucket_2_lower) / bucket_2_width * bucket_2_count +
                       bucket_1_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("lzzz", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "lzzz"),
                   (11 * 26 * 26 * 26 + 25 * 26 * 26 + 25 * 26 + 25 - bucket_2_lower) / bucket_2_width * bucket_2_count +
                       bucket_1_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("mnoo", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "mnoo"),
                   (bucket_2_width - 2) / bucket_2_width * bucket_2_count + bucket_1_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("mnop", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "mnop"),
                   (bucket_2_width - 1) / bucket_2_width * bucket_2_count + bucket_1_count);
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("mnoq", PredicateCondition::LessThan), bucket_1_count + bucket_2_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("oopp", PredicateCondition::LessThan), bucket_1_count + bucket_2_count);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "mnoq"), bucket_1_count + bucket_2_count);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "oopp"), bucket_1_count + bucket_2_count);
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("oopq", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "oopq"),
                   1 / bucket_3_width * bucket_3_count + bucket_1_count + bucket_2_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("oopr", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "oopr"),
                   2 / bucket_3_width * bucket_3_count + bucket_1_count + bucket_2_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("pppp", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "pppp"),
                   (15 * 26 * 26 * 26 + 15 * 26 * 26 + 15 * 26 + 15 - bucket_3_lower) / bucket_3_width * bucket_3_count +
                       bucket_1_count + bucket_2_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("qqqq", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "qqqq"),
                   (16 * 26 * 26 * 26 + 16 * 26 * 26 + 16 * 26 + 16 - bucket_3_lower) / bucket_3_width * bucket_3_count +
                       bucket_1_count + bucket_2_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("qllo", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "qllo"),
                   (16 * 26 * 26 * 26 + 11 * 26 * 26 + 11 * 26 + 14 - bucket_3_lower) / bucket_3_width * bucket_3_count +
                       bucket_1_count + bucket_2_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("qrss", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "qrss"),
                   (bucket_3_width - 2) / bucket_3_width * bucket_3_count + bucket_1_count + bucket_2_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("qrst", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "qrst"),
                   (bucket_3_width - 1) / bucket_3_width * bucket_3_count + bucket_1_count + bucket_2_count);
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("qrsu", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "qrsu"),
                   bucket_1_count + bucket_2_count + bucket_3_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("uvwx", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "uvwx"),
                   bucket_1_count + bucket_2_count + bucket_3_count);
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("uvwy", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "uvwy"),
                   1 / bucket_4_width * bucket_4_count + bucket_1_count + bucket_2_count + bucket_3_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("uvwz", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "uvwz"),
                   2 / bucket_4_width * bucket_4_count + bucket_1_count + bucket_2_count + bucket_3_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("vvvv", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "vvvv"),
                   (21 * 26 * 26 * 26 + 21 * 26 * 26 + 21 * 26 + 21 - bucket_4_lower) / bucket_4_width * bucket_4_count +
                       bucket_1_count + bucket_2_count + bucket_3_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("xxxx", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "xxxx"),
                   (23 * 26 * 26 * 26 + 23 * 26 * 26 + 23 * 26 + 23 - bucket_4_lower) / bucket_4_width * bucket_4_count +
                       bucket_1_count + bucket_2_count + bucket_3_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("ycip", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "ycip"),
                   (24 * 26 * 26 * 26 + 2 * 26 * 26 + 8 * 26 + 15 - bucket_4_lower) / bucket_4_width * bucket_4_count +
                       bucket_1_count + bucket_2_count + bucket_3_count);
   EXPECT_FLOAT_EQ(
-      hist.estimate_cardinality("yyzy", PredicateCondition::LessThan),
+      hist.estimate_cardinality(PredicateCondition::LessThan, "yyzy"),
       (bucket_4_width - 2) / bucket_4_width * bucket_4_count + bucket_1_count + bucket_2_count + bucket_3_count);
   EXPECT_FLOAT_EQ(
-      hist.estimate_cardinality("yyzz", PredicateCondition::LessThan),
+      hist.estimate_cardinality(PredicateCondition::LessThan, "yyzz"),
       (bucket_4_width - 1) / bucket_4_width * bucket_4_count + bucket_1_count + bucket_2_count + bucket_3_count);
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("yzaa", PredicateCondition::LessThan), total_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("zzzz", PredicateCondition::LessThan), total_count);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "yzaa"), total_count);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "zzzz"), total_count);
 }
 
 TEST_F(HistogramTest, EqualWidthHistogramBasic) {
   auto hist = EqualWidthHistogram<int32_t>(_int_int4);
   hist.generate(ColumnID{1}, 6u);
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(0, PredicateCondition::Equals), 5 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(1, PredicateCondition::Equals), 5 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(4, PredicateCondition::Equals), 1 / 1.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(5, PredicateCondition::Equals), 1 / 1.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(6, PredicateCondition::Equals), 1 / 1.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(7, PredicateCondition::Equals), 1 / 1.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(10, PredicateCondition::Equals), 1 / 1.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(11, PredicateCondition::Equals), 1 / 1.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(12, PredicateCondition::Equals), 2 / 2.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(13, PredicateCondition::Equals), 2 / 2.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(14, PredicateCondition::Equals), 2 / 2.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(15, PredicateCondition::Equals), 1 / 1.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(17, PredicateCondition::Equals), 1 / 1.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(18, PredicateCondition::Equals), 0.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 0), 5 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 1), 5 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 4), 1 / 1.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 5), 1 / 1.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 6), 1 / 1.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 7), 1 / 1.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 10), 1 / 1.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 11), 1 / 1.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 12), 2 / 2.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 13), 2 / 2.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 14), 2 / 2.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 15), 1 / 1.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 17), 1 / 1.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 18), 0.f);
 }
 
 TEST_F(HistogramTest, EqualWidthHistogramUnevenBuckets) {
   auto hist = EqualWidthHistogram<int32_t>(_int_int4);
   hist.generate(ColumnID{1}, 4u);
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(0, PredicateCondition::Equals), 6 / 4.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(1, PredicateCondition::Equals), 6 / 4.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(2, PredicateCondition::Equals), 6 / 4.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(3, PredicateCondition::Equals), 6 / 4.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(4, PredicateCondition::Equals), 6 / 4.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(5, PredicateCondition::Equals), 1 / 1.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(6, PredicateCondition::Equals), 1 / 1.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(7, PredicateCondition::Equals), 1 / 1.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(9, PredicateCondition::Equals), 1 / 1.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(10, PredicateCondition::Equals), 2 / 2.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(11, PredicateCondition::Equals), 2 / 2.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(12, PredicateCondition::Equals), 2 / 2.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(13, PredicateCondition::Equals), 2 / 2.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(14, PredicateCondition::Equals), 2 / 2.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(15, PredicateCondition::Equals), 2 / 2.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(17, PredicateCondition::Equals), 2 / 2.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(18, PredicateCondition::Equals), 0.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 0), 6 / 4.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 1), 6 / 4.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 2), 6 / 4.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 3), 6 / 4.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 4), 6 / 4.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 5), 1 / 1.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 6), 1 / 1.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 7), 1 / 1.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 9), 1 / 1.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 10), 2 / 2.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 11), 2 / 2.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 12), 2 / 2.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 13), 2 / 2.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 14), 2 / 2.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 15), 2 / 2.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 17), 2 / 2.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 18), 0.f);
 }
 
 TEST_F(HistogramTest, EqualWidthFloat) {
   auto hist = EqualWidthHistogram<float>(_float2);
   hist.generate(ColumnID{0}, 4u);
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(0.4f, PredicateCondition::Equals), 0.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(0.5f, PredicateCondition::Equals), 3 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(1.1f, PredicateCondition::Equals), 3 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(1.3f, PredicateCondition::Equals), 3 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(1.9f, PredicateCondition::Equals), 3 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(2.0f, PredicateCondition::Equals), 7 / 4.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(2.2f, PredicateCondition::Equals), 7 / 4.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(2.3f, PredicateCondition::Equals), 7 / 4.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(2.5f, PredicateCondition::Equals), 7 / 4.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(2.9f, PredicateCondition::Equals), 7 / 4.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(3.1f, PredicateCondition::Equals), 7 / 4.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(3.2f, PredicateCondition::Equals), 7 / 4.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(3.3f, PredicateCondition::Equals), 7 / 4.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(3.4f, PredicateCondition::Equals), 3 / 2.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(3.6f, PredicateCondition::Equals), 3 / 2.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(3.9f, PredicateCondition::Equals), 3 / 2.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(4.4f, PredicateCondition::Equals), 3 / 2.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(4.5f, PredicateCondition::Equals), 3 / 2.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(6.1f, PredicateCondition::Equals), 1 / 1.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(6.2f, PredicateCondition::Equals), 0.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 0.4f), 0.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 0.5f), 3 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 1.1f), 3 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 1.3f), 3 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 1.9f), 3 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 2.0f), 7 / 4.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 2.2f), 7 / 4.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 2.3f), 7 / 4.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 2.5f), 7 / 4.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 2.9f), 7 / 4.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 3.1f), 7 / 4.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 3.2f), 7 / 4.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 3.3f), 7 / 4.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 3.4f), 3 / 2.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 3.6f), 3 / 2.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 3.9f), 3 / 2.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 4.4f), 3 / 2.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 4.5f), 3 / 2.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 6.1f), 1 / 1.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 6.2f), 0.f);
 }
 
 TEST_F(HistogramTest, EqualWidthLessThan) {
   auto hist = EqualWidthHistogram<int32_t>(_int_float4);
   hist.generate(ColumnID{0}, 3u);
 
-  EXPECT_TRUE(hist.can_prune(AllTypeVariant{12}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{70}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{1'234}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{12'346}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{123'456}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{123'457}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{1'000'000}, PredicateCondition::LessThan));
+  EXPECT_TRUE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{12}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{70}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{1'234}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{12'346}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{123'456}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{123'457}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{1'000'000}));
 
   // The first bucket's range is one value wider (because (123'456 - 12 + 1) % 3 = 1).
   const auto bucket_width = (123'456 - 12 + 1) / 3;
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(12, PredicateCondition::LessThan), 0.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(70, PredicateCondition::LessThan), (70.f - 12) / (bucket_width + 1) * 4);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(1'234, PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 12), 0.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 70), (70.f - 12) / (bucket_width + 1) * 4);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 1'234),
                   (1'234.f - 12) / (bucket_width + 1) * 4);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(12'346, PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 12'346),
                   (12'346.f - 12) / (bucket_width + 1) * 4);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(80'000, PredicateCondition::LessThan), 4.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(123'456, PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 80'000), 4.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 123'456),
                   4.f + (123'456.f - (12 + 2 * bucket_width + 1)) / bucket_width * 3);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(123'457, PredicateCondition::LessThan), 4.f + 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(1'000'000, PredicateCondition::LessThan), 4.f + 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 123'457), 4.f + 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 1'000'000), 4.f + 3.f);
 }
 
 TEST_F(HistogramTest, EqualWidthFloatLessThan) {
@@ -415,46 +415,46 @@ TEST_F(HistogramTest, EqualWidthFloatLessThan) {
 
   const auto bucket_width = std::nextafter(6.1f - 0.5f, 6.1f - 0.5f + 1) / 3;
 
-  EXPECT_TRUE(hist.can_prune(AllTypeVariant{0.5f}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{1.0f}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{1.7f}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{std::nextafter(0.5f + bucket_width, 0.5f + bucket_width + 1)},
-                              PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{2.5f}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{3.0f}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{3.3f}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{3.6f}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{3.9f}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{std::nextafter(0.5f + 2 * bucket_width, 0.5f + 2 * bucket_width + 1)},
-                              PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{4.4f}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{5.9f}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{std::nextafter(6.1f, 6.1f + 1)}, PredicateCondition::LessThan));
+  EXPECT_TRUE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{0.5f}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{1.0f}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{1.7f}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan,
+                              AllTypeVariant{std::nextafter(0.5f + bucket_width, 0.5f + bucket_width + 1)}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{2.5f}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{3.0f}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{3.3f}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{3.6f}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{3.9f}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan,
+                              AllTypeVariant{std::nextafter(0.5f + 2 * bucket_width, 0.5f + 2 * bucket_width + 1)}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{4.4f}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{5.9f}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{std::nextafter(6.1f, 6.1f + 1)}));
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(0.5f, PredicateCondition::LessThan), 0.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(1.0f, PredicateCondition::LessThan), (1.0f - 0.5f) / bucket_width * 4);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(1.7f, PredicateCondition::LessThan), (1.7f - 0.5f) / bucket_width * 4);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(std::nextafter(0.5f + bucket_width, 0.5f + bucket_width + 1),
-                                            PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 0.5f), 0.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 1.0f), (1.0f - 0.5f) / bucket_width * 4);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 1.7f), (1.7f - 0.5f) / bucket_width * 4);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan,
+                                            std::nextafter(0.5f + bucket_width, 0.5f + bucket_width + 1)),
                   4.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(2.5f, PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 2.5f),
                   4.f + (2.5f - (0.5f + bucket_width)) / bucket_width * 7);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(3.0f, PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 3.0f),
                   4.f + (3.0f - (0.5f + bucket_width)) / bucket_width * 7);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(3.3f, PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 3.3f),
                   4.f + (3.3f - (0.5f + bucket_width)) / bucket_width * 7);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(3.6f, PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 3.6f),
                   4.f + (3.6f - (0.5f + bucket_width)) / bucket_width * 7);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(3.9f, PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 3.9f),
                   4.f + (3.9f - (0.5f + bucket_width)) / bucket_width * 7);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(std::nextafter(0.5f + 2 * bucket_width, 0.5f + 2 * bucket_width + 1),
-                                            PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan,
+                                            std::nextafter(0.5f + 2 * bucket_width, 0.5f + 2 * bucket_width + 1)),
                   4.f + 7.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(4.4f, PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 4.4f),
                   4.f + 7.f + (4.4f - (0.5f + 2 * bucket_width)) / bucket_width * 3);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(5.9f, PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 5.9f),
                   4.f + 7.f + (5.9f - (0.5f + 2 * bucket_width)) / bucket_width * 3);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(std::nextafter(6.1f, 6.1f + 1), PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, std::nextafter(6.1f, 6.1f + 1)),
                   4.f + 7.f + 3.f);
 }
 
@@ -490,213 +490,213 @@ TEST_F(HistogramTest, EqualWidthStringLessThan) {
   constexpr auto bucket_4_count = 3.f;
   constexpr auto total_count = bucket_1_count + bucket_2_count + bucket_3_count + bucket_4_count;
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("aaaa", PredicateCondition::LessThan), 0.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("abcd", PredicateCondition::LessThan), 0.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "aaaa"), 0.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "abcd"), 0.f);
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("abce", PredicateCondition::LessThan), 1 / bucket_1_width * bucket_1_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("abcf", PredicateCondition::LessThan), 2 / bucket_1_width * bucket_1_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("cccc", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "abce"), 1 / bucket_1_width * bucket_1_count);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "abcf"), 2 / bucket_1_width * bucket_1_count);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "cccc"),
                   (2 * 26 * 26 * 26 + 2 * 26 * 26 + 2 * 26 + 2 - bucket_1_lower) / bucket_1_width * bucket_1_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("dddd", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "dddd"),
                   (3 * 26 * 26 * 26 + 3 * 26 * 26 + 3 * 26 + 3 - bucket_1_lower) / bucket_1_width * bucket_1_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("ghbo", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "ghbo"),
                   (bucket_1_width - 2) / bucket_1_width * bucket_1_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("ghbp", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "ghbp"),
                   (bucket_1_width - 1) / bucket_1_width * bucket_1_count);
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("ghbq", PredicateCondition::LessThan), bucket_1_count);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "ghbq"), bucket_1_count);
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("ghbr", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "ghbr"),
                   1 / bucket_2_width * bucket_2_count + bucket_1_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("ghbs", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "ghbs"),
                   2 / bucket_2_width * bucket_2_count + bucket_1_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("jjjj", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "jjjj"),
                   (9 * 26 * 26 * 26 + 9 * 26 * 26 + 9 * 26 + 9 - bucket_2_lower) / bucket_2_width * bucket_2_count +
                       bucket_1_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("kkkk", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "kkkk"),
                   (10 * 26 * 26 * 26 + 10 * 26 * 26 + 10 * 26 + 10 - bucket_2_lower) / bucket_2_width * bucket_2_count +
                       bucket_1_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("lzzz", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "lzzz"),
                   (11 * 26 * 26 * 26 + 25 * 26 * 26 + 25 * 26 + 25 - bucket_2_lower) / bucket_2_width * bucket_2_count +
                       bucket_1_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("mnaz", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "mnaz"),
                   (bucket_2_width - 3) / bucket_2_width * bucket_2_count + bucket_1_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("mnba", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "mnba"),
                   (bucket_2_width - 2) / bucket_2_width * bucket_2_count + bucket_1_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("mnbb", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "mnbb"),
                   (bucket_2_width - 1) / bucket_2_width * bucket_2_count + bucket_1_count);
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("mnbc", PredicateCondition::LessThan), bucket_1_count + bucket_2_count);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "mnbc"), bucket_1_count + bucket_2_count);
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("mnbd", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "mnbd"),
                   1 / bucket_3_width * bucket_3_count + bucket_1_count + bucket_2_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("mnbe", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "mnbe"),
                   2 / bucket_3_width * bucket_3_count + bucket_1_count + bucket_2_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("pppp", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "pppp"),
                   (15 * 26 * 26 * 26 + 15 * 26 * 26 + 15 * 26 + 15 - bucket_3_lower) / bucket_3_width * bucket_3_count +
                       bucket_1_count + bucket_2_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("qqqq", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "qqqq"),
                   (16 * 26 * 26 * 26 + 16 * 26 * 26 + 16 * 26 + 16 - bucket_3_lower) / bucket_3_width * bucket_3_count +
                       bucket_1_count + bucket_2_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("qllo", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "qllo"),
                   (16 * 26 * 26 * 26 + 11 * 26 * 26 + 11 * 26 + 14 - bucket_3_lower) / bucket_3_width * bucket_3_count +
                       bucket_1_count + bucket_2_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("stam", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "stam"),
                   (bucket_3_width - 2) / bucket_3_width * bucket_3_count + bucket_1_count + bucket_2_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("stan", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "stan"),
                   (bucket_3_width - 1) / bucket_3_width * bucket_3_count + bucket_1_count + bucket_2_count);
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("stao", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "stao"),
                   bucket_1_count + bucket_2_count + bucket_3_count);
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("stap", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "stap"),
                   1 / bucket_4_width * bucket_4_count + bucket_1_count + bucket_2_count + bucket_3_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("staq", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "staq"),
                   2 / bucket_4_width * bucket_4_count + bucket_1_count + bucket_2_count + bucket_3_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("vvvv", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "vvvv"),
                   (21 * 26 * 26 * 26 + 21 * 26 * 26 + 21 * 26 + 21 - bucket_4_lower) / bucket_4_width * bucket_4_count +
                       bucket_1_count + bucket_2_count + bucket_3_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("xxxx", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "xxxx"),
                   (23 * 26 * 26 * 26 + 23 * 26 * 26 + 23 * 26 + 23 - bucket_4_lower) / bucket_4_width * bucket_4_count +
                       bucket_1_count + bucket_2_count + bucket_3_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("ycip", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "ycip"),
                   (24 * 26 * 26 * 26 + 2 * 26 * 26 + 8 * 26 + 15 - bucket_4_lower) / bucket_4_width * bucket_4_count +
                       bucket_1_count + bucket_2_count + bucket_3_count);
   EXPECT_FLOAT_EQ(
-      hist.estimate_cardinality("yyzy", PredicateCondition::LessThan),
+      hist.estimate_cardinality(PredicateCondition::LessThan, "yyzy"),
       (bucket_4_width - 2) / bucket_4_width * bucket_4_count + bucket_1_count + bucket_2_count + bucket_3_count);
   EXPECT_FLOAT_EQ(
-      hist.estimate_cardinality("yyzz", PredicateCondition::LessThan),
+      hist.estimate_cardinality(PredicateCondition::LessThan, "yyzz"),
       (bucket_4_width - 1) / bucket_4_width * bucket_4_count + bucket_1_count + bucket_2_count + bucket_3_count);
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("yzaa", PredicateCondition::LessThan), total_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("zzzz", PredicateCondition::LessThan), total_count);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "yzaa"), total_count);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "zzzz"), total_count);
 }
 
 TEST_F(HistogramTest, EqualHeightHistogramBasic) {
   auto hist = EqualHeightHistogram<int32_t>(_expected_join_result_1);
   hist.generate(ColumnID{1}, 4u);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(0, PredicateCondition::Equals), 0.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(1, PredicateCondition::Equals), 6 / 2.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(2, PredicateCondition::Equals), 6 / 2.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(5, PredicateCondition::Equals), 6 / 2.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(6, PredicateCondition::Equals), 6 / 2.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(8, PredicateCondition::Equals), 6 / 4.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(9, PredicateCondition::Equals), 6 / 4.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(10, PredicateCondition::Equals), 6 / 4.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(12, PredicateCondition::Equals), 6 / 4.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(18, PredicateCondition::Equals), 6 / 4.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(20, PredicateCondition::Equals), 6 / 1.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(21, PredicateCondition::Equals), 0.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 0), 0.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 1), 6 / 2.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 2), 6 / 2.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 5), 6 / 2.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 6), 6 / 2.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 8), 6 / 4.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 9), 6 / 4.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 10), 6 / 4.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 12), 6 / 4.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 18), 6 / 4.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 20), 6 / 1.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 21), 0.f);
 }
 
 TEST_F(HistogramTest, EqualHeightHistogramUnevenBuckets) {
   auto hist = EqualHeightHistogram<int32_t>(_expected_join_result_1);
   hist.generate(ColumnID{1}, 5u);
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(0, PredicateCondition::Equals), 0.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(1, PredicateCondition::Equals), 5 / 1.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(2, PredicateCondition::Equals), 5 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(3, PredicateCondition::Equals), 5 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(5, PredicateCondition::Equals), 5 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(6, PredicateCondition::Equals), 5 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(7, PredicateCondition::Equals), 5 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(8, PredicateCondition::Equals), 5 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(9, PredicateCondition::Equals), 5 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(10, PredicateCondition::Equals), 5 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(12, PredicateCondition::Equals), 5 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(18, PredicateCondition::Equals), 5 / 2.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(19, PredicateCondition::Equals), 5 / 2.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(20, PredicateCondition::Equals), 5 / 2.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(21, PredicateCondition::Equals), 0.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 0), 0.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 1), 5 / 1.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 2), 5 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 3), 5 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 5), 5 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 6), 5 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 7), 5 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 8), 5 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 9), 5 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 10), 5 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 12), 5 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 18), 5 / 2.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 19), 5 / 2.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 20), 5 / 2.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 21), 0.f);
 }
 
 TEST_F(HistogramTest, EqualHeightFloat) {
   auto hist = EqualHeightHistogram<float>(_float2);
   hist.generate(ColumnID{0}, 4u);
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(0.4f, PredicateCondition::Equals), 0.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(0.5f, PredicateCondition::Equals), 4 / 4.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(1.1f, PredicateCondition::Equals), 4 / 4.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(1.3f, PredicateCondition::Equals), 4 / 4.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(2.2f, PredicateCondition::Equals), 4 / 4.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(2.3f, PredicateCondition::Equals), 4 / 2.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(2.5f, PredicateCondition::Equals), 4 / 2.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(2.9f, PredicateCondition::Equals), 4 / 2.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(3.1f, PredicateCondition::Equals), 4 / 2.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(3.2f, PredicateCondition::Equals), 4 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(3.3f, PredicateCondition::Equals), 4 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(3.5f, PredicateCondition::Equals), 4 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(3.6f, PredicateCondition::Equals), 4 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(3.9f, PredicateCondition::Equals), 4 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(4.4f, PredicateCondition::Equals), 4 / 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(4.5f, PredicateCondition::Equals), 4 / 1.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(6.1f, PredicateCondition::Equals), 4 / 1.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(6.2f, PredicateCondition::Equals), 0.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 0.4f), 0.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 0.5f), 4 / 4.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 1.1f), 4 / 4.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 1.3f), 4 / 4.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 2.2f), 4 / 4.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 2.3f), 4 / 2.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 2.5f), 4 / 2.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 2.9f), 4 / 2.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 3.1f), 4 / 2.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 3.2f), 4 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 3.3f), 4 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 3.5f), 4 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 3.6f), 4 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 3.9f), 4 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 4.4f), 4 / 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 4.5f), 4 / 1.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 6.1f), 4 / 1.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::Equals, 6.2f), 0.f);
 }
 
 TEST_F(HistogramTest, EqualHeightLessThan) {
   auto hist = EqualHeightHistogram<int32_t>(_int_float4);
   hist.generate(ColumnID{0}, 3u);
 
-  EXPECT_TRUE(hist.can_prune(AllTypeVariant{12}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{70}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{1'234}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{12'346}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{123'456}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{123'457}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{1'000'000}, PredicateCondition::LessThan));
+  EXPECT_TRUE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{12}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{70}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{1'234}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{12'346}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{123'456}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{123'457}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{1'000'000}));
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(12, PredicateCondition::LessThan), 0.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(70, PredicateCondition::LessThan), (70.f - 12) / (12'345 - 12 + 1) * 3);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(1'234, PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 12), 0.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 70), (70.f - 12) / (12'345 - 12 + 1) * 3);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 1'234),
                   (1'234.f - 12) / (12'345 - 12 + 1) * 3);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(12'346, PredicateCondition::LessThan), 3.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(80'000, PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 12'346), 3.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 80'000),
                   3.f + (80'000.f - 12'346) / (123'456 - 12'346 + 1) * 3);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(123'456, PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 123'456),
                   3.f + (123'456.f - 12'346) / (123'456 - 12'346 + 1) * 3);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(123'457, PredicateCondition::LessThan), 7.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(1'000'000, PredicateCondition::LessThan), 7.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 123'457), 7.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 1'000'000), 7.f);
 }
 
 TEST_F(HistogramTest, EqualHeightFloatLessThan) {
   auto hist = EqualHeightHistogram<float>(_float2);
   hist.generate(ColumnID{0}, 3u);
 
-  EXPECT_TRUE(hist.can_prune(AllTypeVariant{0.5f}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{1.0f}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{1.7f}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{2.2f}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{std::nextafter(2.5f, 2.5f + 1)}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{3.0f}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{3.3f}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{std::nextafter(3.3f, 3.3f + 1)}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{3.6f}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{3.9f}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{std::nextafter(4.4f, 4.4f + 1)}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{5.9f}, PredicateCondition::LessThan));
-  EXPECT_FALSE(hist.can_prune(AllTypeVariant{std::nextafter(6.1f, 6.1f + 1)}, PredicateCondition::LessThan));
+  EXPECT_TRUE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{0.5f}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{1.0f}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{1.7f}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{2.2f}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{std::nextafter(2.5f, 2.5f + 1)}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{3.0f}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{3.3f}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{std::nextafter(3.3f, 3.3f + 1)}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{3.6f}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{3.9f}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{std::nextafter(4.4f, 4.4f + 1)}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{5.9f}));
+  EXPECT_FALSE(hist.can_prune(PredicateCondition::LessThan, AllTypeVariant{std::nextafter(6.1f, 6.1f + 1)}));
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(0.5f, PredicateCondition::LessThan), 0.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(1.0f, PredicateCondition::LessThan), (1.0f - 0.5f) / (2.5f - 0.5f) * 5);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(1.7f, PredicateCondition::LessThan), (1.7f - 0.5f) / (2.5f - 0.5f) * 5);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(2.2f, PredicateCondition::LessThan), (2.2f - 0.5f) / (2.5f - 0.5f) * 5);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(std::nextafter(2.5f, 2.5f + 1), PredicateCondition::LessThan), 5.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(3.0f, PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 0.5f), 0.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 1.0f), (1.0f - 0.5f) / (2.5f - 0.5f) * 5);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 1.7f), (1.7f - 0.5f) / (2.5f - 0.5f) * 5);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 2.2f), (2.2f - 0.5f) / (2.5f - 0.5f) * 5);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, std::nextafter(2.5f, 2.5f + 1)), 5.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 3.0f),
                   5.f + (3.0f - (std::nextafter(2.5f, 2.5f + 1))) / (4.4f - std::nextafter(2.5f, 2.5f + 1)) * 5);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(3.3f, PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 3.3f),
                   5.f + (3.3f - (std::nextafter(2.5f, 2.5f + 1))) / (4.4f - std::nextafter(2.5f, 2.5f + 1)) * 5);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(3.6f, PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 3.6f),
                   5.f + (3.6f - (std::nextafter(2.5f, 2.5f + 1))) / (4.4f - std::nextafter(2.5f, 2.5f + 1)) * 5);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(3.9f, PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 3.9f),
                   5.f + (3.9f - (std::nextafter(2.5f, 2.5f + 1))) / (4.4f - std::nextafter(2.5f, 2.5f + 1)) * 5);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(std::nextafter(4.4f, 4.4f + 1), PredicateCondition::LessThan), 5.f + 5.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(5.1f, PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, std::nextafter(4.4f, 4.4f + 1)), 5.f + 5.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 5.1f),
                   5.f + 5.f + (5.1f - (std::nextafter(4.4f, 4.4f + 1))) / (6.1f - std::nextafter(4.4f, 4.4f + 1)) * 5);
   // Special case: cardinality is capped, see AbstractHistogram::estimate_cardinality().
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(5.9f, PredicateCondition::LessThan), 14.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality(std::nextafter(6.1f, 6.1f + 1), PredicateCondition::LessThan), 14.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, 5.9f), 14.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, std::nextafter(6.1f, 6.1f + 1)), 14.f);
 }
 
 TEST_F(HistogramTest, EqualHeightStringLessThan) {
@@ -728,90 +728,90 @@ TEST_F(HistogramTest, EqualHeightStringLessThan) {
   constexpr auto bucket_count = 4.f;
   constexpr auto total_count = 4 * bucket_count;
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("aaaa", PredicateCondition::LessThan), 0.f);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("abcd", PredicateCondition::LessThan), 0.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "aaaa"), 0.f);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "abcd"), 0.f);
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("abce", PredicateCondition::LessThan), 1 / bucket_1_width * bucket_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("abcf", PredicateCondition::LessThan), 2 / bucket_1_width * bucket_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("cccc", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "abce"), 1 / bucket_1_width * bucket_count);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "abcf"), 2 / bucket_1_width * bucket_count);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "cccc"),
                   (2 * 26 * 26 * 26 + 2 * 26 * 26 + 2 * 26 + 2 - bucket_1_lower) / bucket_1_width * bucket_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("dddd", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "dddd"),
                   (3 * 26 * 26 * 26 + 3 * 26 * 26 + 3 * 26 + 3 - bucket_1_lower) / bucket_1_width * bucket_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("efgg", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "efgg"),
                   (bucket_1_width - 2) / bucket_1_width * bucket_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("efgh", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "efgh"),
                   (bucket_1_width - 1) / bucket_1_width * bucket_count);
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("efgi", PredicateCondition::LessThan), bucket_count);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "efgi"), bucket_count);
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("efgj", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "efgj"),
                   1 / bucket_2_width * bucket_count + bucket_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("efgk", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "efgk"),
                   2 / bucket_2_width * bucket_count + bucket_count);
   EXPECT_FLOAT_EQ(
-      hist.estimate_cardinality("ijkn", PredicateCondition::LessThan),
+      hist.estimate_cardinality(PredicateCondition::LessThan, "ijkn"),
       (8 * 26 * 26 * 26 + 9 * 26 * 26 + 10 * 26 + 13 - bucket_2_lower) / bucket_2_width * bucket_count + bucket_count);
   EXPECT_FLOAT_EQ(
-      hist.estimate_cardinality("jjjj", PredicateCondition::LessThan),
+      hist.estimate_cardinality(PredicateCondition::LessThan, "jjjj"),
       (9 * 26 * 26 * 26 + 9 * 26 * 26 + 9 * 26 + 9 - bucket_2_lower) / bucket_2_width * bucket_count + bucket_count);
   EXPECT_FLOAT_EQ(
-      hist.estimate_cardinality("jzzz", PredicateCondition::LessThan),
+      hist.estimate_cardinality(PredicateCondition::LessThan, "jzzz"),
       (9 * 26 * 26 * 26 + 25 * 26 * 26 + 25 * 26 + 25 - bucket_2_lower) / bucket_2_width * bucket_count + bucket_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("kaab", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "kaab"),
                   (10 * 26 * 26 * 26 + 1 - bucket_2_lower) / bucket_2_width * bucket_count + bucket_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("kkkj", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "kkkj"),
                   (bucket_2_width - 2) / bucket_2_width * bucket_count + bucket_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("kkkk", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "kkkk"),
                   (bucket_2_width - 1) / bucket_2_width * bucket_count + bucket_count);
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("kkkl", PredicateCondition::LessThan), bucket_count * 2);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "kkkl"), bucket_count * 2);
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("kkkm", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "kkkm"),
                   1 / bucket_3_width * bucket_count + bucket_count * 2);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("kkkn", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "kkkn"),
                   2 / bucket_3_width * bucket_count + bucket_count * 2);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("loos", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "loos"),
                   (11 * 26 * 26 * 26 + 14 * 26 * 26 + 14 * 26 + 18 - bucket_3_lower) / bucket_3_width * bucket_count +
                       bucket_count * 2);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("nnnn", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "nnnn"),
                   (13 * 26 * 26 * 26 + 13 * 26 * 26 + 13 * 26 + 13 - bucket_3_lower) / bucket_3_width * bucket_count +
                       bucket_count * 2);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("qqqq", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "qqqq"),
                   (16 * 26 * 26 * 26 + 16 * 26 * 26 + 16 * 26 + 16 - bucket_3_lower) / bucket_3_width * bucket_count +
                       bucket_count * 2);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("qllo", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "qllo"),
                   (16 * 26 * 26 * 26 + 11 * 26 * 26 + 11 * 26 + 14 - bucket_3_lower) / bucket_3_width * bucket_count +
                       bucket_count * 2);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("qrss", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "qrss"),
                   (bucket_3_width - 2) / bucket_3_width * bucket_count + bucket_count * 2);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("qrst", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "qrst"),
                   (bucket_3_width - 1) / bucket_3_width * bucket_count + bucket_count * 2);
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("qrsu", PredicateCondition::LessThan), bucket_count * 3);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "qrsu"), bucket_count * 3);
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("qrsv", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "qrsv"),
                   1 / bucket_4_width * bucket_count + bucket_count * 3);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("qrsw", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "qrsw"),
                   2 / bucket_4_width * bucket_count + bucket_count * 3);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("tdzr", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "tdzr"),
                   (19 * 26 * 26 * 26 + 3 * 26 * 26 + 25 * 26 + 17 - bucket_4_lower) / bucket_4_width * bucket_count +
                       bucket_count * 3);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("vvvv", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "vvvv"),
                   (21 * 26 * 26 * 26 + 21 * 26 * 26 + 21 * 26 + 21 - bucket_4_lower) / bucket_4_width * bucket_count +
                       bucket_count * 3);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("xxxx", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "xxxx"),
                   (23 * 26 * 26 * 26 + 23 * 26 * 26 + 23 * 26 + 23 - bucket_4_lower) / bucket_4_width * bucket_count +
                       bucket_count * 3);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("ycip", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "ycip"),
                   (24 * 26 * 26 * 26 + 2 * 26 * 26 + 8 * 26 + 15 - bucket_4_lower) / bucket_4_width * bucket_count +
                       bucket_count * 3);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("yyzy", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "yyzy"),
                   (bucket_4_width - 2) / bucket_4_width * bucket_count + bucket_count * 3);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("yyzz", PredicateCondition::LessThan),
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "yyzz"),
                   (bucket_4_width - 1) / bucket_4_width * bucket_count + bucket_count * 3);
 
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("yzaa", PredicateCondition::LessThan), total_count);
-  EXPECT_FLOAT_EQ(hist.estimate_cardinality("zzzz", PredicateCondition::LessThan), total_count);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "yzaa"), total_count);
+  EXPECT_FLOAT_EQ(hist.estimate_cardinality(PredicateCondition::LessThan, "zzzz"), total_count);
 }
 
 TEST_F(HistogramTest, StringConstructorTests) {
@@ -846,10 +846,10 @@ TEST_F(HistogramTest, EstimateCardinalityUnsupportedCharacters) {
   auto hist = EqualNumElementsHistogram<std::string>(_string2, "abcdefghijklmnopqrstuvwxyz");
   hist.generate(ColumnID{0}, 4u);
 
-  EXPECT_NO_THROW(hist.estimate_cardinality("abcd", PredicateCondition::Equals));
-  EXPECT_THROW(hist.estimate_cardinality("abc1", PredicateCondition::Equals), std::exception);
-  EXPECT_THROW(hist.estimate_cardinality("aBcd", PredicateCondition::Equals), std::exception);
-  EXPECT_THROW(hist.estimate_cardinality("@abc", PredicateCondition::Equals), std::exception);
+  EXPECT_NO_THROW(hist.estimate_cardinality(PredicateCondition::Equals, "abcd"));
+  EXPECT_THROW(hist.estimate_cardinality(PredicateCondition::Equals, "abc1"), std::exception);
+  EXPECT_THROW(hist.estimate_cardinality(PredicateCondition::Equals, "aBcd"), std::exception);
+  EXPECT_THROW(hist.estimate_cardinality(PredicateCondition::Equals, "@abc"), std::exception);
 }
 
 class HistogramPrivateTest : public BaseTest {
