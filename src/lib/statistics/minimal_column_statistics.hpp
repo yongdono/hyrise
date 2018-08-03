@@ -46,7 +46,7 @@ class MinimalColumnStatistics : public BaseColumnStatistics {
 
   FilterByColumnComparisonEstimate estimate_predicate_with_column(
       const PredicateCondition predicate_condition,
-      const BaseColumnStatistics& base_right_column_statistics) const override;
+      const std::shared_ptr<const BaseColumnStatistics>& base_right_column_statistics) const override;
 
   /** @} */
 

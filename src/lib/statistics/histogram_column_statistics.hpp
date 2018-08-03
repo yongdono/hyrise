@@ -24,7 +24,7 @@ class HistogramColumnStatistics : public BaseColumnStatistics {
    * @defgroup Member access
    * @{
    */
-  const std::shared_ptr<AbstractHistogram<ColumnDataType>>& histogram() const;
+  const std::shared_ptr<const AbstractHistogram<ColumnDataType>> histogram() const;
   /** @} */
 
   /**
@@ -41,7 +41,8 @@ class HistogramColumnStatistics : public BaseColumnStatistics {
       const std::optional<AllTypeVariant>& variant_value2 = std::nullopt) const override;
 
   FilterByColumnComparisonEstimate estimate_predicate_with_column(
-      const PredicateCondition predicate_condition, const BaseColumnStatistics& right_column_statistics) const override;
+      const PredicateCondition predicate_condition,
+      const std::shared_ptr<const BaseColumnStatistics>& right_column_statistics) const override;
 
   float distinct_count() const override;
 

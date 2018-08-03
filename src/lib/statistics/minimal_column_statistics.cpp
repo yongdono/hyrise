@@ -27,6 +27,16 @@ MinimalColumnStatistics<ColumnDataType>::MinimalColumnStatistics(const float nul
       _distinct_count(distinct_count) {}
 
 template <typename ColumnDataType>
+std::string MinimalColumnStatistics<ColumnDataType>::_description() const {
+  std::stringstream stream;
+  stream << "  dist.    " << _distinct_count << std::endl;
+  stream << "  min      " << _min << std::endl;
+  stream << "  max      " << _max << std::endl;
+  stream << "  non-null " << non_null_value_ratio() << std::endl;
+  return stream.str();
+}
+
+template <typename ColumnDataType>
 ColumnDataType MinimalColumnStatistics<ColumnDataType>::min() const {
   return _min;
 }
@@ -43,7 +53,7 @@ float MinimalColumnStatistics<ColumnDataType>::distinct_count() const {
 
 template <typename ColumnDataType>
 std::shared_ptr<BaseColumnStatistics> MinimalColumnStatistics<ColumnDataType>::clone() const {
-  return std::make_shared<MinimalColumnStatistics<ColumnDataType>>(null_value_ratio(), distinct_count(), _min, _max);
+  return std::make_shared<MinimalColumnStatistics<ColumnDataType>>(null_value_ratio(), distinct_count(), min(), max());
 }
 
 template <typename ColumnDataType>
@@ -170,7 +180,8 @@ FilterByValueEstimate MinimalColumnStatistics<ColumnDataType>::estimate_predicat
 
 template <typename ColumnDataType>
 FilterByColumnComparisonEstimate MinimalColumnStatistics<ColumnDataType>::estimate_predicate_with_column(
-    const PredicateCondition predicate_condition, const BaseColumnStatistics& base_right_column_statistics) const {
+    const PredicateCondition predicate_condition,
+    const std::shared_ptr<const BaseColumnStatistics>& base_right_column_statistics) const {
   /**
    * Calculate expected selectivity by looking at what ratio of values of both columns are in the overlapping value
    * range of both columns.
@@ -222,30 +233,34 @@ FilterByColumnComparisonEstimate MinimalColumnStatistics<ColumnDataType>::estima
    */
 
   // Cannot compare columns of different type
-  if (_data_type != base_right_column_statistics.data_type()) {
-    return {1.0f, without_null_values(), base_right_column_statistics.without_null_values()};
+  if (_data_type != base_right_column_statistics->data_type()) {
+    return {1.0f, without_null_values(), base_right_column_statistics->without_null_values()};
   }
 
   const auto& right_column_statistics =
-      static_cast<const MinimalColumnStatistics<ColumnDataType>&>(base_right_column_statistics);
+      std::static_pointer_cast<const MinimalColumnStatistics<ColumnDataType>>(base_right_column_statistics);
 
-  // if columns have no distinct values, they can only have null values which cannot be selected with this predicate
-  if (distinct_count() == 0 || right_column_statistics.distinct_count() == 0) {
-    return {0.f, without_null_values(), right_column_statistics.without_null_values()};
+  if (!right_column_statistics) {
+    Fail("ColumnStatistics type not yet supported.");
   }
 
-  const auto overlapping_range_min = std::max(_min, right_column_statistics.min());
-  const auto overlapping_range_max = std::min(_max, right_column_statistics.max());
+  // if columns have no distinct values, they can only have null values which cannot be selected with this predicate
+  if (distinct_count() == 0 || right_column_statistics->distinct_count() == 0) {
+    return {0.f, without_null_values(), right_column_statistics->without_null_values()};
+  }
+
+  const auto overlapping_range_min = std::max(_min, right_column_statistics->min());
+  const auto overlapping_range_max = std::min(_max, right_column_statistics->max());
 
   // if no overlapping range exists, the result is empty
   if (overlapping_range_min > overlapping_range_max) {
-    return {0.f, without_null_values(), right_column_statistics.without_null_values()};
+    return {0.f, without_null_values(), right_column_statistics->without_null_values()};
   }
 
   // calculate ratio of values before, in and above the common value range
   const auto left_overlapping_ratio = estimate_range_selectivity(overlapping_range_min, overlapping_range_max);
   const auto right_overlapping_ratio =
-      right_column_statistics.estimate_range_selectivity(overlapping_range_min, overlapping_range_max);
+      right_column_statistics->estimate_range_selectivity(overlapping_range_min, overlapping_range_max);
 
   auto left_below_overlapping_ratio = 0.f;
   auto left_above_overlapping_ratio = 0.f;
@@ -259,36 +274,36 @@ FilterByColumnComparisonEstimate MinimalColumnStatistics<ColumnDataType>::estima
     if (overlapping_range_max < _max) {
       left_above_overlapping_ratio = estimate_range_selectivity(overlapping_range_max + 1, _max);
     }
-    if (right_column_statistics.min() < overlapping_range_min) {
-      right_below_overlapping_ratio =
-          right_column_statistics.estimate_range_selectivity(right_column_statistics.min(), overlapping_range_min - 1);
+    if (right_column_statistics->min() < overlapping_range_min) {
+      right_below_overlapping_ratio = right_column_statistics->estimate_range_selectivity(
+          right_column_statistics->min(), overlapping_range_min - 1);
     }
-    if (overlapping_range_max < right_column_statistics.max()) {
-      right_above_overlapping_ratio =
-          right_column_statistics.estimate_range_selectivity(overlapping_range_max + 1, right_column_statistics.max());
+    if (overlapping_range_max < right_column_statistics->max()) {
+      right_above_overlapping_ratio = right_column_statistics->estimate_range_selectivity(
+          overlapping_range_max + 1, right_column_statistics->max());
     }
   } else {
     left_below_overlapping_ratio = estimate_range_selectivity(min(), overlapping_range_min);
     left_above_overlapping_ratio = estimate_range_selectivity(overlapping_range_max, max());
     right_below_overlapping_ratio =
-        right_column_statistics.estimate_range_selectivity(right_column_statistics.min(), overlapping_range_min);
+        right_column_statistics->estimate_range_selectivity(right_column_statistics->min(), overlapping_range_min);
     right_above_overlapping_ratio =
-        right_column_statistics.estimate_range_selectivity(overlapping_range_max, right_column_statistics.max());
+        right_column_statistics->estimate_range_selectivity(overlapping_range_max, right_column_statistics->max());
   }
 
   // calculate ratio of distinct values in common value range
   const auto left_overlapping_distinct_count = left_overlapping_ratio * distinct_count();
-  const auto right_overlapping_distinct_count = right_overlapping_ratio * right_column_statistics.distinct_count();
+  const auto right_overlapping_distinct_count = right_overlapping_ratio * right_column_statistics->distinct_count();
 
   auto equal_values_ratio = 0.0f;
   // calculate ratio of rows with equal values
   if (left_overlapping_distinct_count < right_overlapping_distinct_count) {
-    equal_values_ratio = left_overlapping_ratio / right_column_statistics.distinct_count();
+    equal_values_ratio = left_overlapping_ratio / right_column_statistics->distinct_count();
   } else {
     equal_values_ratio = right_overlapping_ratio / distinct_count();
   }
 
-  const auto combined_non_null_ratio = non_null_value_ratio() * right_column_statistics.non_null_value_ratio();
+  const auto combined_non_null_ratio = non_null_value_ratio() * right_column_statistics->non_null_value_ratio();
 
   // used for <, <=, > and >= predicate_conditions
   auto estimate_selectivity_for_open_ended_operators = [&](float values_below_ratio, float values_above_ratio,
@@ -309,7 +324,7 @@ FilterByColumnComparisonEstimate MinimalColumnStatistics<ColumnDataType>::estima
     selectivity -= values_below_ratio * values_above_ratio;
 
     auto new_left_column_stats = estimate_range(new_min, new_max).column_statistics;
-    auto new_right_column_stats = right_column_statistics.estimate_range(new_min, new_max).column_statistics;
+    auto new_right_column_stats = right_column_statistics->estimate_range(new_min, new_max).column_statistics;
     return {combined_non_null_ratio * selectivity, new_left_column_stats, new_right_column_stats};
   };
 
@@ -338,28 +353,31 @@ FilterByColumnComparisonEstimate MinimalColumnStatistics<ColumnDataType>::estima
     }
     case PredicateCondition::NotEquals: {
       auto new_left_column_stats = std::make_shared<MinimalColumnStatistics>(0.0f, distinct_count(), _min, _max);
-      auto new_right_column_stats = std::make_shared<MinimalColumnStatistics>(
-          0.0f, right_column_statistics.distinct_count(), right_column_statistics._min, right_column_statistics._max);
+      auto new_right_column_stats =
+          std::make_shared<MinimalColumnStatistics>(0.0f, right_column_statistics->distinct_count(),
+                                                    right_column_statistics->_min, right_column_statistics->_max);
       return {combined_non_null_ratio * (1.f - equal_values_ratio), new_left_column_stats, new_right_column_stats};
     }
     case PredicateCondition::LessThan: {
       return estimate_selectivity_for_open_ended_operators(left_below_overlapping_ratio, right_above_overlapping_ratio,
-                                                           _min, right_column_statistics._max, false);
+                                                           _min, right_column_statistics->_max, false);
     }
     case PredicateCondition::LessThanEquals: {
       return estimate_selectivity_for_open_ended_operators(left_below_overlapping_ratio, right_above_overlapping_ratio,
-                                                           _min, right_column_statistics._max, true);
+                                                           _min, right_column_statistics->_max, true);
     }
     case PredicateCondition::GreaterThan: {
       return estimate_selectivity_for_open_ended_operators(right_below_overlapping_ratio, left_above_overlapping_ratio,
-                                                           right_column_statistics._min, _max, false);
+                                                           right_column_statistics->_min, _max, false);
     }
     case PredicateCondition::GreaterThanEquals: {
       return estimate_selectivity_for_open_ended_operators(right_below_overlapping_ratio, left_above_overlapping_ratio,
-                                                           right_column_statistics._min, _max, true);
+                                                           right_column_statistics->_min, _max, true);
     }
     // case PredicateCondition::Between is not supported for ColumnID as TableScan does not support this
-    default: { return {combined_non_null_ratio, without_null_values(), right_column_statistics.without_null_values()}; }
+    default: {
+      return {combined_non_null_ratio, without_null_values(), right_column_statistics->without_null_values()};
+    }
   }
 }
 
@@ -368,30 +386,18 @@ FilterByColumnComparisonEstimate MinimalColumnStatistics<ColumnDataType>::estima
  */
 template <>
 FilterByColumnComparisonEstimate MinimalColumnStatistics<std::string>::estimate_predicate_with_column(
-    const PredicateCondition predicate_condition, const BaseColumnStatistics& base_right_column_statistics) const {
+    const PredicateCondition predicate_condition,
+    const std::shared_ptr<const BaseColumnStatistics>& base_right_column_statistics) const {
   // TODO(anybody) implement special case for strings
-  Assert(_data_type == base_right_column_statistics.data_type(), "Cannot compare columns of different type");
-
-  const auto& right_column_statistics =
-      static_cast<const MinimalColumnStatistics<std::string>&>(base_right_column_statistics);
+  Assert(_data_type == base_right_column_statistics->data_type(), "Cannot compare columns of different type");
 
   // if columns have no distinct values, they can only have null values which cannot be selected with this predicate
-  if (distinct_count() == 0 || right_column_statistics.distinct_count() == 0) {
-    return {0.f, without_null_values(), right_column_statistics.without_null_values()};
+  if (distinct_count() == 0 || base_right_column_statistics->distinct_count() == 0) {
+    return {0.f, without_null_values(), base_right_column_statistics->without_null_values()};
   }
 
-  return {non_null_value_ratio() * right_column_statistics.non_null_value_ratio(), without_null_values(),
-          right_column_statistics.without_null_values()};
-}
-
-template <typename ColumnDataType>
-std::string MinimalColumnStatistics<ColumnDataType>::_description() const {
-  std::stringstream stream;
-  stream << "  dist.    " << _distinct_count << std::endl;
-  stream << "  min      " << _min << std::endl;
-  stream << "  max      " << _max << std::endl;
-  stream << "  non-null " << non_null_value_ratio() << std::endl;
-  return stream.str();
+  return {non_null_value_ratio() * base_right_column_statistics->non_null_value_ratio(), without_null_values(),
+          base_right_column_statistics->without_null_values()};
 }
 
 template <typename ColumnDataType>

@@ -54,7 +54,7 @@ TableStatistics TableStatistics::estimate_predicate(const ColumnID column_id,
     const auto value_column_id = boost::get<ColumnID>(value);
 
     const auto estimation = left_operand_column_statistics->estimate_predicate_with_column(
-        predicate_condition, *_column_statistics[value_column_id]);
+        predicate_condition, _column_statistics[value_column_id]);
 
     predicated_column_statistics[column_id] = estimation.left_column_statistics;
     predicated_column_statistics[value_column_id] = estimation.right_column_statistics;
@@ -170,7 +170,7 @@ TableStatistics TableStatistics::estimate_predicated_join(const TableStatistics&
   auto& left_col_stats = _column_statistics[column_ids.first];
   auto& right_col_stats = right_table_statistics._column_statistics[column_ids.second];
 
-  auto stats_container = left_col_stats->estimate_predicate_with_column(predicate_condition, *right_col_stats);
+  auto stats_container = left_col_stats->estimate_predicate_with_column(predicate_condition, right_col_stats);
 
   // apply predicate selectivity to cross join
   join_table_stats._row_count *= stats_container.selectivity;

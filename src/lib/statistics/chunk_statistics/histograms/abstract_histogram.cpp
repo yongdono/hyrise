@@ -258,6 +258,52 @@ std::string AbstractHistogram<std::string>::_convert_number_representation_to_st
 }
 
 template <typename T>
+float AbstractHistogram<T>::_bucket_share(const BucketID bucket_id, const T value) const {
+  return static_cast<float>(value - _bucket_min(bucket_id)) / _bucket_width(bucket_id);
+}
+
+template <>
+float AbstractHistogram<std::string>::_bucket_share(const BucketID bucket_id, const std::string value) const {
+  /**
+   * Calculate range between two strings.
+   * This is based on the following assumptions:
+   *    - a consecutive byte range, e.g. lower case letters in ASCII
+   *    - fixed-length strings
+   *
+   * Treat the string range similar to the decimal system (base 26 for lower case letters).
+   * Characters in the beginning of the string have a higher value than ones at the end.
+   * Assign each letter the value of the index in the alphabet (zero-based).
+   * Then convert it to a number.
+   *
+   * Example with fixed-length 4 (possible range: [aaaa, zzzz]):
+   *
+   *  Number of possible strings: 26**4 = 456,976
+   *
+   * 1. aaaa - zzzz
+   *
+   *  repr(aaaa) = 0 * 26**3 + 0 * 26**2 + 0 * 26**1 + 0 * 26**0 = 0
+   *  repr(zzzz) = 25 * 26**3 + 25 * 26**2 + 25 * 26**1 + 25 * 26**0 = 456,975
+   *  Size of range: repr(zzzz) - repr(aaaa) + 1 = 456,976
+   *  Share of the range: 456,976 / 456,976 = 1
+   *
+   * 2. bhja - mmmm
+   *
+   *  repr(bhja): 1 * 26**3 + 7 * 26**2 + 9 * 26**1 + 0 * 26**0 = 22,542
+   *  repr(mmmm): 12 * 26**3 + 12 * 26**2 + 12 * 26**1 + 12 * 26**0 = 219,348
+   *  Size of range: repr(mmmm) - repr(bhja) + 1 = 196,807
+   *  Share of the range: 196,807 / 456,976 ~= 0.43
+   *
+   *  Note that strings shorter than the fixed-length will induce a small error,
+   *  because the missing characters will be treated as 'a'.
+   *  Since we are dealing with approximations this is acceptable.
+   */
+  const auto value_repr = _convert_string_to_number_representation(value);
+  const auto min_repr = _convert_string_to_number_representation(_bucket_min(bucket_id));
+  const auto max_repr = _convert_string_to_number_representation(_bucket_max(bucket_id));
+  return static_cast<float>(value_repr - min_repr) / (max_repr - min_repr + 1);
+}
+
+template <typename T>
 float AbstractHistogram<T>::estimate_cardinality(const PredicateCondition predicate_type, const T value,
                                                  const std::optional<T>& value2) const {
   DebugAssert(num_buckets() > 0u, "Called method on histogram before initialization.");
@@ -307,51 +353,7 @@ float AbstractHistogram<T>::estimate_cardinality(const PredicateCondition predic
         // Therefore, we need to sum up the counts of all buckets with a max < value.
         index = _upper_bound_for_value(value);
       } else {
-        float bucket_share;
-
-        if constexpr (!std::is_same_v<T, std::string>) {
-          bucket_share = static_cast<float>(value - _bucket_min(index)) / _bucket_width(index);
-        } else {
-          /**
-           * Calculate range between two strings.
-           * This is based on the following assumptions:
-           *    - a consecutive byte range, e.g. lower case letters in ASCII
-           *    - fixed-length strings
-           *
-           * Treat the string range similar to the decimal system (base 26 for lower case letters).
-           * Characters in the beginning of the string have a higher value than ones at the end.
-           * Assign each letter the value of the index in the alphabet (zero-based).
-           * Then convert it to a number.
-           *
-           * Example with fixed-length 4 (possible range: [aaaa, zzzz]):
-           *
-           *  Number of possible strings: 26**4 = 456,976
-           *
-           * 1. aaaa - zzzz
-           *
-           *  repr(aaaa) = 0 * 26**3 + 0 * 26**2 + 0 * 26**1 + 0 * 26**0 = 0
-           *  repr(zzzz) = 25 * 26**3 + 25 * 26**2 + 25 * 26**1 + 25 * 26**0 = 456,975
-           *  Size of range: repr(zzzz) - repr(aaaa) + 1 = 456,976
-           *  Share of the range: 456,976 / 456,976 = 1
-           *
-           * 2. bhja - mmmm
-           *
-           *  repr(bhja): 1 * 26**3 + 7 * 26**2 + 9 * 26**1 + 0 * 26**0 = 22,542
-           *  repr(mmmm): 12 * 26**3 + 12 * 26**2 + 12 * 26**1 + 12 * 26**0 = 219,348
-           *  Size of range: repr(mmmm) - repr(bhja) + 1 = 196,807
-           *  Share of the range: 196,807 / 456,976 ~= 0.43
-           *
-           *  Note that strings shorter than the fixed-length will induce a small error,
-           *  because the missing characters will be treated as 'a'.
-           *  Since we are dealing with approximations this is acceptable.
-           */
-          const auto value_repr = _convert_string_to_number_representation(value);
-          const auto min_repr = _convert_string_to_number_representation(_bucket_min(index));
-          const auto max_repr = _convert_string_to_number_representation(_bucket_max(index));
-          bucket_share = static_cast<float>(value_repr - min_repr) / (max_repr - min_repr + 1);
-        }
-
-        cardinality += bucket_share * _bucket_count(index);
+        cardinality += _bucket_share(index, value) * _bucket_count(index);
       }
 
       // Sum up all buckets before the bucket (or gap) containing the value.
@@ -374,50 +376,12 @@ float AbstractHistogram<T>::estimate_cardinality(const PredicateCondition predic
        */
       return std::min(cardinality, static_cast<float>(total_count()));
     }
-    case PredicateCondition::LessThanEquals: {
+    case PredicateCondition::LessThanEquals:
       return estimate_cardinality(PredicateCondition::LessThan, next_value(value));
-    }
-    case PredicateCondition::GreaterThanEquals: {
+    case PredicateCondition::GreaterThanEquals:
       return estimate_cardinality(PredicateCondition::GreaterThan, previous_value(value));
-    }
-    case PredicateCondition::GreaterThan: {
-      // if (value < min()) {
-      //   return total_count();
-      // }
-      //
-      // if (value >= max()) {
-      //   return 0.f;
-      // }
-      //
-      // auto index = _bucket_for_value(value);
-      // auto cardinality = 0.f;
-      //
-      // if (index == INVALID_BUCKET_ID) {
-      //   // The value is within the range of the histogram, but does not belong to a bucket.
-      //   // Therefore, we need to sum up the counts of all buckets with a min > value.
-      //   // _upper_bound_for_value will return the first bucket following the gap in which the value is.
-      //   index = _upper_bound_for_value(value);
-      // } else {
-      //   if constexpr (!std::is_same_v<T, std::string>) {
-      //     // The value is within the range of a bucket.
-      //     // We need to sum up all following buckets and add the share of the bucket of the value that it covers.
-      //
-      //     // Calculate the share of the bucket that the value covers.
-      //     const auto bucket_share = static_cast<float>(_bucket_max(index) - value) / _bucket_width(index);
-      //     cardinality += bucket_share * _bucket_count(index);
-      //   } else {
-      //     Fail("GreaterThan estimation for strings is not yet supported.");
-      //   }
-      // }
-      //
-      // // Sum up all buckets after the bucket (or gap) containing the value.
-      // for (BucketID bucket = index; bucket < num_buckets(); bucket++) {
-      //   cardinality += _bucket_count(bucket);
-      // }
-      //
-      // return cardinality;
+    case PredicateCondition::GreaterThan:
       return total_count() - estimate_cardinality(PredicateCondition::LessThanEquals, value);
-    }
     case PredicateCondition::Between: {
       Assert(static_cast<bool>(value2), "Between operator needs two values.");
       return estimate_cardinality(PredicateCondition::LessThanEquals, *value2) -
@@ -433,9 +397,74 @@ float AbstractHistogram<T>::estimate_cardinality(const PredicateCondition predic
 }
 
 template <typename T>
-float AbstractHistogram<T>::estimate_selectivity(const PredicateCondition predicate_type, const T variant_value,
-                                                 const std::optional<T>& variant_value2) const {
-  return estimate_cardinality(predicate_type, variant_value, variant_value2) / total_count();
+float AbstractHistogram<T>::estimate_selectivity(const PredicateCondition predicate_type, const T value,
+                                                 const std::optional<T>& value2) const {
+  return estimate_cardinality(predicate_type, value, value2) / total_count();
+}
+
+template <typename T>
+float AbstractHistogram<T>::estimate_distinct_count(const PredicateCondition predicate_type, const T value,
+                                                    const std::optional<T>& value2) const {
+  switch (predicate_type) {
+    case PredicateCondition::Equals: {
+      if (can_prune(predicate_type, value)) {
+        return 0.f;
+      }
+
+      return 1.f;
+    }
+    case PredicateCondition::NotEquals: {
+      if (can_prune(predicate_type, value)) {
+        return 0.f;
+      }
+
+      if (_bucket_for_value(value) == INVALID_BUCKET_ID) {
+        return total_count_distinct();
+      }
+
+      return total_count_distinct() - 1.f;
+    }
+    case PredicateCondition::LessThan: {
+      if (value <= min()) {
+        return 0.f;
+      }
+
+      if (value > max()) {
+        return total_count_distinct();
+      }
+
+      auto distinct_count = 0.f;
+      auto bucket_id = _bucket_for_value(value);
+      if (bucket_id == INVALID_BUCKET_ID) {
+        // The value is within the range of the histogram, but does not belong to a bucket.
+        // Therefore, we need to sum up the distinct counts of all buckets with a max < value.
+        bucket_id = _upper_bound_for_value(value);
+      } else {
+        distinct_count += _bucket_share(bucket_id, value) * _bucket_count_distinct(bucket_id);
+      }
+
+      // Sum up all buckets before the bucket (or gap) containing the value.
+      for (BucketID bucket = 0u; bucket < bucket_id; bucket++) {
+        distinct_count += _bucket_count_distinct(bucket);
+      }
+
+      return distinct_count;
+    }
+    case PredicateCondition::LessThanEquals:
+      return estimate_distinct_count(PredicateCondition::LessThan, next_value(value));
+    case PredicateCondition::GreaterThanEquals:
+      return estimate_distinct_count(PredicateCondition::GreaterThan, previous_value(value));
+    case PredicateCondition::GreaterThan:
+      return total_count_distinct() - estimate_distinct_count(PredicateCondition::LessThanEquals, value);
+    case PredicateCondition::Between: {
+      Assert(static_cast<bool>(value2), "Between operator needs two values.");
+      return estimate_distinct_count(PredicateCondition::LessThanEquals, *value2) -
+             estimate_distinct_count(PredicateCondition::LessThan, value);
+    }
+    // TODO(tim): implement more meaningful things here
+    default:
+      return total_count_distinct();
+  }
 }
 
 template <typename T>

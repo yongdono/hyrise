@@ -56,7 +56,7 @@ class MinimalColumnStatisticsTest : public BaseTest {
     for (ColumnID::base_type column_1 = 0; column_1 < column_statistics.size(); ++column_1) {
       for (ColumnID::base_type column_2 = 0; column_2 < column_statistics.size() && column_1 != column_2; ++column_2) {
         auto result_container = column_statistics[column_1]->estimate_predicate_with_column(
-            predicate_condition, *column_statistics[column_2]);
+            predicate_condition, column_statistics[column_2]);
         auto table_scan =
             std::make_shared<TableScan>(table_wrapper, ColumnID{column_1}, predicate_condition, ColumnID{column_2});
         table_scan->execute();
@@ -273,8 +273,8 @@ TEST_F(MinimalColumnStatisticsTest, TwoColumnsEqualsTest) {
   auto col_stat1 = std::make_shared<MinimalColumnStatistics<int>>(0.0f, 10.f, 0, 10);
   auto col_stat2 = std::make_shared<MinimalColumnStatistics<int>>(0.0f, 10.f, -10, 20);
 
-  auto result1 = col_stat1->estimate_predicate_with_column(predicate_condition, *col_stat2);
-  auto result2 = col_stat2->estimate_predicate_with_column(predicate_condition, *col_stat1);
+  auto result1 = col_stat1->estimate_predicate_with_column(predicate_condition, col_stat2);
+  auto result2 = col_stat2->estimate_predicate_with_column(predicate_condition, col_stat1);
   float expected_selectivity = (11.f / 31.f) / 10.f;
 
   EXPECT_FLOAT_EQ(result1.selectivity, expected_selectivity);
@@ -283,8 +283,8 @@ TEST_F(MinimalColumnStatisticsTest, TwoColumnsEqualsTest) {
   auto col_stat3 = std::make_shared<MinimalColumnStatistics<float>>(0.0f, 10.f, 0.f, 10.f);
   auto col_stat4 = std::make_shared<MinimalColumnStatistics<float>>(0.0f, 3.f, -10.f, 20.f);
 
-  auto result3 = col_stat3->estimate_predicate_with_column(predicate_condition, *col_stat4);
-  auto result4 = col_stat4->estimate_predicate_with_column(predicate_condition, *col_stat3);
+  auto result3 = col_stat3->estimate_predicate_with_column(predicate_condition, col_stat4);
+  auto result4 = col_stat4->estimate_predicate_with_column(predicate_condition, col_stat3);
   expected_selectivity = (10.f / 30.f) / 10.f;
 
   EXPECT_FLOAT_EQ(result3.selectivity, expected_selectivity);
@@ -292,8 +292,8 @@ TEST_F(MinimalColumnStatisticsTest, TwoColumnsEqualsTest) {
 
   auto col_stat5 = std::make_shared<MinimalColumnStatistics<float>>(0.0f, 10.f, 20.f, 30.f);
 
-  auto result5 = col_stat3->estimate_predicate_with_column(predicate_condition, *col_stat5);
-  auto result6 = col_stat5->estimate_predicate_with_column(predicate_condition, *col_stat3);
+  auto result5 = col_stat3->estimate_predicate_with_column(predicate_condition, col_stat5);
+  auto result6 = col_stat5->estimate_predicate_with_column(predicate_condition, col_stat3);
   expected_selectivity = 0.f;
 
   EXPECT_FLOAT_EQ(result5.selectivity, expected_selectivity);
@@ -306,23 +306,23 @@ TEST_F(MinimalColumnStatisticsTest, TwoColumnsLessThanTest) {
   auto col_stat1 = std::make_shared<MinimalColumnStatistics<int>>(0.0f, 10.f, 1, 20);
   auto col_stat2 = std::make_shared<MinimalColumnStatistics<int>>(0.0f, 30.f, 11, 40);
 
-  auto result1 = col_stat1->estimate_predicate_with_column(predicate_condition, *col_stat2);
+  auto result1 = col_stat1->estimate_predicate_with_column(predicate_condition, col_stat2);
   auto expected_selectivity = ((10.f / 20.f) * (10.f / 30.f) - 0.5f * 1.f / 30.f) * 0.5f + (10.f / 20.f) +
                               (20.f / 30.f) - (10.f / 20.f) * (20.f / 30.f);
   EXPECT_FLOAT_EQ(result1.selectivity, expected_selectivity);
 
-  auto result2 = col_stat2->estimate_predicate_with_column(predicate_condition, *col_stat1);
+  auto result2 = col_stat2->estimate_predicate_with_column(predicate_condition, col_stat1);
   expected_selectivity = ((10.f / 20.f) * (10.f / 30.f) - 0.5f * 1.f / 30.f) * 0.5f;
   EXPECT_FLOAT_EQ(result2.selectivity, expected_selectivity);
 
   auto col_stat3 = std::make_shared<MinimalColumnStatistics<float>>(0.0f, 6.f, 0, 10);
   auto col_stat4 = std::make_shared<MinimalColumnStatistics<float>>(0.0f, 12.f, -10, 30);
 
-  auto result3 = col_stat3->estimate_predicate_with_column(predicate_condition, *col_stat4);
+  auto result3 = col_stat3->estimate_predicate_with_column(predicate_condition, col_stat4);
   expected_selectivity = ((10.f / 10.f) * (10.f / 40.f) - 1.f / (4 * 6)) * 0.5f + (20.f / 40.f);
   EXPECT_FLOAT_EQ(result3.selectivity, expected_selectivity);
 
-  auto result4 = col_stat4->estimate_predicate_with_column(predicate_condition, *col_stat3);
+  auto result4 = col_stat4->estimate_predicate_with_column(predicate_condition, col_stat3);
   expected_selectivity = ((10.f / 10.f) * (10.f / 40.f) - 1.f / (4 * 6)) * 0.5f + (10.f / 40.f);
   EXPECT_FLOAT_EQ(result4.selectivity, expected_selectivity);
 }
@@ -402,11 +402,11 @@ TEST_F(MinimalColumnStatisticsTest, NonNullRatioTwoColumnTest) {
   stats_2->set_null_value_ratio(0.15);  // non-null value ratio: 0.85
 
   auto predicate_condition = PredicateCondition::Equals;
-  auto result = stats_0->estimate_predicate_with_column(predicate_condition, *stats_1);
+  auto result = stats_0->estimate_predicate_with_column(predicate_condition, stats_1);
   EXPECT_FLOAT_EQ(result.selectivity, 0.9f * 0.8f * 0.5f / 3.f);
 
   predicate_condition = PredicateCondition::LessThan;
-  result = stats_1->estimate_predicate_with_column(predicate_condition, *stats_2);
+  result = stats_1->estimate_predicate_with_column(predicate_condition, stats_2);
   EXPECT_FLOAT_EQ(result.selectivity, 0.8f * 0.85f * (1.f / 3.f + 1.f / 3.f * 1.f / 2.f));
 }
 

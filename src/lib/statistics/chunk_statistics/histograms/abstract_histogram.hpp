@@ -30,6 +30,8 @@ class AbstractHistogram : public AbstractFilter {
                              const std::optional<T>& value2 = std::nullopt) const;
   float estimate_cardinality(const PredicateCondition predicate_type, const T value,
                              const std::optional<T>& value2 = std::nullopt) const;
+  float estimate_distinct_count(const PredicateCondition predicate_type, const T value,
+                                const std::optional<T>& value2 = std::nullopt) const;
   bool can_prune(const PredicateCondition predicate_type, const AllTypeVariant& variant_value,
                  const std::optional<AllTypeVariant>& variant_value2 = std::nullopt) const override;
 
@@ -48,6 +50,7 @@ class AbstractHistogram : public AbstractFilter {
 
   int64_t _convert_string_to_number_representation(const std::string& value) const;
   std::string _convert_number_representation_to_string(const int64_t) const;
+  float _bucket_share(const BucketID bucket_id, const T value) const;
 
   virtual T _bucket_width(const BucketID index) const;
   // TODO(tim): ask experts how this works

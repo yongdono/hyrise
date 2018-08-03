@@ -76,7 +76,8 @@ class BaseColumnStatistics {
    * Estimate a Column-Column Predicate, e.g. "a > b"
    */
   virtual FilterByColumnComparisonEstimate estimate_predicate_with_column(
-      const PredicateCondition predicate_condition, const BaseColumnStatistics& base_right_column_statistics) const = 0;
+      const PredicateCondition predicate_condition,
+      const std::shared_ptr<const BaseColumnStatistics>& base_right_column_statistics) const = 0;
   /** @} */
 
   std::string description() const;

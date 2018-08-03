@@ -23,7 +23,8 @@ std::string HistogramColumnStatistics<ColumnDataType>::_description() const {
 }
 
 template <typename ColumnDataType>
-const std::shared_ptr<AbstractHistogram<ColumnDataType>>& HistogramColumnStatistics<ColumnDataType>::histogram() const {
+const std::shared_ptr<const AbstractHistogram<ColumnDataType>> HistogramColumnStatistics<ColumnDataType>::histogram()
+    const {
   return _histogram;
 }
 
@@ -112,223 +113,231 @@ FilterByValueEstimate HistogramColumnStatistics<ColumnDataType>::estimate_predic
 
 template <typename ColumnDataType>
 FilterByColumnComparisonEstimate HistogramColumnStatistics<ColumnDataType>::estimate_predicate_with_column(
-    const PredicateCondition predicate_condition, const BaseColumnStatistics& base_right_column_statistics) const {
-  // /**
-  //  * Calculate expected selectivity by looking at what ratio of values of both columns are in the overlapping value
-  //  * range of both columns.
-  //  *
-  //  * For the different predicate conditions the appropriate ratios of values below, within and above the overlapping
-  //  * range from both columns are taken to compute the selectivity.
-  //  *
-  //  * Example estimation:
-  //  *
-  //  * |  Column name     |  col_left  |  col_right  |
-  //  * |  Min value       |  1         |  11         |
-  //  * |  Max value       |  20        |  40         |
-  //  * |  Distinct count  |  20        |  15         |
-  //  *
-  //  * Overlapping value range: 11 to 20  -->  overlapping_range_min = 11,  overlapping_range_max = 20
-  //  * left_overlapping_ratio = (20 - 11 + 1) / (20 - 1 + 1) = 1 / 2
-  //  * right_overlapping_ratio = (20 - 11 + 1) / (40 - 11 + 1) = 1 / 3
-  //  *
-  //  * left_below_overlapping_ratio = (10 - 1 + 1) / (20 - 1 + 1) = 1 / 2
-  //  * left_above_overlapping_ratio = 0 as col_left max value within overlapping range
-  //  * right_below_overlapping_ratio = (40 - 21 + 1) / (40 - 11 + 1) = 2 / 3
-  //  * right_above_overlapping_ratio = 0 as col_right min value within overlapping range
-  //  *
-  //  * left_overlapping_distinct_count = (1 / 2) * 20 = 10
-  //  * right_overlapping_distinct_count = (1 / 3) * 15 = 5
-  //  *
-  //  * For predicate condition equals only the ratios of values in the overlapping range is considered as values. If values could
-  //  * match outside the overlapping range, the range would be false as it would be too small. In order to calculate the
-  //  * equal value ratio, the column with fewer distinct values within the overlapping range is determined. In this case
-  //  * this is col_right. Statistics component assumes that for two value sets for the same range the smaller set is
-  //  * part of the bigger set. Therefore, it assumes that the 5 distinct values within the overlapping range of the right
-  //  * column also exist in the left column. The equal value ratio is then calculated by multiplying
-  //  * right_overlapping_ratio (= 1 / 2) with the probability to hit any distinct value of the left column (= 1 / 20):
-  //  * equal_values_ratio = (1 / 2) * (1 / 20) = (1 / 40)
-  //  * This is also the selectivity for the predicate condition equals: (1 / 40) = 2.5 %
-  //  *
-  //  * For predicate condition less the ratios left_below_overlapping_ratio and right_above_overlapping_ratio are also considered as
-  //  * table entries where the col_left value is below the common range or the col_right value is above it will always be
-  //  * in the result. The probability that both values are within the overlapping range and that col_left < col_right is
-  //  * (probability of col_left != col_right where left and right values are in overlapping range) / 2
-  //  *
-  //  * The selectivity for predicate condition less is the sum of different probabilities: // NOLINT
-  //  *    prob. that left value is below overlapping range (= 1 / 2) // NOLINT
-  //  *  + prob. that right value is above overlapping range (= 1 / 3) // NOLINT
-  //  *  - prob. that left value is below overlapping range and right value is above overlapping range (= 1 / 6) // NOLINT
-  //  *  + prob. that left value < right value and both values are in common range // NOLINT
-  //  *                                                                    (= ((1 / 6) - (1 / 20)) / 2 = 7 / 120) // NOLINT
-  //  *  = 29 / 40 = 72.5 % // NOLINT
-  //  */
-  //
-  // Assert(_data_type == base_right_column_statistics.data_type(), "Cannot compare columns of different type");
-  //
-  // const auto& right_column_statistics =
-  //     static_cast<const ColumnStatistics<ColumnDataType>&>(base_right_column_statistics);
-  //
-  // // if columns have no distinct values, they can only have null values which cannot be selected with this predicate
-  // if (distinct_count() == 0 || right_column_statistics.distinct_count() == 0) {
-  //   return {0.f, without_null_values(), right_column_statistics.without_null_values()};
-  // }
-  //
-  // const auto overlapping_range_min = std::max(_min, right_column_statistics.min());
-  // const auto overlapping_range_max = std::min(_max, right_column_statistics.max());
-  //
-  // // if no overlapping range exists, the result is empty
-  // if (overlapping_range_min > overlapping_range_max) {
-  //   return {0.f, without_null_values(), right_column_statistics.without_null_values()};
-  // }
-  //
-  // // calculate ratio of values before, in and above the common value range
-  // const auto left_overlapping_ratio = estimate_range_selectivity(overlapping_range_min, overlapping_range_max);
-  // const auto right_overlapping_ratio =
-  //     right_column_statistics.estimate_range_selectivity(overlapping_range_min, overlapping_range_max);
-  //
-  // auto left_below_overlapping_ratio = 0.f;
-  // auto left_above_overlapping_ratio = 0.f;
-  // auto right_below_overlapping_ratio = 0.f;
-  // auto right_above_overlapping_ratio = 0.f;
-  //
-  // if (std::is_integral<ColumnDataType>::value) {
-  //   if (_min < overlapping_range_min) {
-  //     left_below_overlapping_ratio = estimate_range_selectivity(_min, overlapping_range_min - 1);
-  //   }
-  //   if (overlapping_range_max < _max) {
-  //     left_above_overlapping_ratio = estimate_range_selectivity(overlapping_range_max + 1, _max);
-  //   }
-  //   if (right_column_statistics.min() < overlapping_range_min) {
-  //     right_below_overlapping_ratio =
-  //         right_column_statistics.estimate_range_selectivity(right_column_statistics.min(), overlapping_range_min - 1);
-  //   }
-  //   if (overlapping_range_max < right_column_statistics.max()) {
-  //     right_above_overlapping_ratio =
-  //         right_column_statistics.estimate_range_selectivity(overlapping_range_max + 1, right_column_statistics.max());
-  //   }
-  // } else {
-  //   left_below_overlapping_ratio = estimate_range_selectivity(min(), overlapping_range_min);
-  //   left_above_overlapping_ratio = estimate_range_selectivity(overlapping_range_max, max());
-  //   right_below_overlapping_ratio =
-  //       right_column_statistics.estimate_range_selectivity(right_column_statistics.min(), overlapping_range_min);
-  //   right_above_overlapping_ratio =
-  //       right_column_statistics.estimate_range_selectivity(overlapping_range_max, right_column_statistics.max());
-  // }
-  //
-  // // calculate ratio of distinct values in common value range
-  // const auto left_overlapping_distinct_count = left_overlapping_ratio * distinct_count();
-  // const auto right_overlapping_distinct_count = right_overlapping_ratio * right_column_statistics.distinct_count();
-  //
-  // auto equal_values_ratio = 0.0f;
-  // // calculate ratio of rows with equal values
-  // if (left_overlapping_distinct_count < right_overlapping_distinct_count) {
-  //   equal_values_ratio = left_overlapping_ratio / right_column_statistics.distinct_count();
-  // } else {
-  //   equal_values_ratio = right_overlapping_ratio / distinct_count();
-  // }
-  //
-  // const auto combined_non_null_ratio = non_null_value_ratio() * right_column_statistics.non_null_value_ratio();
-  //
-  // // used for <, <=, > and >= predicate_conditions
-  // auto estimate_selectivity_for_open_ended_operators = [&](float values_below_ratio, float values_above_ratio,
-  //                                                          ColumnDataType new_min, ColumnDataType new_max,
-  //                                                          bool add_equal_values) -> FilterByColumnComparisonEstimate {
-  //   // selectivity calculated by adding up ratios that values are below, in or above overlapping range
-  //   float selectivity = 0.f;
-  //   // ratio of values on left hand side which are smaller than overlapping range
-  //   selectivity += values_below_ratio;
-  //   // selectivity of not equal numbers n1, n2 in overlapping range where n1 < n2 is 0.5
-  //   selectivity += (left_overlapping_ratio * right_overlapping_ratio - equal_values_ratio) * 0.5f;
-  //   if (add_equal_values) {
-  //     selectivity += equal_values_ratio;
-  //   }
-  //   // ratio of values on right hand side which are greater than overlapping range
-  //   selectivity += values_above_ratio;
-  //   // remove ratio of rows, where one value is below and one value is above the overlapping range
-  //   selectivity -= values_below_ratio * values_above_ratio;
-  //
-  //   auto new_left_column_stats = estimate_range(new_min, new_max).column_statistics;
-  //   auto new_right_column_stats = right_column_statistics.estimate_range(new_min, new_max).column_statistics;
-  //   return {combined_non_null_ratio * selectivity, new_left_column_stats, new_right_column_stats};
-  // };
-  //
-  // // Currently the distinct count, min and max calculation is incorrect if predicate condition is OpLessThan or
-  // // OpGreaterThan and right column min = left column min or right column max = left column max.
-  // //
-  // // E.g. Two integer columns have 3 distinct values and same min and max value of 1 and 3.
-  // //
-  // // Both new left and right column statistics will have the same min and max values of 1 and 3.
-  // // However, for predicate condition OpLessThan, the left column max is actually 2 as there is no possibility
-  // // for 3 < 3. Additionally, the right column min is actually 2, as there is no possibility for 1 < 1.
-  // // The same also applies for predicate condition OpGreaterThan vice versa.
-  // // The smaller range between min and max values of a column will also lead to a smaller distinct count.
-  // //
-  // // TODO(Anyone): Fix issue mentioned above.
-  //
-  // switch (predicate_condition) {
-  //   case PredicateCondition::Equals: {
-  //     auto overlapping_distinct_count = std::min(left_overlapping_distinct_count, right_overlapping_distinct_count);
-  //
-  //     auto new_left_column_stats = std::make_shared<ColumnStatistics>(0.0f, overlapping_distinct_count,
-  //                                                                     overlapping_range_min, overlapping_range_max);
-  //     auto new_right_column_stats = std::make_shared<ColumnStatistics>(0.0f, overlapping_distinct_count,
-  //                                                                      overlapping_range_min, overlapping_range_max);
-  //     return {combined_non_null_ratio * equal_values_ratio, new_left_column_stats, new_right_column_stats};
-  //   }
-  //   case PredicateCondition::NotEquals: {
-  //     auto new_left_column_stats = std::make_shared<ColumnStatistics>(0.0f, distinct_count(), _min, _max);
-  //     auto new_right_column_stats = std::make_shared<ColumnStatistics>(
-  //         0.0f, right_column_statistics.distinct_count(), right_column_statistics._min, right_column_statistics._max);
-  //     return {combined_non_null_ratio * (1.f - equal_values_ratio), new_left_column_stats, new_right_column_stats};
-  //   }
-  //   case PredicateCondition::LessThan: {
-  //     return estimate_selectivity_for_open_ended_operators(left_below_overlapping_ratio, right_above_overlapping_ratio,
-  //                                                          _min, right_column_statistics._max, false);
-  //   }
-  //   case PredicateCondition::LessThanEquals: {
-  //     return estimate_selectivity_for_open_ended_operators(left_below_overlapping_ratio, right_above_overlapping_ratio,
-  //                                                          _min, right_column_statistics._max, true);
-  //   }
-  //   case PredicateCondition::GreaterThan: {
-  //     return estimate_selectivity_for_open_ended_operators(right_below_overlapping_ratio, left_above_overlapping_ratio,
-  //                                                          right_column_statistics._min, _max, false);
-  //   }
-  //   case PredicateCondition::GreaterThanEquals: {
-  //     return estimate_selectivity_for_open_ended_operators(right_below_overlapping_ratio, left_above_overlapping_ratio,
-  //                                                          right_column_statistics._min, _max, true);
-  //   }
-  //   // case PredicateCondition::Between is not supported for ColumnID as TableScan does not support this
-  //   default: { return {combined_non_null_ratio, without_null_values(), right_column_statistics.without_null_values()}; }
-  // }
-  // TODO(tim): come up with strategy
-  Assert(_data_type == base_right_column_statistics.data_type(), "Cannot compare columns of different type");
+    const PredicateCondition predicate_condition,
+    const std::shared_ptr<const BaseColumnStatistics>& base_right_column_statistics) const {
+  /**
+   * Calculate expected selectivity by looking at what ratio of values of both columns are in the overlapping value
+   * range of both columns.
+   *
+   * For the different predicate conditions the appropriate ratios of values below, within and above the overlapping
+   * range from both columns are taken to compute the selectivity.
+   *
+   * Example estimation:
+   *
+   * |  Column name     |  col_left  |  col_right  |
+   * |  Min value       |  1         |  11         |
+   * |  Max value       |  20        |  40         |
+   * |  Distinct count  |  20        |  15         |
+   *
+   * Overlapping value range: 11 to 20  -->  overlapping_range_min = 11,  overlapping_range_max = 20
+   * left_overlapping_ratio = (20 - 11 + 1) / (20 - 1 + 1) = 1 / 2
+   * right_overlapping_ratio = (20 - 11 + 1) / (40 - 11 + 1) = 1 / 3
+   *
+   * left_below_overlapping_ratio = (10 - 1 + 1) / (20 - 1 + 1) = 1 / 2
+   * left_above_overlapping_ratio = 0 as col_left max value within overlapping range
+   * right_below_overlapping_ratio = (40 - 21 + 1) / (40 - 11 + 1) = 2 / 3
+   * right_above_overlapping_ratio = 0 as col_right min value within overlapping range
+   *
+   * left_overlapping_distinct_count = (1 / 2) * 20 = 10
+   * right_overlapping_distinct_count = (1 / 3) * 15 = 5
+   *
+   * For predicate condition equals only the ratios of values in the overlapping range is considered as values. If values could
+   * match outside the overlapping range, the range would be false as it would be too small. In order to calculate the
+   * equal value ratio, the column with fewer distinct values within the overlapping range is determined. In this case
+   * this is col_right. Statistics component assumes that for two value sets for the same range the smaller set is
+   * part of the bigger set. Therefore, it assumes that the 5 distinct values within the overlapping range of the right
+   * column also exist in the left column. The equal value ratio is then calculated by multiplying
+   * right_overlapping_ratio (= 1 / 2) with the probability to hit any distinct value of the left column (= 1 / 20):
+   * equal_values_ratio = (1 / 2) * (1 / 20) = (1 / 40)
+   * This is also the selectivity for the predicate condition equals: (1 / 40) = 2.5 %
+   *
+   * For predicate condition less the ratios left_below_overlapping_ratio and right_above_overlapping_ratio are also considered as
+   * table entries where the col_left value is below the common range or the col_right value is above it will always be
+   * in the result. The probability that both values are within the overlapping range and that col_left < col_right is
+   * (probability of col_left != col_right where left and right values are in overlapping range) / 2
+   *
+   * The selectivity for predicate condition less is the sum of different probabilities: // NOLINT
+   *    prob. that left value is below overlapping range (= 1 / 2) // NOLINT
+   *  + prob. that right value is above overlapping range (= 1 / 3) // NOLINT
+   *  - prob. that left value is below overlapping range and right value is above overlapping range (= 1 / 6) // NOLINT
+   *  + prob. that left value < right value and both values are in common range // NOLINT
+   *                                                                    (= ((1 / 6) - (1 / 20)) / 2 = 7 / 120) // NOLINT
+   *  = 29 / 40 = 72.5 % // NOLINT
+   */
 
-  const auto& right_column_statistics =
-      static_cast<const MinimalColumnStatistics<ColumnDataType>&>(base_right_column_statistics);
-  const auto combined_non_null_ratio = non_null_value_ratio() * right_column_statistics.non_null_value_ratio();
-  return {combined_non_null_ratio, without_null_values(), right_column_statistics.without_null_values()};
+  Assert(_data_type == base_right_column_statistics->data_type(), "Cannot compare columns of different type");
+
+  const auto& right_minimal_column_statistics =
+      std::static_pointer_cast<const MinimalColumnStatistics<ColumnDataType>>(base_right_column_statistics);
+  const auto& right_histogram_column_statistics =
+      std::static_pointer_cast<const HistogramColumnStatistics<ColumnDataType>>(base_right_column_statistics);
+
+  ColumnDataType right_min;
+  ColumnDataType right_max;
+
+  if (right_minimal_column_statistics) {
+    right_min = right_minimal_column_statistics->min();
+    right_max = right_minimal_column_statistics->max();
+  } else if (right_histogram_column_statistics) {
+    right_min = right_histogram_column_statistics->histogram()->min();
+    right_max = right_histogram_column_statistics->histogram()->max();
+  } else {
+    Fail("ColumnStatistics type not yet supported.");
+  }
+
+  // if columns have no distinct values, they can only have null values which cannot be selected with this predicate
+  if (distinct_count() == 0 || base_right_column_statistics->distinct_count() == 0) {
+    return {0.f, without_null_values(), base_right_column_statistics->without_null_values()};
+  }
+
+  const auto overlapping_range_min = std::max(_histogram->min(), right_min);
+  const auto overlapping_range_max = std::min(_histogram->max(), right_max);
+
+  // if no overlapping range exists, the result is empty
+  if (overlapping_range_min > overlapping_range_max) {
+    return {0.f, without_null_values(), base_right_column_statistics->without_null_values()};
+  }
+
+  // calculate ratio of values before, in and above the common value range
+  const auto left_overlapping_ratio =
+      _histogram->estimate_selectivity(PredicateCondition::Between, overlapping_range_min, overlapping_range_max);
+  float right_overlapping_ratio;
+  if (right_minimal_column_statistics) {
+    right_overlapping_ratio =
+        right_minimal_column_statistics->estimate_range_selectivity(overlapping_range_min, overlapping_range_max);
+  } else {
+    right_overlapping_ratio = right_histogram_column_statistics->histogram()->estimate_selectivity(
+        PredicateCondition::Between, overlapping_range_min, overlapping_range_max);
+  }
+
+  const auto left_below_overlapping_ratio =
+      _histogram->min() >= overlapping_range_min
+          ? 0.f
+          : _histogram->estimate_selectivity(PredicateCondition::LessThan, overlapping_range_min);
+  const auto left_above_overlapping_ratio =
+      _histogram->max() < overlapping_range_max
+          ? 0.f
+          : _histogram->estimate_selectivity(PredicateCondition::GreaterThan, overlapping_range_max);
+  auto right_below_overlapping_ratio = 0.f;
+  auto right_above_overlapping_ratio = 0.f;
+
+  if (right_histogram_column_statistics) {
+    right_below_overlapping_ratio = right_histogram_column_statistics->histogram()->estimate_selectivity(
+        PredicateCondition::LessThan, overlapping_range_min);
+    right_above_overlapping_ratio = right_histogram_column_statistics->histogram()->estimate_selectivity(
+        PredicateCondition::GreaterThan, overlapping_range_max);
+  } else {
+    if constexpr (std::is_integral_v<ColumnDataType>) {
+      if (right_min < overlapping_range_min) {
+        right_below_overlapping_ratio =
+            right_minimal_column_statistics->estimate_range_selectivity(right_min, overlapping_range_min - 1);
+      }
+      if (overlapping_range_max < right_max) {
+        right_above_overlapping_ratio =
+            right_minimal_column_statistics->estimate_range_selectivity(overlapping_range_max + 1, right_max);
+      }
+    } else {
+      right_below_overlapping_ratio =
+          right_minimal_column_statistics->estimate_range_selectivity(right_min, overlapping_range_min);
+      right_above_overlapping_ratio =
+          right_minimal_column_statistics->estimate_range_selectivity(overlapping_range_max, right_max);
+    }
+  }
+
+  // calculate ratio of distinct values in common value range
+  const auto left_overlapping_distinct_count =
+      _histogram->estimate_distinct_count(predicate_condition, overlapping_range_min, overlapping_range_max);
+  const auto right_overlapping_distinct_count =
+      right_overlapping_ratio * base_right_column_statistics->distinct_count();
+
+  auto equal_values_ratio = 0.f;
+  // calculate ratio of rows with equal values
+  if (left_overlapping_distinct_count < right_overlapping_distinct_count) {
+    equal_values_ratio = left_overlapping_ratio / base_right_column_statistics->distinct_count();
+  } else {
+    equal_values_ratio = right_overlapping_ratio / distinct_count();
+  }
+
+  const auto combined_non_null_ratio = non_null_value_ratio() * base_right_column_statistics->non_null_value_ratio();
+
+  // used for <, <=, > and >= predicate_conditions
+  auto estimate_selectivity_for_open_ended_operators = [&](float values_below_ratio, float values_above_ratio,
+                                                           ColumnDataType new_min, ColumnDataType new_max,
+                                                           bool add_equal_values) -> FilterByColumnComparisonEstimate {
+    // selectivity calculated by adding up ratios that values are below, in or above overlapping range
+    float selectivity = 0.f;
+    // ratio of values on left hand side which are smaller than overlapping range
+    selectivity += values_below_ratio;
+    // selectivity of not equal numbers n1, n2 in overlapping range where n1 < n2 is 0.5
+    selectivity += (left_overlapping_ratio * right_overlapping_ratio - equal_values_ratio) * 0.5f;
+    if (add_equal_values) {
+      selectivity += equal_values_ratio;
+    }
+    // ratio of values on right hand side which are greater than overlapping range
+    selectivity += values_above_ratio;
+    // remove ratio of rows, where one value is below and one value is above the overlapping range
+    selectivity -= values_below_ratio * values_above_ratio;
+
+    auto new_left_column_stats = estimate_range(selectivity, false, new_min, new_max).column_statistics;
+    std::shared_ptr<BaseColumnStatistics> new_right_column_stats;
+    if (right_minimal_column_statistics) {
+      new_right_column_stats = right_minimal_column_statistics->estimate_range(new_min, new_max).column_statistics;
+    } else {
+      new_right_column_stats =
+          right_histogram_column_statistics->estimate_range(selectivity, false, new_min, new_max).column_statistics;
+    }
+    return {combined_non_null_ratio * selectivity, new_left_column_stats, new_right_column_stats};
+  };
+
+  // Currently the distinct count, min and max calculation is incorrect if predicate condition is OpLessThan or
+  // OpGreaterThan and right column min = left column min or right column max = left column max.
+  //
+  // E.g. Two integer columns have 3 distinct values and same min and max value of 1 and 3.
+  //
+  // Both new left and right column statistics will have the same min and max values of 1 and 3.
+  // However, for predicate condition OpLessThan, the left column max is actually 2 as there is no possibility
+  // for 3 < 3. Additionally, the right column min is actually 2, as there is no possibility for 1 < 1.
+  // The same also applies for predicate condition OpGreaterThan vice versa.
+  // The smaller range between min and max values of a column will also lead to a smaller distinct count.
+  //
+  // TODO(Anyone): Fix issue mentioned above.
+
+  switch (predicate_condition) {
+    case PredicateCondition::Equals: {
+      auto overlapping_distinct_count = std::min(left_overlapping_distinct_count, right_overlapping_distinct_count);
+      auto new_column_stats = std::make_shared<MinimalColumnStatistics<ColumnDataType>>(
+          0.0f, overlapping_distinct_count, overlapping_range_min, overlapping_range_max);
+      return {combined_non_null_ratio * equal_values_ratio, new_column_stats, new_column_stats->clone()};
+    }
+    case PredicateCondition::NotEquals: {
+      auto new_left_column_stats = std::make_shared<MinimalColumnStatistics<ColumnDataType>>(
+          0.0f, distinct_count(), _histogram->min(), _histogram->max());
+      auto new_right_column_stats = std::make_shared<MinimalColumnStatistics<ColumnDataType>>(
+          0.0f, base_right_column_statistics->distinct_count(), right_min, right_max);
+      return {combined_non_null_ratio * (1.f - equal_values_ratio), new_left_column_stats, new_right_column_stats};
+    }
+    case PredicateCondition::LessThan: {
+      return estimate_selectivity_for_open_ended_operators(left_below_overlapping_ratio, right_above_overlapping_ratio,
+                                                           _histogram->min(), right_max, false);
+    }
+    case PredicateCondition::LessThanEquals: {
+      return estimate_selectivity_for_open_ended_operators(left_below_overlapping_ratio, right_above_overlapping_ratio,
+                                                           _histogram->min(), right_max, true);
+    }
+    case PredicateCondition::GreaterThan: {
+      return estimate_selectivity_for_open_ended_operators(right_below_overlapping_ratio, left_above_overlapping_ratio,
+                                                           right_min, _histogram->max(), false);
+    }
+    case PredicateCondition::GreaterThanEquals: {
+      return estimate_selectivity_for_open_ended_operators(right_below_overlapping_ratio, left_above_overlapping_ratio,
+                                                           right_min, _histogram->max(), true);
+    }
+    // case PredicateCondition::Between is not supported for ColumnID as TableScan does not support this
+    default: {
+      return {combined_non_null_ratio, without_null_values(), base_right_column_statistics->without_null_values()};
+    }
+  }
 }
-
-// /**
-//  * Specialization for strings as they cannot be used in subtractions.
-//  */
-// template <>
-// FilterByColumnComparisonEstimate ColumnStatistics<std::string>::estimate_predicate_with_column(
-//     const PredicateCondition predicate_condition, const BaseColumnStatistics& base_right_column_statistics) const {
-//   // TODO(anybody) implement special case for strings
-//   Assert(_data_type == base_right_column_statistics.data_type(), "Cannot compare columns of different type");
-//
-//   const auto& right_column_statistics =
-//       static_cast<const ColumnStatistics<std::string>&>(base_right_column_statistics);
-//
-//   // if columns have no distinct values, they can only have null values which cannot be selected with this predicate
-//   if (distinct_count() == 0 || right_column_statistics.distinct_count() == 0) {
-//     return {0.f, without_null_values(), right_column_statistics.without_null_values()};
-//   }
-//
-//   return {non_null_value_ratio() * right_column_statistics.non_null_value_ratio(), without_null_values(),
-//           right_column_statistics.without_null_values()};
-// }
 
 template <typename ColumnDataType>
 FilterByValueEstimate HistogramColumnStatistics<ColumnDataType>::estimate_equals(const float selectivity,
@@ -370,11 +379,8 @@ FilterByValueEstimate HistogramColumnStatistics<ColumnDataType>::estimate_range(
   // new minimum/maximum of table cannot be smaller/larger than the current minimum/maximum
   const auto new_min = std::max(min, _histogram->min());
   const auto new_max = std::min(max, _histogram->max());
-  /**
-   * TODO(tim): think about optimizations
-   * e.g.: use bucket distinct count for more accurate distinct counts in result
-   */
-  const auto new_distinct_count = can_prune ? 0.f : distinct_count() * selectivity;
+  const auto new_distinct_count =
+      can_prune ? 0.f : _histogram->estimate_distinct_count(PredicateCondition::Between, new_min, new_max);
 
   auto column_statistics =
       std::make_shared<MinimalColumnStatistics<ColumnDataType>>(0.0f, new_distinct_count, new_min, new_max);
