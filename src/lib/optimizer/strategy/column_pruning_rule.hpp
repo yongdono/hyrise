@@ -19,17 +19,11 @@ class ColumnPruningRule : public AbstractRule {
   bool apply_to(const std::shared_ptr<AbstractLQPNode>& node) const override;
 
  private:
-  using ExpressionsByNode = std::unordered_map<std::shared_ptr<AbstractLQPNode>, ExpressionUnorderedSet>;
-
-  static void _collect_expressions_consumed_in_super_plans(const ExpressionUnorderedSet& expressions_consumed_in_super_plan,
-                                                          ExpressionsByNode& expressions_consumed_in_super_plan_by_node,
-                                                          const std::shared_ptr<AbstractLQPNode>& node);
-
-  static bool _prune(ExpressionsByNode& expressions_consumed_in_super_plan_by_node,
-                                                          const std::shared_ptr<AbstractLQPNode>& node,
-                     const LQPInputSide input_side);
-
-  static std::vector<std::shared_ptr<AbstractExpression>> _get_expressions_consumed_by_node(const AbstractLQPNode& node);
+  static ExpressionUnorderedSet _collect_consumed_columns(const std::shared_ptr<AbstractLQPNode>& lqp);
+  static bool _search_for_leafs_and_prune_columns(const std::shared_ptr<AbstractLQPNode> &lqp,
+                                                  const ExpressionUnorderedSet &referenced_columns);
+  static void _search_for_projections_and_prune_columns(const std::shared_ptr<AbstractLQPNode> &lqp,
+                                                  const ExpressionUnorderedSet &referenced_columns);
 };
 
 }  // namespace opossum

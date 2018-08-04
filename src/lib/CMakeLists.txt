@@ -103,6 +103,8 @@ set(
     logical_query_plan/aggregate_node.hpp
     logical_query_plan/create_view_node.cpp
     logical_query_plan/create_view_node.hpp
+    logical_query_plan/base_non_query_node.cpp
+    logical_query_plan/base_non_query_node.hpp
     logical_query_plan/delete_node.cpp
     logical_query_plan/delete_node.hpp
     logical_query_plan/drop_view_node.cpp

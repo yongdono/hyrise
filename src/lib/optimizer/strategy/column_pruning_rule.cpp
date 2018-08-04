@@ -13,6 +13,7 @@
 #include "logical_query_plan/join_node.hpp"
 #include "logical_query_plan/predicate_node.hpp"
 #include "logical_query_plan/sort_node.hpp"
+#include "../../logical_query_plan/lqp_utils.hpp"
 
 using namespace opossum::expression_functional;  // NOLINT
 
@@ -23,140 +24,134 @@ std::string ColumnPruningRule::name() const {
 }
 
 bool ColumnPruningRule::apply_to(const std::shared_ptr<AbstractLQPNode>& root) const {
-  // Stores expressions required in a node an all nodes above it (aka, in the "super plan")
-  auto expressions_consumed_in_super_plan_by_node = ExpressionsByNode{};
+  // Collect the columns that are used in expressions somewhere in the LQP.
+  // This EXCLUDES columns that merely forwarded by Projections
+  auto referenced_columns = _collect_consumed_columns(root);
 
-  // The output columns of the plan are never pruned and form the initial set of do-not-prune expressions
-  const auto plan_output_expressions = root->column_expressions();
-  const auto plan_output_expressions_set = ExpressionUnorderedSet{plan_output_expressions.begin(), plan_output_expressions.end()};
+  // The output columns of the plan are always considered to be referenced (i.e., we cannot prune them
+  const auto output_columns = root->column_expressions();
+  referenced_columns.insert(output_columns.begin(), output_columns.end());
 
-  _collect_expressions_consumed_in_super_plans(plan_output_expressions_set, expressions_consumed_in_super_plan_by_node, root);
+  // Search for ProjectionNodes that forward the unused columns and prune them accordingly
+  _search_for_projections_and_prune_columns(root, referenced_columns);
 
-  for (const auto& pair: expressions_consumed_in_super_plan_by_node) {
-    std::cout << pair.first->description() << ": ";
-    for (const auto& expression : pair.second) {
-      std::cout << expression->as_column_name() << ", ";
-    }
-    std::cout << std::endl;
-  }
-
-  auto plan_changed = false;
-
-  plan_changed |= _prune(expressions_consumed_in_super_plan_by_node, root, LQPInputSide::Left);
-  plan_changed |= _prune(expressions_consumed_in_super_plan_by_node, root, LQPInputSide::Right);
-
-  return plan_changed;
+  // Search the plan for leaf nodes and prune all columns from them that are not referenced
+  return _search_for_leafs_and_prune_columns(root, referenced_columns);
 }
 
-void ColumnPruningRule::_collect_expressions_consumed_in_super_plans(const ExpressionUnorderedSet& expressions_consumed_in_output_super_plan,
-                                                         ExpressionsByNode& expressions_consumed_in_super_plan_by_node,
-                                                         const std::shared_ptr<AbstractLQPNode>& node) {
-  const auto expressions_consumed_by_node = _get_expressions_consumed_by_node(*node);
-  auto& expression_consumed_by_super_plan = expressions_consumed_in_super_plan_by_node[node];
+ExpressionUnorderedSet ColumnPruningRule::_collect_consumed_columns(const std::shared_ptr<AbstractLQPNode>& lqp) {
+  auto consumed_columns = ExpressionUnorderedSet{};
 
-  expression_consumed_by_super_plan.insert(expressions_consumed_by_node.begin(), expressions_consumed_by_node.end());
-  expression_consumed_by_super_plan.insert(expressions_consumed_in_output_super_plan.begin(), expressions_consumed_in_output_super_plan.end());
-
-  if (node->left_input()) {
-    _collect_expressions_consumed_in_super_plans(expression_consumed_by_super_plan,
-                                                expressions_consumed_in_super_plan_by_node,
-                                                node->left_input());
-  }
-
-  if (node->right_input()) {
-    _collect_expressions_consumed_in_super_plans(expression_consumed_by_super_plan,
-                                                expressions_consumed_in_super_plan_by_node,
-                                                node->right_input());
-  }
-}
-
-bool ColumnPruningRule::_prune(ExpressionsByNode& expressions_consumed_in_super_plan_by_node,
-                               const std::shared_ptr<AbstractLQPNode>& node, const LQPInputSide input_side) {
-  const auto input = node->input(input_side);
-  if (!input) return false;
-
-  const auto& expressions_consumed_in_super_plan = expressions_consumed_in_super_plan_by_node[node];
-
-  std::vector<std::shared_ptr<AbstractExpression>> consumed_input_expressions;
-  for (const auto& input_expression : input->column_expressions()) {
-    const auto expression_iter = expressions_consumed_in_super_plan.find(input_expression);
-    if (expression_iter != expressions_consumed_in_super_plan.end()) {
-      consumed_input_expressions.emplace_back(input_expression);
-    }
-  }
-
-  auto plan_changed = false;
-
-  if (consumed_input_expressions.size() != input->column_expressions().size()) {
-    if (consumed_input_expressions.empty()) {
-      node->set_input(input_side, DummyTableNode::make());
-      return true;
-    }
-    lqp_insert_node(node, input_side, ProjectionNode::make(consumed_input_expressions));
-  }
-
-  plan_changed |= _prune(expressions_consumed_in_super_plan_by_node, input, LQPInputSide::Left);
-  plan_changed |= _prune(expressions_consumed_in_super_plan_by_node, input, LQPInputSide::Right);
-
-  return plan_changed;
-}
-
-std::vector<std::shared_ptr<AbstractExpression>> ColumnPruningRule::_get_expressions_consumed_by_node(const AbstractLQPNode& node) {
-  std::vector<std::shared_ptr<AbstractExpression>> consumed_expressions;
-
-  switch (node.type) {
-    case LQPNodeType::Projection:
-      for (const auto& expression : node.column_expressions()) {
-        visit_expression(expression, [&](const auto& sub_expression) {
-          const auto column_id = node.left_input()->find_column_id(*sub_expression);
-          if (column_id) {
-            consumed_expressions.emplace_back(sub_expression);
-            return ExpressionVisitation::DoNotVisitArguments;
-          } else {
-            return ExpressionVisitation::VisitArguments;
-          }
-        });
+  // Search an expression for referenced columns
+  const auto collect_consumed_columns_from_expression = [&](const auto& expression) {
+    visit_expression(expression, [&](const auto& sub_expression) {
+      if (sub_expression->type == ExpressionType::LQPColumn) {
+        consumed_columns.emplace(sub_expression);
       }
-      break;
+      return ExpressionVisitation::VisitArguments;
+    });
+  };
 
-    case LQPNodeType::Aggregate: {
-      const auto& aggregate_node = dynamic_cast<const AggregateNode&>(node);
-      for (const auto &expression : aggregate_node.aggregate_expressions) {
-        for (const auto &argument : expression->arguments) {
-          consumed_expressions.emplace_back(argument);
+  // Search the entire LQP for columns used in AbstractLQPNode::node_expressions(), i.e. columns that are necessary for
+  // the "functioning" of the LQP.
+  // For ProjectionNodes, ignore forwarded columns (since they would include all columns and we wouldn't be able to
+  // prune) by only searching the arguments of expression.
+  visit_lqp(lqp, [&](const auto& node) {
+    for (const auto& expression : node->node_expressions()) {
+      if (node->type == LQPNodeType::Projection) {
+        for (const auto& argument : expression->arguments) {
+          collect_consumed_columns_from_expression(argument);
         }
+      } else {
+        collect_consumed_columns_from_expression(expression);
       }
-      consumed_expressions.insert(consumed_expressions.end(), aggregate_node.group_by_expressions.begin(), aggregate_node.group_by_expressions.end());
-    } break;
+    }
+    return LQPVisitation::VisitInputs;
+  });
 
-    case LQPNodeType::Predicate: {
-      const auto &predicate_node = dynamic_cast<const PredicateNode &>(node);
-      for (const auto &argument : predicate_node.predicate->arguments) {
-        consumed_expressions.emplace_back(argument);
+  return consumed_columns;
+}
+
+bool ColumnPruningRule::_search_for_leafs_and_prune_columns(const std::shared_ptr<AbstractLQPNode> &lqp,
+                                                            const ExpressionUnorderedSet &referenced_columns) {
+
+
+  auto lqp_changed = false;
+
+  auto leaf_parents = std::vector<std::pair<std::shared_ptr<AbstractLQPNode>, LQPInputSide>>{};
+  visit_lqp(lqp, [&](auto& node) {
+    for (const auto input_side : {LQPInputSide::Left, LQPInputSide::Right}) {
+      const auto input = node->input(input_side);
+      if (input && input->input_count() == 0) leaf_parents.emplace_back(node, input_side);
+    }
+
+    // Do not visit the ProjectionNode we may have just inserted, that would lead to infinite recursion
+    return LQPVisitation::VisitInputs;
+  });
+
+  for (const auto& parent_and_leaf_input_side : leaf_parents) {
+    const auto& parent = parent_and_leaf_input_side.first;
+    const auto& leaf_input_side = parent_and_leaf_input_side.second;
+    const auto leaf = parent->input(leaf_input_side);
+
+    // Collect all columns from the leaf that are actually referenced
+    auto referenced_leaf_columns = std::vector<std::shared_ptr<AbstractExpression>>{};
+    for (const auto& expression : leaf->column_expressions()) {
+      if (referenced_columns.find(expression) != referenced_columns.end()) {
+        referenced_leaf_columns.emplace_back(expression);
       }
-    } break;
+    }
 
-    case LQPNodeType::Join: {
-      const auto &join_node = dynamic_cast<const JoinNode &>(node);
-      if (join_node.join_predicate) {
-        for (const auto &argument : join_node.join_predicate->arguments) {
-          consumed_expressions.emplace_back(argument);
-        }
-      }
-    } break;
+    if (leaf->column_expressions().size() == referenced_leaf_columns.size()) continue;
 
-    case LQPNodeType::Sort: {
-      const auto &sort_node = dynamic_cast<const SortNode &>(node);
-      for (const auto &expression : sort_node.expressions) {
-        consumed_expressions.emplace_back(expression);
-      }
-    } break;
+    // We cannot have a ProjectionNode that outputs no columns, so let's avoid that
+    if (referenced_leaf_columns.empty()) continue;
 
-    default: {}
-
+    // If a leaf outputs columns that are never used, prune those columns by inserting a ProjectionNode that only contains
+    // the used columns
+    lqp_insert_node(parent, leaf_input_side, ProjectionNode::make(referenced_leaf_columns));
+    lqp_changed = true;
   }
 
-  return consumed_expressions;
+  return lqp_changed;
+}
+
+void ColumnPruningRule::_search_for_projections_and_prune_columns(const std::shared_ptr<AbstractLQPNode> &lqp,
+                                                                  const ExpressionUnorderedSet &referenced_columns) {
+  /**
+   * Prune otherwise unused columns that are forwarded by ProjectionNodes
+   */
+
+  visit_lqp(lqp, [&](auto& node) {
+    if (node->type != LQPNodeType::Projection) return LQPVisitation::VisitInputs;
+
+    const auto projection_node = std::dynamic_pointer_cast<ProjectionNode>(node);
+
+    auto referenced_projection_expressions = std::vector<std::shared_ptr<AbstractExpression>>{};
+    for (const auto& expression : projection_node->node_expressions()) {
+      // We keep all non-column expressions
+      if (expression->type != ExpressionType::LQPColumn) {
+        referenced_projection_expressions.emplace_back(expression);
+      } else if (referenced_columns.find(expression) != referenced_columns.end()) {
+        referenced_projection_expressions.emplace_back(expression);
+      }
+    }
+
+    if (projection_node->node_expressions().size() == referenced_projection_expressions.size()) {
+      // No columns to prune
+      return LQPVisitation::VisitInputs;
+    }
+
+    // We cannot have a ProjectionNode that outputs no columns
+    if (referenced_projection_expressions.empty()) {
+      lqp_remove_node(projection_node);
+    } else {
+      lqp_replace_node(projection_node, ProjectionNode::make(referenced_projection_expressions));
+    }
+
+    return LQPVisitation::VisitInputs;
+  });
+
 }
 
 }  // namespace opossum

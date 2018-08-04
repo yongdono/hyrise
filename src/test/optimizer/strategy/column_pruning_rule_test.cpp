@@ -54,15 +54,12 @@ TEST_F(ColumnPruningRuleTest, NoUnion) {
   // clang-format off
   const auto expected_lqp =
   ProjectionNode::make(expression_vector(add_(mul_(a, u), 5)),
-    ProjectionNode::make(expression_vector(a, u),
-      PredicateNode::make(greater_than_(5, c),
-        ProjectionNode::make(expression_vector(a, c, u),
-          JoinNode::make(JoinMode::Inner, greater_than_(v, a),
-            ProjectionNode::make(expression_vector(a, c),
-              node_a),
-            ProjectionNode::make(expression_vector(u, v),
-              SortNode::make(expression_vector(w), std::vector<OrderByMode>{OrderByMode::Ascending},  // NOLINT
-                node_b)))))));
+    PredicateNode::make(greater_than_(5, c),
+      JoinNode::make(JoinMode::Inner, greater_than_(v, a),
+        ProjectionNode::make(expression_vector(a, c),
+          node_a),
+        SortNode::make(expression_vector(w), std::vector<OrderByMode>{OrderByMode::Ascending},  // NOLINT
+          node_b))));
   // clang-format on
 
   const auto actual_lqp = apply_rule(rule, lqp);
@@ -84,12 +81,11 @@ TEST_F(ColumnPruningRuleTest, WithUnion) {
   ProjectionNode::make(expression_vector(a),
     UnionNode::make(UnionMode::Positions,
       PredicateNode::make(greater_than_(a, 5),
-        ProjectionNode::make(expression_vector(a),
+        ProjectionNode::make(expression_vector(a, b),
           node_a)),
-      ProjectionNode::make(expression_vector(a),
         PredicateNode::make(greater_than_(b, 5),
           ProjectionNode::make(expression_vector(a, b),
-            node_a)))));
+            node_a))));
   // clang-format on
 
   const auto actual_lqp = apply_rule(rule, lqp);

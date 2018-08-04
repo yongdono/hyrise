@@ -207,6 +207,8 @@ const std::shared_ptr<SQLQueryPlan>& SQLPipelineStatement::get_query_plan() {
 
     // Reset time to exclude previous pipeline steps
     started = std::chrono::high_resolution_clock::now();
+    lqp->print();
+
     _query_plan->add_tree_by_root(_lqp_translator->translate_node(lqp));
 
     done = std::chrono::high_resolution_clock::now();
