@@ -54,20 +54,6 @@ class HistogramColumnStatisticsTest : public BaseTest {
   //   }
   // }
 
-  // // For BETWEEN
-  // template <typename T>
-  // void predict_selectivities_and_compare(const std::shared_ptr<HistogramColumnStatistics<T>>& column_statistic,
-  //                                        const PredicateCondition predicate_condition,
-  //                                        const std::vector<std::pair<T, T>>& values,
-  //                                        const std::vector<float>& expected_selectivities) {
-  //   auto expected_selectivities_itr = expected_selectivities.begin();
-  //   for (const auto& value_pair : values) {
-  //     auto result_container = column_statistic->estimate_predicate_with_value(
-  //         predicate_condition, AllTypeVariant(value_pair.first), AllTypeVariant(value_pair.second));
-  //     EXPECT_FLOAT_EQ(result_container.selectivity, *expected_selectivities_itr++);
-  //   }
-  // }
-
   std::shared_ptr<Table> _int_equal_distribution;
   std::shared_ptr<Table> _int_float_double_string_gaps;
   std::shared_ptr<HistogramColumnStatistics<int32_t>> _column_statistics_int;
@@ -697,22 +683,150 @@ TEST_F(HistogramColumnStatisticsTest, GreaterThanEqualsTest) {
                   0.f);
 }
 
-// TEST_F(HistogramColumnStatisticsTest, BetweenTest) {
-//   PredicateCondition predicate_condition = PredicateCondition::Between;
-//
-//   std::vector<std::pair<int32_t, int32_t>> int_values{{-1, 0}, {-1, 2}, {1, 2}, {0, 7}, {5, 6}, {5, 8}, {7, 8}};
-//   std::vector<float> selectivities_int{0.f, 1.f / 3.f, 1.f / 3.f, 1.f, 1.f / 3.f, 1.f / 3.f, 0.f};
-//   predict_selectivities_and_compare(_column_statistics_int, predicate_condition, int_values, selectivities_int);
-//
-//   std::vector<std::pair<float, float>> float_values{{-1.f, 0.f}, {-1.f, 2.f}, {1.f, 2.f}, {0.f, 7.f},
-//                                                     {5.f, 6.f},  {5.f, 8.f},  {7.f, 8.f}};
-//   std::vector<float> selectivities_float{0.f, 1.f / 5.f, 1.f / 5.f, 1.f, 1.f / 5.f, 1.f / 5.f, 0.f};
-//   predict_selectivities_and_compare(_column_statistics_float, predicate_condition, float_values, selectivities_float);
-//
-//   std::vector<std::pair<double, double>> double_values{{-1., 0.}, {-1., 2.}, {1., 2.}, {0., 7.},
-//                                                        {5., 6.},  {5., 8.},  {7., 8.}};
-//   predict_selectivities_and_compare(_column_statistics_double, predicate_condition, double_values, selectivities_float);
-// }
+TEST_F(HistogramColumnStatisticsTest, BetweenTest) {
+  EXPECT_FLOAT_EQ(
+      _column_statistics_int
+          ->estimate_predicate_with_value(PredicateCondition::Between, AllTypeVariant{-1}, AllTypeVariant{0})
+          .selectivity,
+      0.f);
+  EXPECT_FLOAT_EQ(
+      _column_statistics_int
+          ->estimate_predicate_with_value(PredicateCondition::Between, AllTypeVariant{-1}, AllTypeVariant{2})
+          .selectivity,
+      1.f / 3.f);
+  EXPECT_FLOAT_EQ(_column_statistics_int
+                      ->estimate_predicate_with_value(PredicateCondition::Between, AllTypeVariant{1}, AllTypeVariant{2})
+                      .selectivity,
+                  1.f / 3.f);
+  EXPECT_FLOAT_EQ(_column_statistics_int
+                      ->estimate_predicate_with_value(PredicateCondition::Between, AllTypeVariant{0}, AllTypeVariant{7})
+                      .selectivity,
+                  1.f);
+  EXPECT_FLOAT_EQ(_column_statistics_int
+                      ->estimate_predicate_with_value(PredicateCondition::Between, AllTypeVariant{5}, AllTypeVariant{6})
+                      .selectivity,
+                  1.f / 3.f);
+  EXPECT_FLOAT_EQ(_column_statistics_int
+                      ->estimate_predicate_with_value(PredicateCondition::Between, AllTypeVariant{5}, AllTypeVariant{9})
+                      .selectivity,
+                  1.f / 2.f);
+  EXPECT_FLOAT_EQ(_column_statistics_int
+                      ->estimate_predicate_with_value(PredicateCondition::Between, AllTypeVariant{8}, AllTypeVariant{9})
+                      .selectivity,
+                  0.f);
+
+  EXPECT_FLOAT_EQ(
+      _column_statistics_float
+          ->estimate_predicate_with_value(PredicateCondition::Between, AllTypeVariant{-1.f}, AllTypeVariant{0.f})
+          .selectivity,
+      0.f);
+  EXPECT_FLOAT_EQ(
+      _column_statistics_float
+          ->estimate_predicate_with_value(PredicateCondition::Between, AllTypeVariant{-1.f}, AllTypeVariant{2.f})
+          .selectivity,
+      1.f / 3.f);
+  EXPECT_FLOAT_EQ(
+      _column_statistics_float
+          ->estimate_predicate_with_value(PredicateCondition::Between, AllTypeVariant{1.f}, AllTypeVariant{2.f})
+          .selectivity,
+      1.f / 3.f);
+  EXPECT_FLOAT_EQ(
+      _column_statistics_float
+          ->estimate_predicate_with_value(PredicateCondition::Between, AllTypeVariant{0.f}, AllTypeVariant{7.f})
+          .selectivity,
+      1.f);
+  EXPECT_FLOAT_EQ(
+      _column_statistics_float
+          ->estimate_predicate_with_value(PredicateCondition::Between, AllTypeVariant{5.f}, AllTypeVariant{6.f})
+          .selectivity,
+      ((2.f + 2.f + 2.f * ((std::nextafter(6.f, 6.f + 1.f) - 6.f) / std::nextafter(7.f - 6.f, 7.f - 6.f + 1.f))) -
+       (2.f + 2.f * (5.f - 4.f) / (std::nextafter(5.f - 4.f, 5.f - 4.f + 1)))) /
+          6.f);
+  EXPECT_FLOAT_EQ(
+      _column_statistics_float
+          ->estimate_predicate_with_value(PredicateCondition::Between, AllTypeVariant{5.f}, AllTypeVariant{9.f})
+          .selectivity,
+      1.f - (1.f / 3.f + (1.f / 3.f) * (5.f - 4.f) / (std::nextafter(5.f - 4.f, 5.f - 4.f + 1.f))));
+  EXPECT_FLOAT_EQ(
+      _column_statistics_float
+          ->estimate_predicate_with_value(PredicateCondition::Between, AllTypeVariant{8.f}, AllTypeVariant{9.f})
+          .selectivity,
+      0.f);
+
+  EXPECT_FLOAT_EQ(
+      _column_statistics_double
+          ->estimate_predicate_with_value(PredicateCondition::Between, AllTypeVariant{-1.}, AllTypeVariant{0.})
+          .selectivity,
+      0.f);
+  EXPECT_FLOAT_EQ(
+      _column_statistics_double
+          ->estimate_predicate_with_value(PredicateCondition::Between, AllTypeVariant{-1.}, AllTypeVariant{2.})
+          .selectivity,
+      1.f / 3.f);
+  EXPECT_FLOAT_EQ(
+      _column_statistics_double
+          ->estimate_predicate_with_value(PredicateCondition::Between, AllTypeVariant{1.}, AllTypeVariant{2.})
+          .selectivity,
+      1.f / 3.f);
+  EXPECT_FLOAT_EQ(
+      _column_statistics_double
+          ->estimate_predicate_with_value(PredicateCondition::Between, AllTypeVariant{0.}, AllTypeVariant{7.})
+          .selectivity,
+      1.f);
+  // Floating point is not precise enough to capture that this is slightly higher than 0.
+  EXPECT_FLOAT_EQ(
+      _column_statistics_double
+          ->estimate_predicate_with_value(PredicateCondition::Between, AllTypeVariant{5.}, AllTypeVariant{6.})
+          .selectivity,
+      0.f);
+  EXPECT_FLOAT_EQ(
+      _column_statistics_double
+          ->estimate_predicate_with_value(PredicateCondition::Between, AllTypeVariant{5.}, AllTypeVariant{9.})
+          .selectivity,
+      1.f / 3.f);
+  EXPECT_FLOAT_EQ(
+      _column_statistics_double
+          ->estimate_predicate_with_value(PredicateCondition::Between, AllTypeVariant{8.}, AllTypeVariant{9.})
+          .selectivity,
+      0.f);
+
+  EXPECT_FLOAT_EQ(
+      _column_statistics_string
+          ->estimate_predicate_with_value(PredicateCondition::Between, AllTypeVariant{""}, AllTypeVariant{"a"})
+          .selectivity,
+      0.f);
+  EXPECT_FLOAT_EQ(
+      _column_statistics_string
+          ->estimate_predicate_with_value(PredicateCondition::Between, AllTypeVariant{""}, AllTypeVariant{"c"})
+          .selectivity,
+      1.f / 3.f);
+  EXPECT_FLOAT_EQ(
+      _column_statistics_string
+          ->estimate_predicate_with_value(PredicateCondition::Between, AllTypeVariant{"b"}, AllTypeVariant{"c"})
+          .selectivity,
+      1.f / 3.f);
+  EXPECT_FLOAT_EQ(
+      _column_statistics_string
+          ->estimate_predicate_with_value(PredicateCondition::Between, AllTypeVariant{"a"}, AllTypeVariant{"h"})
+          .selectivity,
+      1.f);
+  // Floating point is not precise enough to capture that this is slightly higher than 0.
+  EXPECT_FLOAT_EQ(
+      _column_statistics_string
+          ->estimate_predicate_with_value(PredicateCondition::Between, AllTypeVariant{"f"}, AllTypeVariant{"g"})
+          .selectivity,
+      0.f);
+  EXPECT_FLOAT_EQ(
+      _column_statistics_string
+          ->estimate_predicate_with_value(PredicateCondition::Between, AllTypeVariant{"f"}, AllTypeVariant{"j"})
+          .selectivity,
+      1.f / 3.f);
+  EXPECT_FLOAT_EQ(
+      _column_statistics_string
+          ->estimate_predicate_with_value(PredicateCondition::Between, AllTypeVariant{"i"}, AllTypeVariant{"j"})
+          .selectivity,
+      0.f);
+}
 
 TEST_F(HistogramColumnStatisticsTest, StoredProcedureEqualsTest) {
   EXPECT_FLOAT_EQ(
