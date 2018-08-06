@@ -128,21 +128,6 @@ std::string AbstractHistogram<std::string>::_bucket_width(const BucketID /*index
   Fail("Method not supported for string histograms.");
 }
 
-// TODO(tim): ask experts how this works
-// template <typename T>
-// std::enable_if_t<std::is_integral_v<T>, T> AbstractHistogram<T>::_bucket_width(const BucketID index) const {
-//   DebugAssert(index < num_buckets(), "Index is not a valid bucket.");
-//
-//   return _bucket_max(index) - _bucket_min(index) + 1;
-// }
-//
-// template <typename T>
-// std::enable_if_t<std::is_floating_point_v<T>, T> AbstractHistogram<T>::_bucket_width(const BucketID index) const {
-//   DebugAssert(index < num_buckets(), "Index is not a valid bucket.");
-//
-//   return _bucket_max(index) - _bucket_min(index);
-// }
-
 template <typename T>
 T AbstractHistogram<T>::_bucket_width(const BucketID index) const {
   DebugAssert(index < num_buckets(), "Index is not a valid bucket.");

@@ -16,24 +16,23 @@ namespace opossum {
 class HistogramColumnStatisticsTest : public BaseTest {
  protected:
   void SetUp() override {
-    _int_float_double_string_gaps = load_table("src/test/tables/int_float_double_string_gaps.tbl", Chunk::MAX_SIZE);
-    auto table_statistics1 = generate_table_statistics(_int_float_double_string_gaps, 3);
+    auto table_stats_int_float_double_string_gaps =
+        generate_table_statistics(load_table("src/test/tables/int_float_double_string_gaps.tbl"), 3);
     _column_statistics_int = std::dynamic_pointer_cast<HistogramColumnStatistics<int32_t>>(
-        std::const_pointer_cast<BaseColumnStatistics>(table_statistics1.column_statistics()[0]));
+        std::const_pointer_cast<BaseColumnStatistics>(table_stats_int_float_double_string_gaps.column_statistics()[0]));
     _column_statistics_float = std::dynamic_pointer_cast<HistogramColumnStatistics<float>>(
-        std::const_pointer_cast<BaseColumnStatistics>(table_statistics1.column_statistics()[1]));
+        std::const_pointer_cast<BaseColumnStatistics>(table_stats_int_float_double_string_gaps.column_statistics()[1]));
     _column_statistics_double = std::dynamic_pointer_cast<HistogramColumnStatistics<double>>(
-        std::const_pointer_cast<BaseColumnStatistics>(table_statistics1.column_statistics()[2]));
+        std::const_pointer_cast<BaseColumnStatistics>(table_stats_int_float_double_string_gaps.column_statistics()[2]));
     _column_statistics_string = std::dynamic_pointer_cast<HistogramColumnStatistics<std::string>>(
-        std::const_pointer_cast<BaseColumnStatistics>(table_statistics1.column_statistics()[3]));
+        std::const_pointer_cast<BaseColumnStatistics>(table_stats_int_float_double_string_gaps.column_statistics()[3]));
 
-    _int_equal_distribution = load_table("src/test/tables/int_equal_distribution.tbl", Chunk::MAX_SIZE);
-    auto table_statistics2 = generate_table_statistics(_int_equal_distribution, 18);
-    _column_statistics_int_equal_distribution = table_statistics2.column_statistics();
+    _int_equal_distribution = load_table("src/test/tables/int_equal_distribution.tbl");
+    const auto table_stats_int_equal_distribution = generate_table_statistics(_int_equal_distribution, 18);
+    _column_statistics_int_equal_distribution = table_stats_int_equal_distribution.column_statistics();
   }
 
   std::shared_ptr<Table> _int_equal_distribution;
-  std::shared_ptr<Table> _int_float_double_string_gaps;
   std::shared_ptr<HistogramColumnStatistics<int32_t>> _column_statistics_int;
   std::shared_ptr<HistogramColumnStatistics<float>> _column_statistics_float;
   std::shared_ptr<HistogramColumnStatistics<double>> _column_statistics_double;
@@ -892,146 +891,210 @@ TEST_F(HistogramColumnStatisticsTest, StoredProcedureOpenEndedTest) {
 }
 
 TEST_F(HistogramColumnStatisticsTest, StoredProcedureBetweenTest) {
-  PredicateCondition predicate_condition = PredicateCondition::Between;
-
   EXPECT_FLOAT_EQ(
-      _column_statistics_int->estimate_predicate_with_value_placeholder(predicate_condition, AllTypeVariant{0})
+      _column_statistics_int->estimate_predicate_with_value_placeholder(PredicateCondition::Between, AllTypeVariant{0})
           .selectivity,
       0.f);
   EXPECT_FLOAT_EQ(
-      _column_statistics_int->estimate_predicate_with_value_placeholder(predicate_condition, AllTypeVariant{1})
+      _column_statistics_int->estimate_predicate_with_value_placeholder(PredicateCondition::Between, AllTypeVariant{1})
           .selectivity,
       (1.f / 3.f) * (1.f / 6.f));
   EXPECT_FLOAT_EQ(
-      _column_statistics_int->estimate_predicate_with_value_placeholder(predicate_condition, AllTypeVariant{3})
+      _column_statistics_int->estimate_predicate_with_value_placeholder(PredicateCondition::Between, AllTypeVariant{3})
           .selectivity,
       (1.f / 3.f) * (1.f / 3.f));
   EXPECT_FLOAT_EQ(
-      _column_statistics_int->estimate_predicate_with_value_placeholder(predicate_condition, AllTypeVariant{4})
+      _column_statistics_int->estimate_predicate_with_value_placeholder(PredicateCondition::Between, AllTypeVariant{4})
           .selectivity,
       (1.f / 3.f) * (1.f / 2.f));
   EXPECT_FLOAT_EQ(
-      _column_statistics_int->estimate_predicate_with_value_placeholder(predicate_condition, AllTypeVariant{7})
+      _column_statistics_int->estimate_predicate_with_value_placeholder(PredicateCondition::Between, AllTypeVariant{7})
           .selectivity,
       1.f / 3.f);
   EXPECT_FLOAT_EQ(
-      _column_statistics_int->estimate_predicate_with_value_placeholder(predicate_condition, AllTypeVariant{8})
+      _column_statistics_int->estimate_predicate_with_value_placeholder(PredicateCondition::Between, AllTypeVariant{8})
           .selectivity,
       1.f / 3.f);
 
+  EXPECT_FLOAT_EQ(_column_statistics_float
+                      ->estimate_predicate_with_value_placeholder(PredicateCondition::Between, AllTypeVariant{0.f})
+                      .selectivity,
+                  0.f);
   EXPECT_FLOAT_EQ(
-      _column_statistics_float->estimate_predicate_with_value_placeholder(predicate_condition, AllTypeVariant{0.f})
-          .selectivity,
-      0.f);
-  EXPECT_FLOAT_EQ(
-      _column_statistics_float->estimate_predicate_with_value_placeholder(predicate_condition, AllTypeVariant{1.f})
+      _column_statistics_float
+          ->estimate_predicate_with_value_placeholder(PredicateCondition::Between, AllTypeVariant{1.f})
           .selectivity,
       (1.f / 3.f) * (1.f / 3.f * (std::nextafter(1.f, 1.f + 1) - 1.f) / std::nextafter(2.f - 1.f, 2.f - 1.f + 1)));
-  EXPECT_FLOAT_EQ(
-      _column_statistics_float->estimate_predicate_with_value_placeholder(predicate_condition, AllTypeVariant{3.f})
-          .selectivity,
-      (1.f / 3.f) * (1.f / 3.f));
-  EXPECT_FLOAT_EQ(
-      _column_statistics_float->estimate_predicate_with_value_placeholder(predicate_condition, AllTypeVariant{4.f})
-          .selectivity,
-      (1.f / 3.f) *
-          (1.f / 3.f + 1.f / 3.f * (std::nextafter(4.f, 4.f + 1) - 4.f) / std::nextafter(5.f - 4.f, 5.f - 4.f + 1)));
-  EXPECT_FLOAT_EQ(
-      _column_statistics_float->estimate_predicate_with_value_placeholder(predicate_condition, AllTypeVariant{7.f})
-          .selectivity,
-      1.f / 3.f);
-  EXPECT_FLOAT_EQ(
-      _column_statistics_float->estimate_predicate_with_value_placeholder(predicate_condition, AllTypeVariant{8.f})
-          .selectivity,
-      1.f / 3.f);
+  EXPECT_FLOAT_EQ(_column_statistics_float
+                      ->estimate_predicate_with_value_placeholder(PredicateCondition::Between, AllTypeVariant{3.f})
+                      .selectivity,
+                  (1.f / 3.f) * (1.f / 3.f));
+  EXPECT_FLOAT_EQ(_column_statistics_float
+                      ->estimate_predicate_with_value_placeholder(PredicateCondition::Between, AllTypeVariant{4.f})
+                      .selectivity,
+                  (1.f / 3.f) * (1.f / 3.f + 1.f / 3.f * (std::nextafter(4.f, 4.f + 1) - 4.f) /
+                                                 std::nextafter(5.f - 4.f, 5.f - 4.f + 1)));
+  EXPECT_FLOAT_EQ(_column_statistics_float
+                      ->estimate_predicate_with_value_placeholder(PredicateCondition::Between, AllTypeVariant{7.f})
+                      .selectivity,
+                  1.f / 3.f);
+  EXPECT_FLOAT_EQ(_column_statistics_float
+                      ->estimate_predicate_with_value_placeholder(PredicateCondition::Between, AllTypeVariant{8.f})
+                      .selectivity,
+                  1.f / 3.f);
 
-  EXPECT_FLOAT_EQ(
-      _column_statistics_double->estimate_predicate_with_value_placeholder(predicate_condition, AllTypeVariant{0.})
-          .selectivity,
-      0.f);
-  EXPECT_FLOAT_EQ(
-      _column_statistics_double->estimate_predicate_with_value_placeholder(predicate_condition, AllTypeVariant{1.})
-          .selectivity,
-      static_cast<float>((1. / 3.) *
-                         (1. / 3. * (std::nextafter(1., 1. + 1) - 1.) / std::nextafter(2. - 1., 2. - 1. + 1))));
-  EXPECT_FLOAT_EQ(
-      _column_statistics_double->estimate_predicate_with_value_placeholder(predicate_condition, AllTypeVariant{3.})
-          .selectivity,
-      (1.f / 3.f) * (1.f / 3.f));
-  EXPECT_FLOAT_EQ(
-      _column_statistics_double->estimate_predicate_with_value_placeholder(predicate_condition, AllTypeVariant{4.})
-          .selectivity,
-      static_cast<float>(
-          (1. / 3.) * (1. / 3. + 1. / 3. * (std::nextafter(4., 4. + 1) - 4.) / std::nextafter(5. - 4., 5. - 4. + 1))));
-  EXPECT_FLOAT_EQ(
-      _column_statistics_double->estimate_predicate_with_value_placeholder(predicate_condition, AllTypeVariant{7.})
-          .selectivity,
-      1.f / 3.f);
-  EXPECT_FLOAT_EQ(
-      _column_statistics_double->estimate_predicate_with_value_placeholder(predicate_condition, AllTypeVariant{8.})
-          .selectivity,
-      1.f / 3.f);
+  EXPECT_FLOAT_EQ(_column_statistics_double
+                      ->estimate_predicate_with_value_placeholder(PredicateCondition::Between, AllTypeVariant{0.})
+                      .selectivity,
+                  0.f);
+  EXPECT_FLOAT_EQ(_column_statistics_double
+                      ->estimate_predicate_with_value_placeholder(PredicateCondition::Between, AllTypeVariant{1.})
+                      .selectivity,
+                  static_cast<float>((1. / 3.) * (1. / 3. * (std::nextafter(1., 1. + 1) - 1.) /
+                                                  std::nextafter(2. - 1., 2. - 1. + 1))));
+  EXPECT_FLOAT_EQ(_column_statistics_double
+                      ->estimate_predicate_with_value_placeholder(PredicateCondition::Between, AllTypeVariant{3.})
+                      .selectivity,
+                  (1.f / 3.f) * (1.f / 3.f));
+  EXPECT_FLOAT_EQ(_column_statistics_double
+                      ->estimate_predicate_with_value_placeholder(PredicateCondition::Between, AllTypeVariant{4.})
+                      .selectivity,
+                  static_cast<float>((1. / 3.) * (1. / 3. + 1. / 3. * (std::nextafter(4., 4. + 1) - 4.) /
+                                                                std::nextafter(5. - 4., 5. - 4. + 1))));
+  EXPECT_FLOAT_EQ(_column_statistics_double
+                      ->estimate_predicate_with_value_placeholder(PredicateCondition::Between, AllTypeVariant{7.})
+                      .selectivity,
+                  1.f / 3.f);
+  EXPECT_FLOAT_EQ(_column_statistics_double
+                      ->estimate_predicate_with_value_placeholder(PredicateCondition::Between, AllTypeVariant{8.})
+                      .selectivity,
+                  1.f / 3.f);
 
-  EXPECT_FLOAT_EQ(
-      _column_statistics_string->estimate_predicate_with_value_placeholder(predicate_condition, AllTypeVariant{"a"})
-          .selectivity,
-      0.f);
-  EXPECT_FLOAT_EQ(
-      _column_statistics_string->estimate_predicate_with_value_placeholder(predicate_condition, AllTypeVariant{"b"})
-          .selectivity,
-      0.f);
-  EXPECT_FLOAT_EQ(
-      _column_statistics_string->estimate_predicate_with_value_placeholder(predicate_condition, AllTypeVariant{"d"})
-          .selectivity,
-      (1.f / 3.f) * (1.f / 3.f));
-  EXPECT_FLOAT_EQ(
-      _column_statistics_string->estimate_predicate_with_value_placeholder(predicate_condition, AllTypeVariant{"e"})
-          .selectivity,
-      static_cast<float>((1. / 3.) * 1. / 3. +
-                         1. / 3. * (std::nextafter(4., 4. + 1) - 4.) / std::nextafter(5. - 4., 5. - 4. + 1)));
-  EXPECT_FLOAT_EQ(
-      _column_statistics_string->estimate_predicate_with_value_placeholder(predicate_condition, AllTypeVariant{"h"})
-          .selectivity,
-      1.f / 3.f);
-  EXPECT_FLOAT_EQ(
-      _column_statistics_string->estimate_predicate_with_value_placeholder(predicate_condition, AllTypeVariant{"i"})
-          .selectivity,
-      1.f / 3.f);
+  EXPECT_FLOAT_EQ(_column_statistics_string
+                      ->estimate_predicate_with_value_placeholder(PredicateCondition::Between, AllTypeVariant{"a"})
+                      .selectivity,
+                  0.f);
+  EXPECT_FLOAT_EQ(_column_statistics_string
+                      ->estimate_predicate_with_value_placeholder(PredicateCondition::Between, AllTypeVariant{"b"})
+                      .selectivity,
+                  0.f);
+  EXPECT_FLOAT_EQ(_column_statistics_string
+                      ->estimate_predicate_with_value_placeholder(PredicateCondition::Between, AllTypeVariant{"d"})
+                      .selectivity,
+                  (1.f / 3.f) * (1.f / 3.f));
+  EXPECT_FLOAT_EQ(_column_statistics_string
+                      ->estimate_predicate_with_value_placeholder(PredicateCondition::Between, AllTypeVariant{"e"})
+                      .selectivity,
+                  static_cast<float>((1. / 3.) * 1. / 3. + 1. / 3. * (std::nextafter(4., 4. + 1) - 4.) /
+                                                               std::nextafter(5. - 4., 5. - 4. + 1)));
+  EXPECT_FLOAT_EQ(_column_statistics_string
+                      ->estimate_predicate_with_value_placeholder(PredicateCondition::Between, AllTypeVariant{"h"})
+                      .selectivity,
+                  1.f / 3.f);
+  EXPECT_FLOAT_EQ(_column_statistics_string
+                      ->estimate_predicate_with_value_placeholder(PredicateCondition::Between, AllTypeVariant{"i"})
+                      .selectivity,
+                  1.f / 3.f);
 }
 
-// TEST_F(HistogramColumnStatisticsTest, TwoColumnsEqualsTest) {
-//   PredicateCondition predicate_condition = PredicateCondition::Equals;
-//
-//   auto col_stat1 = std::make_shared<HistogramColumnStatistics<int>>(0.0f, 10.f, 0, 10);
-//   auto col_stat2 = std::make_shared<HistogramColumnStatistics<int>>(0.0f, 10.f, -10, 20);
-//
-//   auto result1 = col_stat1->estimate_predicate_with_column(predicate_condition, col_stat2);
-//   auto result2 = col_stat2->estimate_predicate_with_column(predicate_condition, col_stat1);
-//   float expected_selectivity = (11.f / 31.f) / 10.f;
-//
-//   EXPECT_FLOAT_EQ(result1.selectivity, expected_selectivity);
-//   EXPECT_FLOAT_EQ(result2.selectivity, expected_selectivity);
-//
-//   auto col_stat3 = std::make_shared<HistogramColumnStatistics<float>>(0.0f, 10.f, 0.f, 10.f);
-//   auto col_stat4 = std::make_shared<HistogramColumnStatistics<float>>(0.0f, 3.f, -10.f, 20.f);
-//
-//   auto result3 = col_stat3->estimate_predicate_with_column(predicate_condition, col_stat4);
-//   auto result4 = col_stat4->estimate_predicate_with_column(predicate_condition, col_stat3);
-//   expected_selectivity = (10.f / 30.f) / 10.f;
-//
-//   EXPECT_FLOAT_EQ(result3.selectivity, expected_selectivity);
-//   EXPECT_FLOAT_EQ(result4.selectivity, expected_selectivity);
-//
-//   auto col_stat5 = std::make_shared<HistogramColumnStatistics<float>>(0.0f, 10.f, 20.f, 30.f);
-//
-//   auto result5 = col_stat3->estimate_predicate_with_column(predicate_condition, col_stat5);
-//   auto result6 = col_stat5->estimate_predicate_with_column(predicate_condition, col_stat3);
-//   expected_selectivity = 0.f;
-//
-//   EXPECT_FLOAT_EQ(result5.selectivity, expected_selectivity);
-//   EXPECT_FLOAT_EQ(result6.selectivity, expected_selectivity);
-// }
-//
+TEST_F(HistogramColumnStatisticsTest, TwoColumnsEqualsTest) {
+  const auto table_stats_int = generate_table_statistics(load_table("src/test/tables/int_int4.tbl"), 2);
+  const auto col_stats_int_a = table_stats_int.column_statistics()[0];
+  const auto col_stats_int_b = table_stats_int.column_statistics()[1];
+
+  auto selectivity = ((7 + ((18 - 9) / (18 - 9 + 1.f)) * 4.f) / 11.f) / 9.f;
+  EXPECT_FLOAT_EQ(
+      col_stats_int_a->estimate_predicate_with_column(PredicateCondition::Equals, col_stats_int_b).selectivity,
+      selectivity);
+  EXPECT_FLOAT_EQ(
+      col_stats_int_b->estimate_predicate_with_column(PredicateCondition::Equals, col_stats_int_a).selectivity,
+      selectivity);
+
+  const auto table_stats_float = generate_table_statistics(load_table("src/test/tables/float_float.tbl"), 2);
+  const auto col_stats_float_a = table_stats_float.column_statistics()[0];
+  const auto col_stats_float_b = table_stats_float.column_statistics()[1];
+
+  selectivity =
+      ((7 + ((std::nextafter(17.f, 17.f + 1.f) - 9.f) / std::nextafter(18.f - 9.f, 18.f - 9.f + 1.f)) * 4.f) / 11.f) /
+      9.f;
+  EXPECT_FLOAT_EQ(
+      col_stats_float_a->estimate_predicate_with_column(PredicateCondition::Equals, col_stats_float_b).selectivity,
+      selectivity);
+  EXPECT_FLOAT_EQ(
+      col_stats_float_b->estimate_predicate_with_column(PredicateCondition::Equals, col_stats_float_a).selectivity,
+      selectivity);
+
+  const auto table_stats_double = generate_table_statistics(load_table("src/test/tables/double_double.tbl"), 2);
+  const auto col_stats_double_a = table_stats_double.column_statistics()[0];
+  const auto col_stats_double_b = table_stats_double.column_statistics()[1];
+
+  selectivity = static_cast<float>(
+      ((7 + ((std::nextafter(17., 17. + 1.) - 9.) / std::nextafter(18. - 9., 18. - 9. + 1.)) * 4.) / 11.) / 9.f);
+  EXPECT_FLOAT_EQ(
+      col_stats_double_a->estimate_predicate_with_column(PredicateCondition::Equals, col_stats_double_b).selectivity,
+      selectivity);
+  EXPECT_FLOAT_EQ(
+      col_stats_double_b->estimate_predicate_with_column(PredicateCondition::Equals, col_stats_double_a).selectivity,
+      selectivity);
+
+  const auto table_stats_string = generate_table_statistics(load_table("src/test/tables/string_string.tbl"), 2);
+  const auto col_stats_string_a = table_stats_string.column_statistics()[0];
+  const auto col_stats_string_b = table_stats_string.column_statistics()[1];
+
+  selectivity = static_cast<float>(
+      ((7 + ((std::nextafter(17., 17. + 1.) - 9.) / std::nextafter(18. - 9., 18. - 9. + 1.)) * 4.) / 11.) / 9.f);
+  EXPECT_FLOAT_EQ(
+      col_stats_string_a->estimate_predicate_with_column(PredicateCondition::Equals, col_stats_string_b).selectivity,
+      selectivity);
+  EXPECT_FLOAT_EQ(
+      col_stats_string_b->estimate_predicate_with_column(PredicateCondition::Equals, col_stats_string_a).selectivity,
+      selectivity);
+}
+
+TEST_F(HistogramColumnStatisticsTest, TwoColumnsEqualsNoOverlapTest) {
+  const auto table_stats_int = generate_table_statistics(load_table("src/test/tables/int_int.tbl"), 2);
+  const auto col_stats_int_a = table_stats_int.column_statistics()[0];
+  const auto col_stats_int_b = table_stats_int.column_statistics()[1];
+
+  EXPECT_FLOAT_EQ(
+      col_stats_int_a->estimate_predicate_with_column(PredicateCondition::Equals, col_stats_int_b).selectivity, 0.f);
+  EXPECT_FLOAT_EQ(
+      col_stats_int_b->estimate_predicate_with_column(PredicateCondition::Equals, col_stats_int_a).selectivity, 0.f);
+
+  const auto table_stats_float = generate_table_statistics(load_table("src/test/tables/float_float2.tbl"), 2);
+  const auto col_stats_float_a = table_stats_float.column_statistics()[0];
+  const auto col_stats_float_b = table_stats_float.column_statistics()[1];
+
+  EXPECT_FLOAT_EQ(
+      col_stats_float_a->estimate_predicate_with_column(PredicateCondition::Equals, col_stats_float_b).selectivity,
+      0.f);
+  EXPECT_FLOAT_EQ(
+      col_stats_float_b->estimate_predicate_with_column(PredicateCondition::Equals, col_stats_float_a).selectivity,
+      0.f);
+
+  const auto table_stats_double = generate_table_statistics(load_table("src/test/tables/double_double2.tbl"), 2);
+  const auto col_stats_double_a = table_stats_double.column_statistics()[0];
+  const auto col_stats_double_b = table_stats_double.column_statistics()[1];
+
+  EXPECT_FLOAT_EQ(
+      col_stats_double_a->estimate_predicate_with_column(PredicateCondition::Equals, col_stats_double_b).selectivity,
+      0.f);
+  EXPECT_FLOAT_EQ(
+      col_stats_double_b->estimate_predicate_with_column(PredicateCondition::Equals, col_stats_double_a).selectivity,
+      0.f);
+
+  const auto table_stats_string = generate_table_statistics(load_table("src/test/tables/string_string2.tbl"), 2);
+  const auto col_stats_string_a = table_stats_string.column_statistics()[0];
+  const auto col_stats_string_b = table_stats_string.column_statistics()[1];
+
+  EXPECT_FLOAT_EQ(
+      col_stats_string_a->estimate_predicate_with_column(PredicateCondition::Equals, col_stats_string_b).selectivity,
+      0.f);
+  EXPECT_FLOAT_EQ(
+      col_stats_string_b->estimate_predicate_with_column(PredicateCondition::Equals, col_stats_string_a).selectivity,
+      0.f);
+}
+
 // TEST_F(HistogramColumnStatisticsTest, TwoColumnsLessThanTest) {
 //   PredicateCondition predicate_condition = PredicateCondition::LessThan;
 //
