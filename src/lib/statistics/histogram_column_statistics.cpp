@@ -168,9 +168,9 @@ FilterByColumnComparisonEstimate HistogramColumnStatistics<ColumnDataType>::esti
   Assert(_data_type == base_right_column_statistics->data_type(), "Cannot compare columns of different type");
 
   const auto& right_minimal_column_statistics =
-      std::static_pointer_cast<const MinimalColumnStatistics<ColumnDataType>>(base_right_column_statistics);
+      std::dynamic_pointer_cast<const MinimalColumnStatistics<ColumnDataType>>(base_right_column_statistics);
   const auto& right_histogram_column_statistics =
-      std::static_pointer_cast<const HistogramColumnStatistics<ColumnDataType>>(base_right_column_statistics);
+      std::dynamic_pointer_cast<const HistogramColumnStatistics<ColumnDataType>>(base_right_column_statistics);
 
   ColumnDataType right_min;
   ColumnDataType right_max;
@@ -246,9 +246,15 @@ FilterByColumnComparisonEstimate HistogramColumnStatistics<ColumnDataType>::esti
 
   // calculate ratio of distinct values in common value range
   const auto left_overlapping_distinct_count =
-      _histogram->estimate_distinct_count(predicate_condition, overlapping_range_min, overlapping_range_max);
-  const auto right_overlapping_distinct_count =
-      right_overlapping_ratio * base_right_column_statistics->distinct_count();
+      _histogram->estimate_distinct_count(PredicateCondition::Between, overlapping_range_min, overlapping_range_max);
+
+  float right_overlapping_distinct_count;
+  if (right_minimal_column_statistics) {
+    right_overlapping_distinct_count = right_overlapping_ratio * base_right_column_statistics->distinct_count();
+  } else {
+    right_overlapping_distinct_count = right_histogram_column_statistics->histogram()->estimate_distinct_count(
+        PredicateCondition::Between, overlapping_range_min, overlapping_range_max);
+  }
 
   auto equal_values_ratio = 0.f;
   // calculate ratio of rows with equal values

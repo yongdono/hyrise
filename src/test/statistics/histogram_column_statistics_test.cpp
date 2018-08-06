@@ -1170,4 +1170,22 @@ TEST_F(HistogramColumnStatisticsTest, StoredProcedureBetweenTest) {
 //   EXPECT_FLOAT_EQ(result.selectivity, 0.8f * 0.85f * (1.f / 3.f + 1.f / 3.f * 1.f / 2.f));
 // }
 
+TEST_F(HistogramColumnStatisticsTest, NonNullRatioTwoColumnTest) {
+  auto stats_0 = std::const_pointer_cast<BaseColumnStatistics>(
+      _column_statistics_int_equal_distribution[0]);  // values from 0 to 5
+  auto stats_1 = std::const_pointer_cast<BaseColumnStatistics>(
+      _column_statistics_int_equal_distribution[1]);  // values from 0 to 2
+  auto stats_2 = std::const_pointer_cast<BaseColumnStatistics>(
+      _column_statistics_int_equal_distribution[2]);  // values from 1 to 2
+
+  stats_0->set_null_value_ratio(0.1);   // non-null value ratio: 0.9
+  stats_1->set_null_value_ratio(0.2);   // non-null value ratio: 0.8
+  stats_2->set_null_value_ratio(0.15);  // non-null value ratio: 0.85
+
+  EXPECT_FLOAT_EQ(stats_0->estimate_predicate_with_column(PredicateCondition::Equals, stats_1).selectivity,
+                  0.9f * 0.8f * 0.5f / 3.f);
+  EXPECT_FLOAT_EQ(stats_1->estimate_predicate_with_column(PredicateCondition::LessThan, stats_2).selectivity,
+                  0.8f * 0.85f * (1.f / 3.f + 1.f / 3.f * 1.f / 2.f));
+}
+
 }  // namespace opossum
