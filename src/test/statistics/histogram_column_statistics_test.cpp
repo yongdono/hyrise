@@ -32,28 +32,6 @@ class HistogramColumnStatisticsTest : public BaseTest {
     _column_statistics_int_equal_distribution = table_statistics2.column_statistics();
   }
 
-  // // For two column scans (type of value1 is ColumnID)
-  // void predict_selectivities_and_compare(
-  //     const std::shared_ptr<Table>& table,
-  //     const std::vector<std::shared_ptr<const BaseColumnStatistics>>& column_statistics,
-  //     const PredicateCondition predicate_condition) {
-  //   auto table_wrapper = std::make_shared<TableWrapper>(table);
-  //   table_wrapper->execute();
-  //   auto row_count = table->row_count();
-  //   for (ColumnID::base_type column_1 = 0; column_1 < column_statistics.size(); ++column_1) {
-  //     for (ColumnID::base_type column_2 = 0; column_2 < column_statistics.size() && column_1 != column_2; ++column_2) {
-  //       auto result_container = column_statistics[column_1]->estimate_predicate_with_column(
-  //           predicate_condition, *column_statistics[column_2]);
-  //       auto table_scan =
-  //           std::make_shared<TableScan>(table_wrapper, ColumnID{column_1}, predicate_condition, ColumnID{column_2});
-  //       table_scan->execute();
-  //       auto result_row_count = table_scan->get_output()->row_count();
-  //       EXPECT_FLOAT_EQ(result_container.selectivity,
-  //                       static_cast<float>(result_row_count) / static_cast<float>(row_count));
-  //     }
-  //   }
-  // }
-
   std::shared_ptr<Table> _int_equal_distribution;
   std::shared_ptr<Table> _int_float_double_string_gaps;
   std::shared_ptr<HistogramColumnStatistics<int32_t>> _column_statistics_int;
@@ -61,12 +39,6 @@ class HistogramColumnStatisticsTest : public BaseTest {
   std::shared_ptr<HistogramColumnStatistics<double>> _column_statistics_double;
   std::shared_ptr<HistogramColumnStatistics<std::string>> _column_statistics_string;
   std::vector<std::shared_ptr<const BaseColumnStatistics>> _column_statistics_int_equal_distribution;
-
-  //  {below min, min, between buckets, middle, max, above max}
-  std::vector<int32_t> _int_values{0, 1, 3, 4, 7, 8};
-  std::vector<float> _float_values{0.f, 1.f, 3.f, 4.f, 7.f, 8.f};
-  std::vector<double> _double_values{0., 1., 3., 4., 7., 8.};
-  std::vector<std::string> _string_values{"a", "b", "d", "e", "h", "i"};
 };
 
 TEST_F(HistogramColumnStatisticsTest, EqualsTest) {
@@ -1086,19 +1058,34 @@ TEST_F(HistogramColumnStatisticsTest, StoredProcedureBetweenTest) {
 //   expected_selectivity = ((10.f / 10.f) * (10.f / 40.f) - 1.f / (4 * 6)) * 0.5f + (10.f / 40.f);
 //   EXPECT_FLOAT_EQ(result4.selectivity, expected_selectivity);
 // }
-//
-// TEST_F(HistogramColumnStatisticsTest, TwoColumnsRealDataTest) {
-//   // test selectivity calculations for all predicate conditions and all column combinations of
-//   // int_equal_distribution.tbl
-//   std::vector<PredicateCondition> predicate_conditions{PredicateCondition::Equals, PredicateCondition::NotEquals,
-//                                                        PredicateCondition::LessThan, PredicateCondition::LessThanEquals,
-//                                                        PredicateCondition::GreaterThan};
-//   for (auto predicate_condition : predicate_conditions) {
-//     predict_selectivities_and_compare(_int_equal_distribution, _column_statistics_int_equal_distribution,
-//                                       predicate_condition);
-//   }
-// }
-//
+
+TEST_F(HistogramColumnStatisticsTest, TwoColumnsRealDataTest) {
+  // Test selectivity calculations for all predicate conditions and column combinations of int_equal_distribution.tbl.
+  // The estimated selectivities should be accurate because of the equal, continuous distribution of the data.
+  std::vector<PredicateCondition> predicate_conditions{PredicateCondition::Equals, PredicateCondition::NotEquals,
+                                                       PredicateCondition::LessThan, PredicateCondition::LessThanEquals,
+                                                       PredicateCondition::GreaterThan};
+
+  auto row_count = _int_equal_distribution->row_count();
+  auto table_wrapper = std::make_shared<TableWrapper>(_int_equal_distribution);
+  table_wrapper->execute();
+
+  for (auto predicate_condition : predicate_conditions) {
+    for (ColumnID::base_type column_1 = 0; column_1 < _column_statistics_int_equal_distribution.size(); column_1++) {
+      for (ColumnID::base_type column_2 = 0;
+           column_2 < _column_statistics_int_equal_distribution.size() && column_1 != column_2; column_2++) {
+        auto result_container = _column_statistics_int_equal_distribution[column_1]->estimate_predicate_with_column(
+            predicate_condition, _column_statistics_int_equal_distribution[column_2]);
+        auto table_scan =
+            std::make_shared<TableScan>(table_wrapper, ColumnID{column_1}, predicate_condition, ColumnID{column_2});
+        table_scan->execute();
+        auto result_row_count = table_scan->get_output()->row_count();
+        EXPECT_FLOAT_EQ(result_container.selectivity, static_cast<float>(result_row_count) / row_count);
+      }
+    }
+  }
+}
+
 // TEST_F(HistogramColumnStatisticsTest, NonNullRatioOneColumnTest) {
 //   // null value ratio of 0 not tested here, since this is done in all other tests
 //   _column_statistics_int->set_null_value_ratio(0.25f);   // non-null value ratio: 0.75
