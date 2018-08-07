@@ -80,67 +80,59 @@ void JitExpression::compute(JitRuntimeContext& context) const {
 
   _right_child->compute(context);
 
-  // Hack as strings cannot be currently specialised
-  if (_result_value.data_type() == DataType::Bool && _left_child->result().data_type() == DataType::String &&
-      _right_child->result().data_type() == DataType::String) {
-    no_inline::compute_binary(_left_child->result(), _expression_type, _right_child->result(), _result_value, context);
-  } else {
-    compute_binary(_left_child->result(), _expression_type, _right_child->result(), _result_value, context);
-  }
-}
+  const JitTupleValue& lhs = _left_child->result();
+  const JitTupleValue& rhs = _right_child->result();
 
-void compute_binary(const JitTupleValue& lhs, const JitExpressionType expression_type, const JitTupleValue& rhs,
-                    const JitTupleValue& result, JitRuntimeContext& context) {
-  switch (expression_type) {
+  switch (_expression_type) {
     case JitExpressionType::Addition:
-      jit_compute(jit_addition, lhs, rhs, result, context);
+      jit_compute(jit_addition(), lhs, rhs, _result_value, context);
       break;
     case JitExpressionType::Subtraction:
-      jit_compute(jit_subtraction, lhs, rhs, result, context);
+      jit_compute(jit_subtraction, lhs, rhs, _result_value, context);
       break;
     case JitExpressionType::Multiplication:
-      jit_compute(jit_multiplication, lhs, rhs, result, context);
+      jit_compute(jit_multiplication, lhs, rhs, _result_value, context);
       break;
     case JitExpressionType::Division:
-      jit_compute(jit_division, lhs, rhs, result, context);
+      jit_compute(jit_division, lhs, rhs, _result_value, context);
       break;
     case JitExpressionType::Modulo:
-      jit_compute(jit_modulo, lhs, rhs, result, context);
+      jit_compute(jit_modulo, lhs, rhs, _result_value, context);
       break;
     case JitExpressionType::Power:
-      jit_compute(jit_power, lhs, rhs, result, context);
+      jit_compute(jit_power, lhs, rhs, _result_value, context);
       break;
 
     case JitExpressionType::Equals:
-      jit_compute(jit_equals, lhs, rhs, result, context);
+      jit_compute(jit_equals(), lhs, rhs, _result_value, context);
       break;
     case JitExpressionType::NotEquals:
-      jit_compute(jit_not_equals, lhs, rhs, result, context);
+      jit_compute(jit_not_equals(), lhs, rhs, _result_value, context);
       break;
     case JitExpressionType::GreaterThan:
-      jit_compute(jit_greater_than, lhs, rhs, result, context);
+      jit_compute(jit_greater_than(), lhs, rhs, _result_value, context);
       break;
     case JitExpressionType::GreaterThanEquals:
-      jit_compute(jit_greater_than_equals, lhs, rhs, result, context);
+      jit_compute(jit_greater_than_equals(), lhs, rhs, _result_value, context);
       break;
     case JitExpressionType::LessThan:
-      jit_compute(jit_less_than, lhs, rhs, result, context);
+      jit_compute(jit_less_than(), lhs, rhs, _result_value, context);
       break;
     case JitExpressionType::LessThanEquals:
-      jit_compute(jit_less_than_equals, lhs, rhs, result, context);
+      jit_compute(jit_less_than_equals(), lhs, rhs, _result_value, context);
       break;
     case JitExpressionType::Like:
-      jit_compute(jit_like, lhs, rhs, result, context);
+      jit_compute(jit_like, lhs, rhs, _result_value, context);
       break;
     case JitExpressionType::NotLike:
-      jit_compute(jit_not_like, lhs, rhs, result, context);
+      jit_compute(jit_not_like, lhs, rhs, _result_value, context);
       break;
 
     case JitExpressionType::And:
-      jit_and(lhs, rhs, result, context, false);
+      jit_and(lhs, rhs, _result_value, context, false);
       break;
     case JitExpressionType::Or:
-      jit_or(lhs, rhs, result, context, false);
+      jit_or(lhs, rhs, _result_value, context, false);
       break;
     default:
       Fail("Expression type is not supported.");
@@ -164,7 +156,7 @@ std::pair<const DataType, const bool> JitExpression::_compute_result_type() {
   switch (_expression_type) {
     case JitExpressionType::Addition:
       result_data_type =
-          jit_compute_type(jit_addition, _left_child->result().data_type(), _right_child->result().data_type());
+          jit_compute_type(jit_addition(), _left_child->result().data_type(), _right_child->result().data_type());
       break;
     case JitExpressionType::Subtraction:
       result_data_type =

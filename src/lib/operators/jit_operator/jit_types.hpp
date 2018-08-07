@@ -75,9 +75,26 @@ class JitVariantVector {
   void resize(const size_t new_size);
 
   template <typename T>
+  __attribute__((optnone))
   T get(const size_t index) const;
+  /*
+  template <typename T, typename = typename std::enable_if_t<!std::is_scalar_v<T>>>
+  __attribute__((optnone))
+  std::string get(const size_t index) const {
+    String[index];
+  }
+  */
+
   template <typename T>
+  __attribute__((optnone))
   void set(const size_t index, const T value);
+  /*
+  template <typename T, typename = typename std::enable_if_t<!std::is_scalar_v<T>>>
+  __attribute__((optnone))
+  void set(const size_t index, const std::string value) {
+    String[index] = value;
+  }
+  */
   bool is_null(const size_t index);
   void set_is_null(const size_t index, const bool is_null);
 
@@ -195,12 +212,26 @@ class JitHashmapValue {
   size_t column_index() const;
 
   template <typename T>
+  __attribute__((optnone))
   T get(const size_t index, JitRuntimeContext& context) const {
     return context.hashmap.columns[_column_index].get<T>(index);
   }
-  template <typename T>
+  /*
+  template <typename T, typename = typename std::enable_if_t<!std::is_scalar_v<T>>>
+  __attribute__((optnone))
+  std::string get(const size_t index, JitRuntimeContext& context) const {
+    return context.hashmap.columns[_column_index].get<std::string>(index);
+  }
+  */
+
+  template <typename T, typename = typename std::enable_if_t<std::is_scalar_v<T>>>
   void set(const T value, const size_t index, JitRuntimeContext& context) const {
     context.hashmap.columns[_column_index].set<T>(index, value);
+  }
+  template <typename T, typename = typename std::enable_if_t<!std::is_scalar_v<T>>>
+  __attribute__((optnone))
+  void set(const std::string& value, const size_t index, JitRuntimeContext& context) const {
+    context.hashmap.columns[_column_index].set<std::string>(index, value);
   }
 
   bool is_null(const size_t index, JitRuntimeContext& context) const;

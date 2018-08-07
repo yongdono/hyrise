@@ -9,6 +9,7 @@
 #include "jit_utils.hpp"
 #include "operators/table_scan/like_table_scan_impl.hpp"
 #include "resolve_type.hpp"
+// #include <boost/type_index.hpp>
 
 namespace opossum {
 
@@ -70,7 +71,14 @@ namespace opossum {
  */
 
 /* Arithmetic operators */
-const auto jit_addition = [](const auto a, const auto b) -> decltype(a + b) { return a + b; };
+struct jit_addition {
+  __attribute__((optnone))
+  std::string operator()(const std::string& a, const std::string& b) const { return a + b; }
+  
+  template <typename T1, typename T2, typename = typename std::enable_if_t<std::is_scalar_v<T1> && std::is_scalar_v<T2>>>
+  auto operator()(const T1 a, const T2 b) const { return a + b; }
+};
+//const auto jit_addition = [](const auto a, const auto b) -> decltype(a + b) { return a + b; };
 const auto jit_subtraction = [](const auto a, const auto b) -> decltype(a - b) { return a - b; };
 const auto jit_multiplication = [](const auto a, const auto b) -> decltype(a * b) { return a * b; };
 const auto jit_division = [](const auto a, const auto b) -> decltype(a / b) { return a / b; };
@@ -79,28 +87,85 @@ const auto jit_power = [](const auto a, const auto b) -> decltype(std::pow(a, b)
 
 /* Aggregate operations */
 const auto jit_increment = [](const auto a, const auto b) -> decltype(b + 1) { return b + 1; };
-const auto jit_maximum = [](const auto a, const auto b) { return std::max(a, b); };
-const auto jit_minimum = [](const auto a, const auto b) { return std::min(a, b); };
+
+struct jit_maximum {
+  __attribute__((optnone))
+  std::string operator()(const std::string& a, const std::string& b) const { return std::max(a, b); }
+
+  template <typename T1, typename T2, typename = typename std::enable_if_t<std::is_scalar_v<T1> && std::is_scalar_v<T2>>>
+  auto operator()(const T1 a, const T2 b) const { return std::max(a, b); }
+};
+struct jit_minimum {
+  __attribute__((optnone))
+  std::string operator()(const std::string& a, const std::string& b) const { return std::min(a, b); }
+
+  template <typename T1, typename T2, typename = typename std::enable_if_t<std::is_scalar_v<T1> && std::is_scalar_v<T2>>>
+  auto operator()(const T1 a, const T2 b) const { return std::min(a, b); }
+};
 
 /* Comparison operators */
-const auto jit_equals = [](const auto a, const auto b) -> decltype(a == b) { return a == b; };
-const auto jit_not_equals = [](const auto a, const auto b) -> decltype(a != b) { return a != b; };
-const auto jit_less_than = [](const auto a, const auto b) -> decltype(a < b) { return a < b; };
-const auto jit_less_than_equals = [](const auto a, const auto b) -> decltype(a <= b) { return a <= b; };
-const auto jit_greater_than = [](const auto a, const auto b) -> decltype(a > b) { return a > b; };
-const auto jit_greater_than_equals = [](const auto a, const auto b) -> decltype(a >= b) { return a >= b; };
 
-const auto jit_like = [](const std::string a, const std::string b) -> bool {
-  const auto regex_string = LikeMatcher::sql_like_to_regex(b);
-  const auto regex = std::regex{regex_string, std::regex_constants::icase};
-  return std::regex_match(a, regex);
+// /*
+struct jit_equals {
+  __attribute__((optnone))
+  bool operator()(const std::string& a, const std::string& b) const { return a == b; }
+
+  template <typename T1, typename T2, typename = typename std::enable_if_t<std::is_scalar_v<T1> && std::is_scalar_v<T2>>>
+  bool operator()(const T1 a, const T2 b) const { return a == b; }
+};
+struct jit_not_equals {
+  __attribute__((optnone))
+  bool operator()(const std::string& a, const std::string& b) const { return a != b; }
+
+  template <typename T1, typename T2, typename = typename std::enable_if_t<std::is_scalar_v<T1> && std::is_scalar_v<T2>>>
+  bool operator()(const T1 a, const T2 b) const { return a != b; }
+};
+struct jit_less_than {
+  __attribute__((optnone))
+  bool operator()(const std::string& a, const std::string& b) const { return a < b; }
+
+  template <typename T1, typename T2, typename = typename std::enable_if_t<std::is_scalar_v<T1> && std::is_scalar_v<T2>>>
+  bool operator()(const T1 a, const T2 b) const { return a < b; }
+};
+struct jit_less_than_equals {
+  __attribute__((optnone))
+  bool operator()(const std::string& a, const std::string& b) const { return a <= b; }
+
+  template <typename T1, typename T2, typename = typename std::enable_if_t<std::is_scalar_v<T1> && std::is_scalar_v<T2>>>
+  bool operator()(const T1 a, const T2 b) const { return a <= b; }
+};
+struct jit_greater_than {
+  __attribute__((optnone))
+  bool operator()(const std::string& a, const std::string& b) const { return a > b; }
+
+  template <typename T1, typename T2, typename = typename std::enable_if_t<std::is_scalar_v<T1> && std::is_scalar_v<T2>>>
+  bool operator()(const T1 a, const T2 b) const { return a > b; }
+};
+struct jit_greater_than_equals {
+  __attribute__((optnone))
+  bool operator()(const std::string& a, const std::string& b) const { return a >= b; }
+
+  template <typename T1, typename T2, typename = typename std::enable_if_t<std::is_scalar_v<T1> && std::is_scalar_v<T2>>>
+  bool operator()(const T1 a, const T2 b) const { return a >= b; }
 };
 
-const auto jit_not_like = [](const std::string a, const std::string b) -> bool {
-  const auto regex_string = LikeMatcher::sql_like_to_regex(b);
-  const auto regex = std::regex{regex_string, std::regex_constants::icase};
-  return !std::regex_match(a, regex);
-};
+__attribute__((optnone))
+size_t _jit_hash(const std::string& a);
+template <typename T, typename = typename std::enable_if_t<std::is_scalar_v<T>>>
+size_t _jit_hash(const T a) { return std::hash<T>{}(a); }
+
+// */
+// const auto jit_equals = [](const auto a, const auto b) -> decltype(a == b) { return a == b; };
+// const auto jit_not_equals = [](const auto a, const auto b) -> decltype(a != b) { return a != b; };
+// const auto jit_less_than = [](const auto a, const auto b) -> decltype(a < b) { return a < b; };
+// const auto jit_less_than_equals = [](const auto a, const auto b) -> decltype(a <= b) { return a <= b; };
+// const auto jit_greater_than = [](const auto a, const auto b) -> decltype(a > b) { return a > b; };
+// const auto jit_greater_than_equals = [](const auto a, const auto b) -> decltype(a >= b) { return a >= b; };
+
+__attribute__((optnone))
+bool jit_like(const std::string& a, const std::string& b);
+__attribute__((optnone))  
+bool jit_not_like(const std::string& a, const std::string& b);
 
 // The InvalidTypeCatcher acts as a fallback implementation, if template specialization
 // fails for a type combination.
@@ -110,9 +175,14 @@ struct InvalidTypeCatcher : Functor {
 
   using Functor::operator();
 
-  template <typename... Ts>
-  Result operator()(const Ts...) const {
+  template <typename T1, typename T2, typename... Ts>
+  Result operator()(const T1 v1, const T2 v2, const Ts...) const {
     Fail("Invalid combination of types for operation.");
+    /*
+          + " Functor: " + boost::typeindex::type_id<Functor>().pretty_name()
+          + " left: " + boost::typeindex::type_id<T1>().pretty_name()
+          + " right: " + boost::typeindex::type_id<T2>().pretty_name() );
+    */
   }
 };
 

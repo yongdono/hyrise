@@ -8,10 +8,13 @@ namespace opossum {
 
 namespace {
 
+__attribute__((always_inline))
 bool jit_is_row_visible(CommitID our_tid, CommitID snapshot_commit_id, ChunkOffset chunk_offset,
                         const MvccColumns& columns) {
-  Mvcc mvcc = no_inline::unpack_mvcc(columns, chunk_offset);
-  return Validate::is_row_visible(our_tid, snapshot_commit_id, mvcc.row_tid, mvcc.begin_cid, mvcc.end_cid);
+  const auto row_tid = columns.tids[chunk_offset].load();
+  const auto begin_cid = columns.begin_cids[chunk_offset];
+  const auto end_cid = columns.end_cids[chunk_offset];
+  return Validate::is_row_visible(our_tid, snapshot_commit_id, row_tid, begin_cid, end_cid);
 }
 
 }  // namespace

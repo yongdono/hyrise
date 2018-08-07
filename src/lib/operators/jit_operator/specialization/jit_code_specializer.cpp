@@ -76,6 +76,7 @@ std::shared_ptr<llvm::Module> JitCodeSpecializer::specialize_function(
 
   // Conditionally run a second pass
   if (two_passes) {
+    // std::cout << "second pass" << std::endl;
     context.runtime_value_map.clear();
     context.runtime_value_map[context.root_function->arg_begin()] = runtime_this;
     _inline_function_calls(context);
@@ -121,9 +122,11 @@ void JitCodeSpecializer::_inline_function_calls(SpecializationContext& context) 
   _visit<llvm::InvokeInst>(*context.root_function,
                            [&](llvm::InvokeInst& inst) { call_sites.push(llvm::CallSite(&inst)); });
 
+
   while (!call_sites.empty()) {
     auto& call_site = call_sites.front();
 
+    bool virtual_resolved = false;
     // Resolve indirect (virtual) function calls
     if (call_site.isIndirectCall()) {
       const auto called_value = call_site.getCalledValue();
@@ -160,6 +163,7 @@ void JitCodeSpecializer::_inline_function_calls(SpecializationContext& context) 
         // that function.
         if (const auto repo_function = _repository.get_vtable_entry(class_name, vtable_index)) {
           call_site.setCalledFunction(repo_function);
+          virtual_resolved = true;
         }
       } else {
         // The virtual call could not be resolved. There is nothing we can inline so we move on.
@@ -170,14 +174,12 @@ void JitCodeSpecializer::_inline_function_calls(SpecializationContext& context) 
 
     auto& function = *call_site.getCalledFunction();
     auto function_name = function.getName().str();
+    // std::cout << "current func: " << function_name << "  virtual_resolved: " << std::boolalpha << virtual_resolved << std::endl;
 
+    // auto function_has_opossum_namespace = boost::contains(function.getName().str(), "opossum");
     auto function_has_opossum_namespace = boost::starts_with(function.getName().str(), "_ZNK7opossum") ||
                                           boost::starts_with(function.getName().str(), "_ZN7opossum");
 
-    bool no_inline = boost::contains(function.getName().str(), "no_inline");
-    if (no_inline) {
-      // std::cout << "not inlining: " << function.getName().str() << std::endl;
-    }
 
     // A note about "__clang_call_terminate":
     // __clang_call_terminate is generated / used internally by clang to call the std::terminate function when expection
@@ -187,7 +189,7 @@ void JitCodeSpecializer::_inline_function_calls(SpecializationContext& context) 
 
     // All function that are not in the opossum:: namespace are not considered for inlining. Instead, a function
     // declaration (without a function body) is created.
-    if (no_inline || (!function_has_opossum_namespace && function_name != "__clang_call_terminate")) {
+    if (!function_has_opossum_namespace && function_name != "__clang_call_terminate") {
       context.llvm_value_map[&function] = _create_function_declaration(context, function, function.getName());
       call_sites.pop();
       continue;
@@ -203,6 +205,9 @@ void JitCodeSpecializer::_inline_function_calls(SpecializationContext& context) 
     auto first_argument_cannot_be_resolved = first_argument->get()->getType()->isPointerTy() &&
                                              !GetRuntimePointerForValue(first_argument->get(), context)->is_valid();
 
+    if (first_argument_cannot_be_resolved) {
+      // std::cout << "first_argument_cannot_be_resolved for func: " << function_name << std::endl;
+    }
     if (first_argument_cannot_be_resolved && function_name != "__clang_call_terminate") {
       call_sites.pop();
       continue;
@@ -238,9 +243,12 @@ void JitCodeSpecializer::_inline_function_calls(SpecializationContext& context) 
     // Instruct LLVM to perform the function inlining and push all new call sites to the working queue
     llvm::InlineFunctionInfo info;
     if (InlineFunction(call_site, info, nullptr, false, nullptr, context)) {
+      std::cout << "+++     inlined func: " << function_name << std::endl;
       for (const auto& new_call_site : info.InlinedCallSites) {
         call_sites.push(new_call_site);
       }
+    } else {
+      std::cout << "--- not inlined func: " << function_name << std::endl;
     }
 
     // std::cout << "Inlining function: " << function.getName().str() << std::endl;
