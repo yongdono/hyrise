@@ -12,6 +12,7 @@ endif()
 
 if (${ENABLE_JIT_SUPPORT})
     add_definitions(-DHYRISE_JIT_SUPPORT=1)
+    set(CMAKE_EXE_LINKER_FLAGS -rdynamic)
     MESSAGE(STATUS "Building with JIT support")
 else()
     add_definitions(-DHYRISE_JIT_SUPPORT=0)
