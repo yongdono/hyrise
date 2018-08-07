@@ -37,7 +37,10 @@ void Joe::run() {
       out() << "-- Done!" << std::endl;
     }
 
-    if (config->isolate_queries) config->cardinality_estimation_cache->clear();
+    if (config->isolate_queries) {
+      config->cardinality_estimation_cache->clear();
+      if (config->lqp_blacklist) config->lqp_blacklist = std::make_shared<LQPBlacklist>();
+    } 
 
     write_csv(queries, "Name,BestPlanExecutionDuration", prefix() + "Queries.csv");
 

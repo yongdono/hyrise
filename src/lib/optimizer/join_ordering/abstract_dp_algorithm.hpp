@@ -20,12 +20,14 @@ class AbstractLQPNode;
 class AbstractDpSubplanCache;
 class JoinEdge;
 class JoinGraph;
+class LQPBlacklist;
 
 class AbstractDpAlgorithm : public AbstractJoinOrderingAlgorithm {
  public:
   explicit AbstractDpAlgorithm(const std::shared_ptr<AbstractDpSubplanCache>& subplan_cache,
                                const std::shared_ptr<const AbstractCostModel>& cost_model,
-                               const std::shared_ptr<AbstractCardinalityEstimator>& cardinality_estimator);
+                               const std::shared_ptr<AbstractCardinalityEstimator>& cardinality_estimator,
+                               const std::shared_ptr<LQPBlacklist>& lqp_blacklist);
 
   JoinPlanNode operator()(const std::shared_ptr<const JoinGraph>& join_graph) override;
 
@@ -36,6 +38,7 @@ class AbstractDpAlgorithm : public AbstractJoinOrderingAlgorithm {
   const std::shared_ptr<AbstractDpSubplanCache> _subplan_cache;
   const std::shared_ptr<const AbstractCostModel> _cost_model;
   const std::shared_ptr<AbstractCardinalityEstimator> _cardinality_estimator;
+  const std::shared_ptr<LQPBlacklist> _lqp_blacklist;
 };
 
 }  // namespace opossum

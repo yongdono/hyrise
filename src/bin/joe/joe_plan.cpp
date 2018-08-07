@@ -67,6 +67,7 @@ void JoePlan::run() {
   /**
    * Evaluate plan execution
    */
+  blacklist_timed_out_lqps(operators); 
   sample_cost_features(operators);
   cache_cardinalities(operators);
 
@@ -97,6 +98,17 @@ void JoePlan::run() {
   }
 
   if (query_iteration.query.save_plan_results) save_plan_result_table(plan);
+}
+
+void JoePlan::blacklist_timed_out_lqps(const std::vector<std::shared_ptr<AbstractOperator>> &operators) {
+  auto& config = query_iteration.query.joe.config;
+  if (!config->lqp_blacklist) return;
+  
+  for (const auto& op : operators) {
+    if (!op->get_output()) {
+      config->lqp_blacklist->put(op->lqp_node()->deep_copy());
+    }
+  }
 }
 
 void JoePlan::sample_cost_features(const std::vector<std::shared_ptr<AbstractOperator>> &operators) {

@@ -53,6 +53,7 @@ void JoeConfig::add_options(cxxopts::Options& cli_options_description) {
   ("unique-plans", "For each query, execute only plans that were not executed before", cxxopts::value(unique_plans)->default_value("false"))  // NOLINT
   ("force-plan-zero", "Independently of shuffling, always executed the plan the optimizer labeled as best", cxxopts::value(force_plan_zero)->default_value("false"))  // NOLINT
   ("cost-sample-dir", "Directory to store cost samples in", cxxopts::value(*cost_sample_dir)->default_value(*cost_sample_dir))  // NOLINT
+  ("lqp-blacklist", "Blacklist LQPs that timed out", cxxopts::value(lqp_blacklist_enabled)->default_value("false"))  // NOLINT
   ("queries", "Specify queries to run, default is all of the workload that are supported", cxxopts::value<std::vector<std::string>>()); // NOLINT
   ;
   // clang-format on
@@ -288,6 +289,14 @@ void JoeConfig::parse(const cxxopts::ParseResult& cli_parse_result) {
     out() << "-- Not caching cardinalities" << std::endl;
   }
 
+  // Process "lqp_blacklist" param
+  if (lqp_blacklist_enabled) {
+    out() << "-- Blacklisting timed out plans" << std::endl;
+    lqp_blacklist = std::make_shared<LQPBlacklist>();
+  } else {
+    out() << "-- Not blacklisting timed out plans" << std::endl;
+  }
+
   Assert(cardinality_estimation_mode != CardinalityEstimationMode::CacheOnly || !isolate_queries, "Isolating queries in cache only mode is not intended");
 }
 
@@ -344,7 +353,7 @@ void JoeConfig::setup() {
     const auto execution_cardinality_estimator_fallback = std::make_shared<CardinalityEstimatorColumnStatistics>();
     const auto execution_cardinality_estimator = std::make_shared<CardinalityEstimatorCached>(cardinality_estimation_cache,
                                                                               CardinalityEstimationCacheMode::ReadOnly, execution_cardinality_estimator_fallback);
-    auto execution_optimizer_dp_ccp = std::make_shared<DpCcp>(cost_model, execution_cardinality_estimator);
+    auto execution_optimizer_dp_ccp = std::make_shared<DpCcp>(cost_model, nullptr, execution_cardinality_estimator);
     final_batch.add_rule(std::make_shared<JoinOrderingRule>(execution_optimizer_dp_ccp));
     execution_optimizer->add_rule_batch(final_batch);
 

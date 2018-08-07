@@ -9,6 +9,7 @@ namespace opossum {
 class DpCcp : public AbstractDpAlgorithm {
  public:
   explicit DpCcp(const std::shared_ptr<const AbstractCostModel>& cost_model,
+                 const std::shared_ptr<LQPBlacklist>& lqp_blacklist = {},
                  const std::shared_ptr<AbstractCardinalityEstimator>& cardinality_estimator = std::make_shared<CardinalityEstimatorColumnStatistics>());
 
  protected:

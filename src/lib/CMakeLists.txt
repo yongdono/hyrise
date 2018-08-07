@@ -188,6 +188,8 @@ set(
     cost_model/abstract_cost_model_sampler.hpp
     optimizer/join_ordering/abstract_dp_algorithm.cpp
     optimizer/join_ordering/abstract_dp_algorithm.hpp
+    optimizer/join_ordering/lqp_blacklist.cpp
+    optimizer/join_ordering/lqp_blacklist.hpp
     optimizer/join_ordering/abstract_dp_subplan_cache.hpp
     optimizer/join_ordering/abstract_join_ordering_algorithm.hpp
     optimizer/join_ordering/abstract_join_plan_node.cpp

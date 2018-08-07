@@ -10,14 +10,16 @@
 #include "join_edge.hpp"
 #include "join_plan_join_node.hpp"
 #include "join_plan_vertex_node.hpp"
+#include "lqp_blacklist.hpp"
 
 #define VERBOSE 0
 
 namespace opossum {
 
 DpCcpTopK::DpCcpTopK(const size_t max_entry_count_per_set, const std::shared_ptr<const AbstractCostModel>& cost_model,
+                     const std::shared_ptr<LQPBlacklist>& lqp_blacklist,
                      const std::shared_ptr<AbstractCardinalityEstimator>& cardinality_estimator)
-    : AbstractDpAlgorithm(std::make_shared<DpSubplanCacheTopK>(max_entry_count_per_set), cost_model, cardinality_estimator) {}
+    : AbstractDpAlgorithm(std::make_shared<DpSubplanCacheTopK>(max_entry_count_per_set), cost_model, cardinality_estimator, lqp_blacklist) {}
 
 std::shared_ptr<DpSubplanCacheTopK> DpCcpTopK::subplan_cache() {
   return std::static_pointer_cast<DpSubplanCacheTopK>(_subplan_cache);
@@ -60,7 +62,11 @@ void DpCcpTopK::_on_execute() {
 
     for (const auto& plan_left : best_plans_left) {
       for (const auto& plan_right : best_plans_right) {
-        const auto current_plan = build_join_plan_join_node(*_cost_model, plan_left, plan_right, predicates, *_cardinality_estimator);
+        auto current_plan = build_join_plan_join_node(*_cost_model, plan_left, plan_right, predicates, *_cardinality_estimator);
+        if (_lqp_blacklist && _lqp_blacklist->test(current_plan.lqp)) {
+          current_plan.plan_cost = std::numeric_limits<Cost>::infinity();
+        }
+
         subplan_cache()->cache_plan(csg_cmp_pair.first | csg_cmp_pair.second, current_plan);
       }
     }

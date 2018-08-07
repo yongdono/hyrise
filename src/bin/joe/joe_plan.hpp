@@ -67,6 +67,7 @@ class JoePlan final {
   std::string name;
   JoePlanSample sample;
 
+  void blacklist_timed_out_lqps(const std::vector<std::shared_ptr<AbstractOperator>> &operators);
   void sample_cost_features(const std::vector<std::shared_ptr<AbstractOperator>> &operators);
   void init_cardinality_cache_entries(const std::vector<std::shared_ptr<AbstractOperator>> &operators);
   void cache_cardinalities(const std::vector<std::shared_ptr<AbstractOperator>> &operators);

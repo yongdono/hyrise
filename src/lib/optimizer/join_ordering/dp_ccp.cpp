@@ -10,13 +10,15 @@
 #include "join_edge.hpp"
 #include "join_plan_join_node.hpp"
 #include "join_plan_vertex_node.hpp"
+#include "lqp_blacklist.hpp"
 
 #define VERBOSE 0
 
 namespace opossum {
 
 DpCcp::DpCcp(const std::shared_ptr<const AbstractCostModel>& cost_model,
-             const std::shared_ptr<AbstractCardinalityEstimator>& cardinality_estimator) : AbstractDpAlgorithm(std::make_shared<DpSubplanCacheBest>(), cost_model, cardinality_estimator) {}
+             const std::shared_ptr<LQPBlacklist>& lqp_blacklist,
+             const std::shared_ptr<AbstractCardinalityEstimator>& cardinality_estimator) : AbstractDpAlgorithm(std::make_shared<DpSubplanCacheBest>(), cost_model, cardinality_estimator, lqp_blacklist) {}
 
 void DpCcp::_on_execute() {
   /**
@@ -49,6 +51,9 @@ void DpCcp::_on_execute() {
     DebugAssert(best_plan_left && best_plan_right, "Subplan missing");
 
     auto current_plan = build_join_plan_join_node(*_cost_model, *best_plan_left, *best_plan_right, predicates, *_cardinality_estimator);
+    if (_lqp_blacklist && _lqp_blacklist->test(current_plan.lqp)) {
+      current_plan.plan_cost = std::numeric_limits<Cost>::infinity();
+    }
 
 #if VERBOSE
     std::cout << "Cost=" << current_plan->cost() << std::endl;

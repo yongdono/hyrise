@@ -57,7 +57,7 @@ void JoeQueryIteration::run() {
   const auto lqp_root = std::shared_ptr<AbstractLQPNode>(LogicalPlanRootNode::make(unoptimized_lqp));
   join_graph = JoinGraph::from_lqp(unoptimized_lqp);
   const auto plan_generation_count = config->max_plan_generation_count ? *config->max_plan_generation_count : DpSubplanCacheTopK::NO_ENTRY_LIMIT;
-  DpCcpTopK dp_ccp_top_k{plan_generation_count, config->cost_model, config->main_cardinality_estimator};
+  DpCcpTopK dp_ccp_top_k{plan_generation_count, config->cost_model, config->lqp_blacklist, config->main_cardinality_estimator};
   dp_ccp_top_k(join_graph);
   JoinVertexSet all_vertices{join_graph->vertices.size()};
   all_vertices.flip();

@@ -17,17 +17,17 @@
 namespace opossum {
 
 CardinalityEstimatorExecution::CardinalityEstimatorExecution(const std::shared_ptr<Optimizer>& optimizer): _optimizer(optimizer) {
-  _optimizer = std::make_shared<Optimizer>();
-
-  const auto cost_model = std::make_shared<CostModelNaive>();
-  const auto internal_cardinality_estimator = std::make_shared<CardinalityEstimatorColumnStatistics>();
-
-  const auto dp_ccp = std::make_shared<DpCcp>(cost_model, internal_cardinality_estimator);
-
-  RuleBatch rule_batch(RuleBatchExecutionPolicy::Once);
-  rule_batch.add_rule(std::make_shared<JoinOrderingRule>(dp_ccp));
-
-  _optimizer->add_rule_batch(rule_batch);
+//  _optimizer = std::make_shared<Optimizer>();
+//
+//  const auto cost_model = std::make_shared<CostModelNaive>();
+//  const auto internal_cardinality_estimator = std::make_shared<CardinalityEstimatorColumnStatistics>();
+//
+//  const auto dp_ccp = std::make_shared<DpCcp>(cost_model, nullptr, internal_cardinality_estimator);
+//
+//  RuleBatch rule_batch(RuleBatchExecutionPolicy::Once);
+//  rule_batch.add_rule(std::make_shared<JoinOrderingRule>(dp_ccp));
+//
+//  _optimizer->add_rule_batch(rule_batch);
 }
 
 std::optional<Cardinality> CardinalityEstimatorExecution::estimate(const std::vector<std::shared_ptr<AbstractLQPNode>>& vertices,

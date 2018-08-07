@@ -7,6 +7,7 @@
 
 #include "cost_model/cost_model_naive.hpp"
 #include "cost_model/cost_model_linear.hpp"
+#include "optimizer/join_ordering/lqp_blacklist.hpp"
 #include "tpch_join_ordering_workload.hpp"
 #include "job_join_ordering_workload.hpp"
 
@@ -52,6 +53,7 @@ struct JoeConfig final {
   bool force_plan_zero{false};
   bool join_graph_log{true};
   bool cache_cardinalities{false};
+  bool lqp_blacklist_enabled{false};
   std::string evaluation_name;
   std::optional<std::string> cost_sample_dir{""};
 
@@ -64,6 +66,7 @@ struct JoeConfig final {
   std::shared_ptr<AbstractCardinalityEstimator> fallback_cardinality_estimator;
   std::shared_ptr<AbstractCardinalityEstimator> main_cardinality_estimator;
   CardinalityEstimationCacheAccess cardinality_estimation_cache_access{CardinalityEstimationCacheAccess::None};
+  std::shared_ptr<LQPBlacklist> lqp_blacklist;
 
   /**
    * Misc

@@ -12,6 +12,7 @@ class DpCcpTopK : public AbstractDpAlgorithm {
  public:
   explicit DpCcpTopK(const size_t max_entry_count_per_set,
                      const std::shared_ptr<const AbstractCostModel>& cost_model,
+                     const std::shared_ptr<LQPBlacklist>& lqp_blacklist = {},
                      const std::shared_ptr<AbstractCardinalityEstimator>& cardinality_estimator = std::make_shared<CardinalityEstimatorColumnStatistics>());
 
   std::shared_ptr<DpSubplanCacheTopK> subplan_cache();
