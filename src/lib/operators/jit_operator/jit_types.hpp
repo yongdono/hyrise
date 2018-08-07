@@ -224,15 +224,18 @@ class JitHashmapValue {
   }
   */
 
-  template <typename T, typename = typename std::enable_if_t<std::is_scalar_v<T>>>
+  template <typename T>
+  __attribute__((optnone))
   void set(const T value, const size_t index, JitRuntimeContext& context) const {
     context.hashmap.columns[_column_index].set<T>(index, value);
   }
+  /*
   template <typename T, typename = typename std::enable_if_t<!std::is_scalar_v<T>>>
   __attribute__((optnone))
   void set(const std::string& value, const size_t index, JitRuntimeContext& context) const {
     context.hashmap.columns[_column_index].set<std::string>(index, value);
   }
+   */
 
   bool is_null(const size_t index, JitRuntimeContext& context) const;
   void set_is_null(const bool is_null, const size_t index, JitRuntimeContext& context) const;
