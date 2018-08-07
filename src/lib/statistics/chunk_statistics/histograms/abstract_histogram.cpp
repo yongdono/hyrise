@@ -207,6 +207,27 @@ T AbstractHistogram<T>::next_value(const T value, const bool /*pad_and_trim*/) c
 }
 
 template <>
+uint64_t AbstractHistogram<std::string>::_ipow(uint64_t base, uint64_t exp) const {
+  uint64_t result = 1;
+
+  for (;;) {
+    if (exp & 1) {
+      result *= base;
+    }
+
+    exp >>= 1;
+
+    if (!exp) {
+      break;
+    }
+
+    base *= base;
+  }
+
+  return result;
+}
+
+template <>
 int64_t AbstractHistogram<std::string>::_convert_string_to_number_representation(const std::string& value) const {
   if (value.empty()) {
     return -1;
@@ -217,7 +238,7 @@ int64_t AbstractHistogram<std::string>::_convert_string_to_number_representation
   uint64_t result = 0;
   for (auto it = trimmed.cbegin(); it < trimmed.cend(); it++) {
     const auto power = _string_prefix_length - std::distance(trimmed.cbegin(), it) - 1;
-    result += (*it - _supported_characters.front()) * std::pow(_supported_characters.length(), power);
+    result += (*it - _supported_characters.front()) * _ipow(_supported_characters.length(), power);
   }
 
   return result;

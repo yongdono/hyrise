@@ -48,6 +48,7 @@ class AbstractHistogram : public AbstractFilter {
   const std::shared_ptr<const Table> _get_value_counts(const ColumnID column_id) const;
   virtual void _generate(const ColumnID column_id, const size_t max_num_buckets) = 0;
 
+  uint64_t _ipow(uint64_t base, uint64_t exp) const;
   int64_t _convert_string_to_number_representation(const std::string& value) const;
   std::string _convert_number_representation_to_string(const int64_t) const;
   float _bucket_share(const BucketID bucket_id, const T value) const;

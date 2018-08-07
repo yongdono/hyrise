@@ -417,7 +417,7 @@ TEST_F(HistogramColumnStatisticsTest, LessThanEqualsTest) {
   EXPECT_FLOAT_EQ(
       _column_statistics_string->estimate_predicate_with_value(PredicateCondition::LessThanEquals, AllTypeVariant{"b"})
           .selectivity,
-      0.f);
+      static_cast<float>(1. / 3. * (437857484650781251ull - 437857484650781250ull) / (444491688963671875ull - 437857484650781250ull + 1ull)));
   EXPECT_FLOAT_EQ(
       _column_statistics_string->estimate_predicate_with_value(PredicateCondition::LessThanEquals, AllTypeVariant{"d"})
           .selectivity,
@@ -977,7 +977,7 @@ TEST_F(HistogramColumnStatisticsTest, StoredProcedureBetweenTest) {
   EXPECT_FLOAT_EQ(_column_statistics_string
                       ->estimate_predicate_with_value_placeholder(PredicateCondition::Between, AllTypeVariant{"b"})
                       .selectivity,
-                  0.f);
+                  static_cast<float>((1. / 3.) * (1. / 3. * (437857484650781251ull - 437857484650781250ull) / (444491688963671875ull - 437857484650781250ull + 1ull))));
   EXPECT_FLOAT_EQ(_column_statistics_string
                       ->estimate_predicate_with_value_placeholder(PredicateCondition::Between, AllTypeVariant{"d"})
                       .selectivity,
