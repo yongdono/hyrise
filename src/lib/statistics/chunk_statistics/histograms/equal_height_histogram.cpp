@@ -115,11 +115,13 @@ void EqualHeightHistogram<T>::_generate(const ColumnID column_id, const size_t m
   auto table = this->_table.lock();
   DebugAssert(table != nullptr, "Corresponding table of histogram is deleted.");
 
+  const auto num_buckets = max_num_buckets <= distinct_column->size() ? max_num_buckets : distinct_column->size();
+
   // Buckets shall have (approximately) the same height.
   _total_count = table->row_count();
-  _count_per_bucket = _total_count / max_num_buckets;
+  _count_per_bucket = _total_count / num_buckets;
 
-  if (_total_count % max_num_buckets > 0u) {
+  if (_total_count % num_buckets > 0u) {
     // Add 1 so that we never create more buckets than requested.
     _count_per_bucket++;
   }

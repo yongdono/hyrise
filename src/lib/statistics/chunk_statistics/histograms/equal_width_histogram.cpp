@@ -194,12 +194,14 @@ void EqualWidthHistogram<T>::_generate(const ColumnID column_id, const size_t ma
   _min = distinct_column->get(0);
   _max = distinct_column->get(distinct_column->size() - 1u);
 
+  const auto num_buckets = max_num_buckets <= distinct_column->size() ? max_num_buckets : distinct_column->size();
+
   if constexpr (!std::is_same_v<T, std::string>) {
     const T base_width = _max - _min;
-    const T bucket_width = this->next_value(base_width) / max_num_buckets;
+    const T bucket_width = this->next_value(base_width) / num_buckets;
 
     if constexpr (std::is_integral_v<T>) {
-      _num_buckets_with_larger_range = (base_width + 1) % max_num_buckets;
+      _num_buckets_with_larger_range = (base_width + 1) % num_buckets;
     } else {
       _num_buckets_with_larger_range = 0u;
     }
@@ -207,7 +209,7 @@ void EqualWidthHistogram<T>::_generate(const ColumnID column_id, const size_t ma
     T current_begin_value = _min;
     auto current_begin_it = distinct_column->values().begin();
     auto current_begin_index = 0l;
-    for (auto current_bucket_id = 0u; current_bucket_id < max_num_buckets; current_bucket_id++) {
+    for (auto current_bucket_id = 0u; current_bucket_id < num_buckets; current_bucket_id++) {
       T next_begin_value = current_begin_value + bucket_width;
       T current_end_value = this->previous_value(next_begin_value);
 
@@ -236,14 +238,14 @@ void EqualWidthHistogram<T>::_generate(const ColumnID column_id, const size_t ma
     const auto num_min = this->_convert_string_to_number_representation(_min);
     const auto num_max = this->_convert_string_to_number_representation(_max);
     const auto base_width = num_max - num_min + 1;
-    const auto bucket_width = base_width / max_num_buckets;
+    const auto bucket_width = base_width / num_buckets;
 
-    _num_buckets_with_larger_range = base_width % max_num_buckets;
+    _num_buckets_with_larger_range = base_width % num_buckets;
 
     T current_begin_value = _min;
     auto current_begin_it = distinct_column->values().begin();
     auto current_begin_index = 0l;
-    for (auto current_bucket_id = 0u; current_bucket_id < max_num_buckets; current_bucket_id++) {
+    for (auto current_bucket_id = 0u; current_bucket_id < num_buckets; current_bucket_id++) {
       Assert(current_begin_value.find_first_not_of(this->_supported_characters) == std::string::npos,
              "Unsupported characters.");
 
