@@ -26,10 +26,8 @@ namespace opossum {
 
 JoinHash::JoinHash(const std::shared_ptr<const AbstractOperator>& left,
                    const std::shared_ptr<const AbstractOperator>& right, const JoinMode mode,
-                   const ColumnIDPair& column_ids, const PredicateCondition predicate_condition,
-                   const size_t radix_bits)
-    : AbstractJoinOperator(OperatorType::JoinHash, left, right, mode, column_ids, predicate_condition),
-      _radix_bits(radix_bits) {
+                   const ColumnIDPair& column_ids, const PredicateCondition predicate_condition)
+    : AbstractJoinOperator(OperatorType::JoinHash, left, right, mode, column_ids, predicate_condition) {
   DebugAssert(predicate_condition == PredicateCondition::Equals, "Operator not supported by Hash Join.");
 }
 
@@ -44,6 +42,12 @@ std::shared_ptr<AbstractOperator> JoinHash::_on_deep_copy(
 void JoinHash::_on_set_parameters(const std::unordered_map<ParameterID, AllTypeVariant>& parameters) {}
 
 std::shared_ptr<const Table> JoinHash::_on_execute() {
+  // Find a somewhat good value for _radix_bits
+  // This can be done better, but it is at least better than always creating 2^9 partitions
+  const auto largest_input_size = std::max(input_table_left()->row_count(), input_table_right()->row_count());
+  const auto log = std::log(largest_input_size) / std::log(std::atof(std::getenv("base")));
+  _radix_bits = std::min(32, std::max(1.0, log));
+
   std::shared_ptr<const AbstractOperator> build_operator;
   std::shared_ptr<const AbstractOperator> probe_operator;
   ColumnID build_column_id;
