@@ -49,6 +49,8 @@ void JoeQueryIteration::run() {
 
   Timer timer;
 
+  if (config->lqp_blacklist) config->lqp_blacklist->print();
+
   /**
    * Plan Generation
    */

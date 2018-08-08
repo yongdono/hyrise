@@ -152,7 +152,7 @@ void SQLQueryPlanVisualizer::_add_operator(const std::shared_ptr<const AbstractO
       lqp_info.add_label("LQP");
 
       if (op->lqp_node()) {
-        lqp_info.add_label(std::to_string(reinterpret_cast<size_t>(op->lqp_node().get())));
+        lqp_info.add_label(std::to_string(op->lqp_node()->hash()));
       } else {
         lqp_info.add_label("-");
       }
