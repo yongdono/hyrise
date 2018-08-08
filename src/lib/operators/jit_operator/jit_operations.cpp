@@ -14,7 +14,7 @@ namespace opossum {
 
 #define JIT_AGGREGATE_EQUALS_CASE(r, types) \
   case JIT_GET_ENUM_VALUE(0, types):        \
-    return jit_equals()(lhs.get<JIT_GET_DATA_TYPE(0, types)>(context), rhs.get<JIT_GET_DATA_TYPE(0, types)>(rhs_index, context));
+    return jit_equals(lhs.get<JIT_GET_DATA_TYPE(0, types)>(context), rhs.get<JIT_GET_DATA_TYPE(0, types)>(rhs_index, context));
 
 #define JIT_ASSIGN_CASE(r, types)    \
   case JIT_GET_ENUM_VALUE(0, types): \
@@ -23,8 +23,6 @@ namespace opossum {
 #define JIT_GROW_BY_ONE_CASE(r, types) \
   case JIT_GET_ENUM_VALUE(0, types):   \
     return context.hashmap.columns[value.column_index()].grow_by_one<JIT_GET_DATA_TYPE(0, types)>(initial_value);
-
-size_t _jit_hash(const std::string& a) { return std::hash<std::string>{}(a); }
 
 void jit_not(const JitTupleValue& lhs, const JitTupleValue& result, JitRuntimeContext& context) {
   DebugAssert(lhs.data_type() == DataType::Bool && result.data_type() == DataType::Bool, "invalid type for operation");

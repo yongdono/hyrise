@@ -9,7 +9,6 @@
 #include "jit_utils.hpp"
 #include "operators/table_scan/like_table_scan_impl.hpp"
 #include "resolve_type.hpp"
-// #include <boost/type_index.hpp>
 
 namespace opossum {
 
@@ -71,14 +70,14 @@ namespace opossum {
  */
 
 /* Arithmetic operators */
-struct jit_addition {
+struct JitAddition {
   __attribute__((optnone))
   std::string operator()(const std::string& a, const std::string& b) const { return a + b; }
   
   template <typename T1, typename T2, typename = typename std::enable_if_t<std::is_scalar_v<T1> && std::is_scalar_v<T2>>>
   auto operator()(const T1 a, const T2 b) const { return a + b; }
 };
-//const auto jit_addition = [](const auto a, const auto b) -> decltype(a + b) { return a + b; };
+const auto jit_addition = JitAddition();
 const auto jit_subtraction = [](const auto a, const auto b) -> decltype(a - b) { return a - b; };
 const auto jit_multiplication = [](const auto a, const auto b) -> decltype(a * b) { return a * b; };
 const auto jit_division = [](const auto a, const auto b) -> decltype(a / b) { return a / b; };
@@ -87,84 +86,81 @@ const auto jit_power = [](const auto a, const auto b) -> decltype(std::pow(a, b)
 
 /* Aggregate operations */
 const auto jit_increment = [](const auto a, const auto b) -> decltype(b + 1) { return b + 1; };
-
-struct jit_maximum {
+struct JitMaximum {
   __attribute__((optnone))
   std::string operator()(const std::string& a, const std::string& b) const { return std::max(a, b); }
 
   template <typename T1, typename T2, typename = typename std::enable_if_t<std::is_scalar_v<T1> && std::is_scalar_v<T2>>>
   auto operator()(const T1 a, const T2 b) const { return std::max(a, b); }
 };
-struct jit_minimum {
+const auto jit_maximum = JitMaximum();
+struct JitMinimum {
   __attribute__((optnone))
   std::string operator()(const std::string& a, const std::string& b) const { return std::min(a, b); }
 
   template <typename T1, typename T2, typename = typename std::enable_if_t<std::is_scalar_v<T1> && std::is_scalar_v<T2>>>
   auto operator()(const T1 a, const T2 b) const { return std::min(a, b); }
 };
+const auto jit_minimum = JitMinimum();
 
 /* Comparison operators */
-
-// /*
-struct jit_equals {
+struct JitEquals {
   __attribute__((optnone))
   bool operator()(const std::string& a, const std::string& b) const { return a == b; }
 
   template <typename T1, typename T2, typename = typename std::enable_if_t<std::is_scalar_v<T1> && std::is_scalar_v<T2>>>
   bool operator()(const T1 a, const T2 b) const { return a == b; }
 };
-struct jit_not_equals {
+const auto jit_equals = JitEquals();
+
+struct JitNotEquals {
   __attribute__((optnone))
   bool operator()(const std::string& a, const std::string& b) const { return a != b; }
 
   template <typename T1, typename T2, typename = typename std::enable_if_t<std::is_scalar_v<T1> && std::is_scalar_v<T2>>>
   bool operator()(const T1 a, const T2 b) const { return a != b; }
 };
-struct jit_less_than {
+const auto jit_not_equals = JitNotEquals();
+
+struct JitLessThan {
   __attribute__((optnone))
   bool operator()(const std::string& a, const std::string& b) const { return a < b; }
 
   template <typename T1, typename T2, typename = typename std::enable_if_t<std::is_scalar_v<T1> && std::is_scalar_v<T2>>>
   bool operator()(const T1 a, const T2 b) const { return a < b; }
 };
-struct jit_less_than_equals {
+const auto jit_less_than = JitLessThan();
+
+struct JitLessThanEquals {
   __attribute__((optnone))
   bool operator()(const std::string& a, const std::string& b) const { return a <= b; }
 
   template <typename T1, typename T2, typename = typename std::enable_if_t<std::is_scalar_v<T1> && std::is_scalar_v<T2>>>
   bool operator()(const T1 a, const T2 b) const { return a <= b; }
 };
-struct jit_greater_than {
+const auto jit_less_than_equals = JitLessThanEquals();
+
+struct JitGreaterThan {
   __attribute__((optnone))
   bool operator()(const std::string& a, const std::string& b) const { return a > b; }
 
   template <typename T1, typename T2, typename = typename std::enable_if_t<std::is_scalar_v<T1> && std::is_scalar_v<T2>>>
   bool operator()(const T1 a, const T2 b) const { return a > b; }
 };
-struct jit_greater_than_equals {
+const auto jit_greater_than = JitGreaterThan();
+
+struct JitGreaterThanEquals {
   __attribute__((optnone))
   bool operator()(const std::string& a, const std::string& b) const { return a >= b; }
 
   template <typename T1, typename T2, typename = typename std::enable_if_t<std::is_scalar_v<T1> && std::is_scalar_v<T2>>>
   bool operator()(const T1 a, const T2 b) const { return a >= b; }
 };
-
-__attribute__((optnone))
-size_t _jit_hash(const std::string& a);
-template <typename T, typename = typename std::enable_if_t<std::is_scalar_v<T>>>
-size_t _jit_hash(const T a) { return std::hash<T>{}(a); }
-
-// */
-// const auto jit_equals = [](const auto a, const auto b) -> decltype(a == b) { return a == b; };
-// const auto jit_not_equals = [](const auto a, const auto b) -> decltype(a != b) { return a != b; };
-// const auto jit_less_than = [](const auto a, const auto b) -> decltype(a < b) { return a < b; };
-// const auto jit_less_than_equals = [](const auto a, const auto b) -> decltype(a <= b) { return a <= b; };
-// const auto jit_greater_than = [](const auto a, const auto b) -> decltype(a > b) { return a > b; };
-// const auto jit_greater_than_equals = [](const auto a, const auto b) -> decltype(a >= b) { return a >= b; };
+const auto jit_greater_than_equals = JitGreaterThanEquals();
 
 __attribute__((optnone))
 bool jit_like(const std::string& a, const std::string& b);
-__attribute__((optnone))  
+__attribute__((optnone))
 bool jit_not_like(const std::string& a, const std::string& b);
 
 // The InvalidTypeCatcher acts as a fallback implementation, if template specialization
@@ -175,14 +171,9 @@ struct InvalidTypeCatcher : Functor {
 
   using Functor::operator();
 
-  template <typename T1, typename T2, typename... Ts>
-  Result operator()(const T1 v1, const T2 v2, const Ts...) const {
+  template <typename... Ts>
+  Result operator()(const Ts...) const {
     Fail("Invalid combination of types for operation.");
-    /*
-          + " Functor: " + boost::typeindex::type_id<Functor>().pretty_name()
-          + " left: " + boost::typeindex::type_id<T1>().pretty_name()
-          + " right: " + boost::typeindex::type_id<T2>().pretty_name() );
-    */
   }
 };
 
@@ -310,6 +301,16 @@ __attribute__((noinline)) void jit_aggregate_compute(const T& op_func, const Jit
       break;
   }
 }
+
+// Helper to ensure that hashing of strings is specialised
+struct JitHash {
+  __attribute__((optnone))
+  size_t operator()(const std::string& value) const { return std::hash<std::string>{}(value); }
+
+  template <typename T, typename = typename std::enable_if_t<std::is_scalar_v<T>>>
+  size_t operator()(const T value) const { return std::hash<T>{}(value); }
+};
+const auto _jit_hash = JitHash();
 
 // cleanup
 #undef JIT_GET_ENUM_VALUE

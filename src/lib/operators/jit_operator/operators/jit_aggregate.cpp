@@ -353,21 +353,21 @@ void JitAggregate::_consume(JitRuntimeContext& context) const {
                               row_index, context);
         break;
       case AggregateFunction::Sum:
-        jit_aggregate_compute(jit_addition(), _aggregate_columns[i].tuple_value, _aggregate_columns[i].hashmap_value,
+        jit_aggregate_compute(jit_addition, _aggregate_columns[i].tuple_value, _aggregate_columns[i].hashmap_value,
                               row_index, context);
         break;
       case AggregateFunction::Max:
-        jit_aggregate_compute(jit_maximum(), _aggregate_columns[i].tuple_value, _aggregate_columns[i].hashmap_value,
+        jit_aggregate_compute(jit_maximum, _aggregate_columns[i].tuple_value, _aggregate_columns[i].hashmap_value,
                               row_index, context);
         break;
       case AggregateFunction::Min:
-        jit_aggregate_compute(jit_minimum(), _aggregate_columns[i].tuple_value, _aggregate_columns[i].hashmap_value,
+        jit_aggregate_compute(jit_minimum, _aggregate_columns[i].tuple_value, _aggregate_columns[i].hashmap_value,
                               row_index, context);
         break;
         
       case AggregateFunction::Avg:
         // In case of an average aggregate, the two auxiliary aggregates need to be updated.
-        jit_aggregate_compute(jit_addition(), _aggregate_columns[i].tuple_value, _aggregate_columns[i].hashmap_value,
+        jit_aggregate_compute(jit_addition, _aggregate_columns[i].tuple_value, _aggregate_columns[i].hashmap_value,
                               row_index, context);
         // DebugAssert(_aggregate_columns[i].hashmap_count_for_avg, "Invalid avg aggregate column.");
         jit_aggregate_compute(jit_increment, _aggregate_columns[i].tuple_value,
