@@ -45,9 +45,11 @@ SQLPipelineBuilder& SQLPipelineBuilder::dont_cleanup_temporaries() {
 
 std::shared_ptr<LQPTranslator> get_lqp_translator(std::shared_ptr<LQPTranslator> lqp_translator) {
   if (lqp_translator) return lqp_translator;
+#if HYRISE_JIT_SUPPORT
   if (Global::get().jit) {
     return std::make_shared<JitAwareLQPTranslator>();
   }
+#endif
   return std::make_shared<LQPTranslator>();
 }
 
