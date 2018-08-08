@@ -44,6 +44,11 @@ class HistogramColumnStatistics : public BaseColumnStatistics {
       const PredicateCondition predicate_condition,
       const std::shared_ptr<const BaseColumnStatistics>& right_column_statistics) const override;
 
+  float estimate_range_selectivity(const AllTypeVariant& variant_minimum,
+                                   const AllTypeVariant& variant_maximum) const override;
+
+  AllTypeVariant min() const override;
+  AllTypeVariant max() const override;
   float distinct_count() const override;
 
   /** @} */
@@ -68,8 +73,13 @@ class HistogramColumnStatistics : public BaseColumnStatistics {
   /**
    * @return estimate the predicate `column BETWEEN minimum AND maximum`
    */
+  FilterByValueEstimate estimate_range(const AllTypeVariant& variant_minimum,
+                                       const AllTypeVariant& variant_maximum) const override;
   FilterByValueEstimate estimate_range(const float selectivity, const bool can_prune, const ColumnDataType min,
                                        const ColumnDataType max) const;
+
+  float estimate_distinct_count(const PredicateCondition predicate_type, const AllTypeVariant& variant_value,
+                                const std::optional<AllTypeVariant>& variant_value2) const override;
   /** @} */
 
  protected:

@@ -53,6 +53,7 @@ TableStatistics import_table_statistics(const nlohmann::json& json) {
 }
 
 std::shared_ptr<BaseColumnStatistics> import_column_statistics(const nlohmann::json& json) {
+  // TODO(tim): differentiate between types of statistics
   const auto distinct_count = json["distinct_count"].get<float>();
   const auto null_value_ratio = json["null_value_ratio"].get<float>();
 
@@ -95,9 +96,8 @@ nlohmann::json export_column_statistics(const BaseColumnStatistics& base_column_
   resolve_data_type(base_column_statistics.data_type(), [&](const auto type) {
     using ColumnDataType = typename decltype(type)::type;
     const auto& column_statistics = static_cast<const MinimalColumnStatistics<ColumnDataType>&>(base_column_statistics);
-    // TODO(tim): check for column statistics type
-    column_statistics_json["min"] = column_statistics.min();
-    column_statistics_json["max"] = column_statistics.max();
+    column_statistics_json["min"] = type_cast<ColumnDataType>(column_statistics.min());
+    column_statistics_json["max"] = type_cast<ColumnDataType>(column_statistics.max());
     column_statistics_json["distinct_count"] = column_statistics.distinct_count();
   });
 

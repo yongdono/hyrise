@@ -29,6 +29,16 @@ const std::shared_ptr<const AbstractHistogram<ColumnDataType>> HistogramColumnSt
 }
 
 template <typename ColumnDataType>
+AllTypeVariant HistogramColumnStatistics<ColumnDataType>::min() const {
+  return AllTypeVariant{_histogram->min()};
+}
+
+template <typename ColumnDataType>
+AllTypeVariant HistogramColumnStatistics<ColumnDataType>::max() const {
+  return AllTypeVariant{_histogram->max()};
+}
+
+template <typename ColumnDataType>
 float HistogramColumnStatistics<ColumnDataType>::distinct_count() const {
   return _histogram->total_count_distinct();
 }
@@ -167,23 +177,11 @@ FilterByColumnComparisonEstimate HistogramColumnStatistics<ColumnDataType>::esti
 
   Assert(_data_type == base_right_column_statistics->data_type(), "Cannot compare columns of different type");
 
-  const auto& right_minimal_column_statistics =
-      std::dynamic_pointer_cast<const MinimalColumnStatistics<ColumnDataType>>(base_right_column_statistics);
   const auto& right_histogram_column_statistics =
       std::dynamic_pointer_cast<const HistogramColumnStatistics<ColumnDataType>>(base_right_column_statistics);
 
-  ColumnDataType right_min;
-  ColumnDataType right_max;
-
-  if (right_minimal_column_statistics) {
-    right_min = right_minimal_column_statistics->min();
-    right_max = right_minimal_column_statistics->max();
-  } else if (right_histogram_column_statistics) {
-    right_min = right_histogram_column_statistics->histogram()->min();
-    right_max = right_histogram_column_statistics->histogram()->max();
-  } else {
-    Fail("ColumnStatistics type not yet supported.");
-  }
+  const auto right_min = type_cast<ColumnDataType>(base_right_column_statistics->min());
+  const auto right_max = type_cast<ColumnDataType>(base_right_column_statistics->max());
 
   // if columns have no distinct values, they can only have null values which cannot be selected with this predicate
   if (distinct_count() == 0 || base_right_column_statistics->distinct_count() == 0) {
@@ -199,16 +197,9 @@ FilterByColumnComparisonEstimate HistogramColumnStatistics<ColumnDataType>::esti
   }
 
   // calculate ratio of values before, in and above the common value range
-  const auto left_overlapping_ratio =
-      _histogram->estimate_selectivity(PredicateCondition::Between, overlapping_range_min, overlapping_range_max);
-  float right_overlapping_ratio;
-  if (right_minimal_column_statistics) {
-    right_overlapping_ratio =
-        right_minimal_column_statistics->estimate_range_selectivity(overlapping_range_min, overlapping_range_max);
-  } else {
-    right_overlapping_ratio = right_histogram_column_statistics->histogram()->estimate_selectivity(
-        PredicateCondition::Between, overlapping_range_min, overlapping_range_max);
-  }
+  const auto left_overlapping_ratio = estimate_range_selectivity(overlapping_range_min, overlapping_range_max);
+  const auto right_overlapping_ratio =
+      base_right_column_statistics->estimate_range_selectivity(overlapping_range_min, overlapping_range_max);
 
   const auto left_below_overlapping_ratio =
       _histogram->min() >= overlapping_range_min
@@ -230,31 +221,25 @@ FilterByColumnComparisonEstimate HistogramColumnStatistics<ColumnDataType>::esti
     if constexpr (std::is_integral_v<ColumnDataType>) {
       if (right_min < overlapping_range_min) {
         right_below_overlapping_ratio =
-            right_minimal_column_statistics->estimate_range_selectivity(right_min, overlapping_range_min - 1);
+            base_right_column_statistics->estimate_range_selectivity(right_min, overlapping_range_min - 1);
       }
       if (overlapping_range_max < right_max) {
         right_above_overlapping_ratio =
-            right_minimal_column_statistics->estimate_range_selectivity(overlapping_range_max + 1, right_max);
+            base_right_column_statistics->estimate_range_selectivity(overlapping_range_max + 1, right_max);
       }
     } else {
       right_below_overlapping_ratio =
-          right_minimal_column_statistics->estimate_range_selectivity(right_min, overlapping_range_min);
+          base_right_column_statistics->estimate_range_selectivity(right_min, overlapping_range_min);
       right_above_overlapping_ratio =
-          right_minimal_column_statistics->estimate_range_selectivity(overlapping_range_max, right_max);
+          base_right_column_statistics->estimate_range_selectivity(overlapping_range_max, right_max);
     }
   }
 
   // calculate ratio of distinct values in common value range
   const auto left_overlapping_distinct_count =
       _histogram->estimate_distinct_count(PredicateCondition::Between, overlapping_range_min, overlapping_range_max);
-
-  float right_overlapping_distinct_count;
-  if (right_minimal_column_statistics) {
-    right_overlapping_distinct_count = right_overlapping_ratio * base_right_column_statistics->distinct_count();
-  } else {
-    right_overlapping_distinct_count = right_histogram_column_statistics->histogram()->estimate_distinct_count(
-        PredicateCondition::Between, overlapping_range_min, overlapping_range_max);
-  }
+  const auto right_overlapping_distinct_count = base_right_column_statistics->estimate_distinct_count(
+      PredicateCondition::Between, overlapping_range_min, overlapping_range_max);
 
   auto equal_values_ratio = 0.f;
   // calculate ratio of rows with equal values
@@ -285,13 +270,8 @@ FilterByColumnComparisonEstimate HistogramColumnStatistics<ColumnDataType>::esti
     selectivity -= values_below_ratio * values_above_ratio;
 
     auto new_left_column_stats = estimate_range(selectivity, false, new_min, new_max).column_statistics;
-    std::shared_ptr<BaseColumnStatistics> new_right_column_stats;
-    if (right_minimal_column_statistics) {
-      new_right_column_stats = right_minimal_column_statistics->estimate_range(new_min, new_max).column_statistics;
-    } else {
-      new_right_column_stats =
-          right_histogram_column_statistics->estimate_range(selectivity, false, new_min, new_max).column_statistics;
-    }
+    const std::shared_ptr<BaseColumnStatistics> new_right_column_stats =
+        base_right_column_statistics->estimate_range(new_min, new_max).column_statistics;
     return {combined_non_null_ratio * selectivity, new_left_column_stats, new_right_column_stats};
   };
 
@@ -346,6 +326,14 @@ FilterByColumnComparisonEstimate HistogramColumnStatistics<ColumnDataType>::esti
 }
 
 template <typename ColumnDataType>
+float HistogramColumnStatistics<ColumnDataType>::estimate_range_selectivity(
+    const AllTypeVariant& variant_minimum, const AllTypeVariant& variant_maximum) const {
+  const auto min = type_cast<ColumnDataType>(variant_minimum);
+  const auto max = type_cast<ColumnDataType>(variant_maximum);
+  return _histogram->estimate_selectivity(PredicateCondition::Between, min, max);
+}
+
+template <typename ColumnDataType>
 FilterByValueEstimate HistogramColumnStatistics<ColumnDataType>::estimate_equals(const float selectivity,
                                                                                  const bool can_prune,
                                                                                  const ColumnDataType value,
@@ -391,6 +379,34 @@ FilterByValueEstimate HistogramColumnStatistics<ColumnDataType>::estimate_range(
   auto column_statistics =
       std::make_shared<MinimalColumnStatistics<ColumnDataType>>(0.0f, new_distinct_count, new_min, new_max);
   return {selectivity, column_statistics};
+}
+
+template <typename ColumnDataType>
+FilterByValueEstimate HistogramColumnStatistics<ColumnDataType>::estimate_range(
+    const AllTypeVariant& variant_minimum, const AllTypeVariant& variant_maximum) const {
+  const auto minimum = type_cast<ColumnDataType>(variant_minimum);
+  const auto maximum = type_cast<ColumnDataType>(variant_maximum);
+
+  const auto can_prune = _histogram->can_prune(PredicateCondition::Between, variant_minimum, variant_maximum);
+  const auto selectivity =
+      can_prune ? 0.f : _histogram->estimate_selectivity(PredicateCondition::Between, minimum, maximum);
+
+  return estimate_range(selectivity, can_prune, minimum, maximum);
+}
+
+template <typename ColumnDataType>
+float HistogramColumnStatistics<ColumnDataType>::estimate_distinct_count(
+    const PredicateCondition predicate_type, const AllTypeVariant& variant_value,
+    const std::optional<AllTypeVariant>& variant_value2) const {
+  const auto value = type_cast<ColumnDataType>(variant_value);
+
+  if (predicate_type != PredicateCondition::Between) {
+    return _histogram->estimate_distinct_count(predicate_type, value);
+  }
+
+  DebugAssert(static_cast<bool>(variant_value2), "Operator BETWEEN should get two parameters, second is missing!");
+  const auto value2 = type_cast<ColumnDataType>(*variant_value2);
+  return _histogram->estimate_distinct_count(predicate_type, value, value2);
 }
 
 EXPLICITLY_INSTANTIATE_DATA_TYPES(HistogramColumnStatistics);

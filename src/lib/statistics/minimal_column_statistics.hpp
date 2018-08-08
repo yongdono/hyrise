@@ -26,8 +26,8 @@ class MinimalColumnStatistics : public BaseColumnStatistics {
    * @defgroup Member access
    * @{
    */
-  ColumnDataType min() const;
-  ColumnDataType max() const;
+  AllTypeVariant min() const override;
+  AllTypeVariant max() const override;
   float distinct_count() const override;
   /** @} */
 
@@ -58,12 +58,14 @@ class MinimalColumnStatistics : public BaseColumnStatistics {
   /**
    * @return the ratio of rows of this Column that are in the range [minimum, maximum]
    */
-  float estimate_range_selectivity(const ColumnDataType minimum, const ColumnDataType maximum) const;
+  float estimate_range_selectivity(const AllTypeVariant& variant_minimum,
+                                   const AllTypeVariant& variant_maximum) const override;
 
   /**
    * @return estimate the predicate `column BETWEEN minimum AND maximum`
    */
-  FilterByValueEstimate estimate_range(const ColumnDataType minimum, const ColumnDataType maximum) const;
+  FilterByValueEstimate estimate_range(const AllTypeVariant& variant_minimum,
+                                       const AllTypeVariant& variant_maximum) const override;
 
   /**
    * @return estimate the predicate `column = value`
@@ -75,6 +77,9 @@ class MinimalColumnStatistics : public BaseColumnStatistics {
    */
   FilterByValueEstimate estimate_not_equals_with_value(const ColumnDataType value) const;
   /** @} */
+
+  float estimate_distinct_count(const PredicateCondition predicate_type, const AllTypeVariant& variant_value,
+                                const std::optional<AllTypeVariant>& variant_value2) const override;
 
  protected:
   std::string _description() const override;

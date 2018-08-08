@@ -43,6 +43,9 @@ class BaseColumnStatistics {
    */
   virtual float distinct_count() const = 0;
 
+  virtual AllTypeVariant min() const = 0;
+  virtual AllTypeVariant max() const = 0;
+
   /**
    * @return a clone of the concrete ColumnStatistics object
    */
@@ -52,6 +55,15 @@ class BaseColumnStatistics {
    * @return a clone() of this, with the null_value_ratio set to 0
    */
   std::shared_ptr<BaseColumnStatistics> without_null_values() const;
+
+  virtual float estimate_range_selectivity(const AllTypeVariant& variant_minimum,
+                                           const AllTypeVariant& variant_maximum) const = 0;
+
+  virtual FilterByValueEstimate estimate_range(const AllTypeVariant& variant_minimum,
+                                               const AllTypeVariant& variant_maximum) const = 0;
+
+  virtual float estimate_distinct_count(const PredicateCondition predicate_type, const AllTypeVariant& variant_value,
+                                        const std::optional<AllTypeVariant>& variant_value2) const = 0;
 
   /**
    * @defgroup Cardinality estimation
