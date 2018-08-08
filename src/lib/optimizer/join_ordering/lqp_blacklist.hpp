@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <memory>
 #include <unordered_set>
 
@@ -23,6 +24,10 @@ class LQPBlacklist {
   bool test(const std::shared_ptr<AbstractLQPNode>& lqp) const;
 
   void print() const;
+
+  static std::chrono::microseconds get_plan_runtime(const std::shared_ptr<AbstractOperator>& op);
+
+  std::chrono::microseconds threshold{1'800'000};
 
  private:
   std::unordered_set<std::shared_ptr<AbstractLQPNode>, NodeHash, NodeCmp> _blacklist;

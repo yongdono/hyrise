@@ -64,7 +64,6 @@ void DpCcpTopK::_on_execute() {
       for (const auto& plan_right : best_plans_right) {
         auto current_plan = build_join_plan_join_node(*_cost_model, plan_left, plan_right, predicates, *_cardinality_estimator);
         if (_lqp_blacklist && _lqp_blacklist->test(current_plan.lqp)) {
-          std::cout << "Plan " << current_plan.lqp->hash() << " is blacklisted, cost set to inf" << std::endl;
           current_plan.plan_cost = std::numeric_limits<Cost>::infinity();
         }
 

@@ -105,8 +105,7 @@ void JoePlan::blacklist_timed_out_lqps(const std::vector<std::shared_ptr<Abstrac
   if (!config->lqp_blacklist) return;
 
   for (const auto& op : operators) {
-    if (!op->get_output()) {
-      config->lqp_blacklist->consider(op);
+    if (config->lqp_blacklist->consider(op)) {
       break;
     }
   }

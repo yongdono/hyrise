@@ -293,11 +293,15 @@ void JoeConfig::parse(const cxxopts::ParseResult& cli_parse_result) {
   if (lqp_blacklist_enabled) {
     out() << "-- Blacklisting timed out plans" << std::endl;
     lqp_blacklist = std::make_shared<LQPBlacklist>();
+    if (plan_timeout_seconds) {
+      lqp_blacklist->threshold = std::chrono::microseconds{*plan_timeout_seconds * 1'000'000 - 300'000};
+    }
   } else {
     out() << "-- Not blacklisting timed out plans" << std::endl;
   }
 
   Assert(cardinality_estimation_mode != CardinalityEstimationMode::CacheOnly || !isolate_queries, "Isolating queries in cache only mode is not intended");
+  Assert(lqp_blacklist_enabled || !plan_timeout_seconds, "Can't blacklist LQPs without timeout");
 }
 
 void JoeConfig::setup() {
