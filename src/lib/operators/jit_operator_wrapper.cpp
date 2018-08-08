@@ -156,7 +156,7 @@ std::shared_ptr<AbstractOperator> JitOperatorWrapper::_on_deep_copy(
 }
 
 void JitOperatorWrapper::_on_set_parameters(const std::unordered_map<ParameterID, AllTypeVariant>& parameters) {}
-void JitOperatorWrapper::_on_set_transaction_context(std::weak_ptr<TransactionContext> transaction_context) {
+void JitOperatorWrapper::_on_set_transaction_context(const std::weak_ptr<TransactionContext>& transaction_context) {
   if (const auto row_count_expression = _source()->row_count_expression())
     expression_set_transaction_context(row_count_expression, transaction_context);
 }

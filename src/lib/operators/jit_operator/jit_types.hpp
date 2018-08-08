@@ -85,7 +85,7 @@ class JitVariantVector {
   */
 
   template <typename T>
-  __attribute__((optnone)) void set(const size_t index, const T value);
+  __attribute__((optnone)) void set(const size_t index, const T& value);
   /*
   template <typename T, typename = typename std::enable_if_t<!std::is_scalar_v<T>>>
   __attribute__((optnone))
