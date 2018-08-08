@@ -147,6 +147,16 @@ void SQLQueryPlanVisualizer::_add_operator(const std::shared_ptr<const AbstractO
         plan_cost_info.add_label("-");
       }
       plan_cost_info.add_label(format_duration(std::chrono::duration_cast<std::chrono::nanoseconds>(_plan_duration(op))) + " real");
+
+      auto &lqp_info = comparisons.add_sublayout();
+      lqp_info.add_label("LQP");
+
+      if (op->lqp_node()) {
+        lqp_info.add_label(std::to_string(reinterpret_cast<size_t>(op->lqp_node().get())));
+      } else {
+        lqp_info.add_label("-");
+      }
+      plan_cost_info.add_label(format_duration(std::chrono::duration_cast<std::chrono::nanoseconds>(_plan_duration(op))) + " real");
     }
 
     info.label = layout.to_label_string();

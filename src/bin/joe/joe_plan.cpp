@@ -67,7 +67,7 @@ void JoePlan::run() {
   /**
    * Evaluate plan execution
    */
-  blacklist_timed_out_lqps(operators); 
+  blacklist_timed_out_lqps(operators);
   sample_cost_features(operators);
   cache_cardinalities(operators);
 
@@ -103,10 +103,14 @@ void JoePlan::run() {
 void JoePlan::blacklist_timed_out_lqps(const std::vector<std::shared_ptr<AbstractOperator>> &operators) {
   auto& config = query_iteration.query.joe.config;
   if (!config->lqp_blacklist) return;
-  
+
   for (const auto& op : operators) {
     if (!op->get_output()) {
-      config->lqp_blacklist->put(op->lqp_node()->deep_copy());
+      if (op->lqp_node()) {
+        std::cout << "Blacklisting " << op->lqp_node()->hash() << std::endl;
+        config->lqp_blacklist->put(op->lqp_node()->deep_copy());
+      }
+      break;
     }
   }
 }
