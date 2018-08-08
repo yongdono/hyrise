@@ -20,7 +20,8 @@ class EqualNumElementsHistogram : public AbstractHistogram<T> {
   size_t num_buckets() const override;
 
  protected:
-  void _generate(const ColumnID column_id, const size_t max_num_buckets) override;
+  void _generate(const std::shared_ptr<const ValueColumn<T>> distinct_column,
+                 const std::shared_ptr<const ValueColumn<int64_t>> count_column, const size_t max_num_buckets) override;
 
   BucketID _bucket_for_value(const T value) const override;
   BucketID _lower_bound_for_value(const T value) const override;

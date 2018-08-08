@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "statistics/chunk_statistics/abstract_filter.hpp"
+#include "storage/value_column.hpp"
 #include "types.hpp"
 
 namespace opossum {
@@ -46,16 +47,16 @@ class AbstractHistogram : public AbstractFilter {
 
  protected:
   const std::shared_ptr<const Table> _get_value_counts(const ColumnID column_id) const;
-  virtual void _generate(const ColumnID column_id, const size_t max_num_buckets) = 0;
+  virtual void _generate(const std::shared_ptr<const ValueColumn<T>> distinct_column,
+                         const std::shared_ptr<const ValueColumn<int64_t>> count_column,
+                         const size_t max_num_buckets) = 0;
 
   uint64_t _ipow(uint64_t base, uint64_t exp) const;
   int64_t _convert_string_to_number_representation(const std::string& value) const;
-  std::string _convert_number_representation_to_string(const int64_t) const;
+  std::string _convert_number_representation_to_string(const int64_t value) const;
   float _bucket_share(const BucketID bucket_id, const T value) const;
 
   virtual T _bucket_width(const BucketID index) const;
-  // TODO(tim): ask experts how this works
-  // virtual std::enable_if_t<std::is_integral_v<T>, T> _bucket_width(const BucketID index) const;
 
   virtual BucketID _bucket_for_value(const T value) const = 0;
   virtual BucketID _lower_bound_for_value(const T value) const = 0;

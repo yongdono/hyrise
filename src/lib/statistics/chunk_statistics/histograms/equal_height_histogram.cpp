@@ -95,21 +95,9 @@ uint64_t EqualHeightHistogram<T>::total_count_distinct() const {
 }
 
 template <typename T>
-void EqualHeightHistogram<T>::_generate(const ColumnID column_id, const size_t max_num_buckets) {
-  const auto result = this->_get_value_counts(column_id);
-
-  if (result->row_count() == 0u) {
-    return;
-  }
-
-  // TODO(tim): fix
-  DebugAssert(result->chunk_count() == 1, "Multiple chunks are currently not supported.");
-
-  const auto distinct_column =
-      std::static_pointer_cast<const ValueColumn<T>>(result->get_chunk(ChunkID{0})->get_column(ColumnID{0}));
-  const auto count_column =
-      std::static_pointer_cast<const ValueColumn<int64_t>>(result->get_chunk(ChunkID{0})->get_column(ColumnID{1}));
-
+void EqualHeightHistogram<T>::_generate(const std::shared_ptr<const ValueColumn<T>> distinct_column,
+                                        const std::shared_ptr<const ValueColumn<int64_t>> count_column,
+                                        const size_t max_num_buckets) {
   _min = distinct_column->get(0u);
 
   auto table = this->_table.lock();

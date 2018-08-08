@@ -45,22 +45,6 @@ std::string EqualWidthHistogram<std::string>::_bucket_width(const BucketID /*ind
   Fail("Not supported for string histograms. Use _string_bucket_width instead.");
 }
 
-// TODO(tim): ask experts how this works
-// template <typename T>
-// std::enable_if_t<std::is_integral_v<T>, T> EqualWidthHistogram<T>::_bucket_width(const BucketID index) const {
-//   DebugAssert(index < num_buckets(), "Index is not a valid bucket.");
-//
-//   const auto base_width = this->next_value(_max - _min) / this->num_buckets();
-//   return base_width + (index < _num_buckets_with_larger_range ? 1 : 0);
-// }
-//
-// template <typename T>
-// std::enable_if_t<std::is_floating_point_v<T>, T> EqualWidthHistogram<T>::_bucket_width(const BucketID index) const {
-//   DebugAssert(index < num_buckets(), "Index is not a valid bucket.");
-//
-//   return this->next_value(_max - _min) / this->num_buckets();
-// }
-
 template <typename T>
 T EqualWidthHistogram<T>::_bucket_width(const BucketID index) const {
   DebugAssert(index < num_buckets(), "Index is not a valid bucket.");
@@ -175,21 +159,9 @@ BucketID EqualWidthHistogram<T>::_upper_bound_for_value(const T value) const {
 }
 
 template <typename T>
-void EqualWidthHistogram<T>::_generate(const ColumnID column_id, const size_t max_num_buckets) {
-  const auto result = this->_get_value_counts(column_id);
-
-  if (result->row_count() == 0u) {
-    return;
-  }
-
-  // TODO(tim): fix
-  DebugAssert(result->chunk_count() == 1, "Multiple chunks are currently not supported.");
-
-  const auto distinct_column =
-      std::static_pointer_cast<const ValueColumn<T>>(result->get_chunk(ChunkID{0})->get_column(ColumnID{0}));
-  const auto count_column =
-      std::static_pointer_cast<const ValueColumn<int64_t>>(result->get_chunk(ChunkID{0})->get_column(ColumnID{1}));
-
+void EqualWidthHistogram<T>::_generate(const std::shared_ptr<const ValueColumn<T>> distinct_column,
+                                       const std::shared_ptr<const ValueColumn<int64_t>> count_column,
+                                       const size_t max_num_buckets) {
   // Buckets shall have the same range.
   _min = distinct_column->get(0);
   _max = distinct_column->get(distinct_column->size() - 1u);
@@ -207,7 +179,7 @@ void EqualWidthHistogram<T>::_generate(const ColumnID column_id, const size_t ma
     }
 
     T current_begin_value = _min;
-    auto current_begin_it = distinct_column->values().begin();
+    auto current_begin_it = distinct_column->values().cbegin();
     auto current_begin_index = 0l;
     for (auto current_bucket_id = 0u; current_bucket_id < num_buckets; current_bucket_id++) {
       T next_begin_value = current_begin_value + bucket_width;
@@ -222,11 +194,11 @@ void EqualWidthHistogram<T>::_generate(const ColumnID column_id, const size_t ma
 
       // TODO(tim): think about replacing with binary search (same for other hists)
       auto next_begin_it = current_begin_it;
-      while (next_begin_it != distinct_column->values().end() && *next_begin_it <= current_end_value) {
+      while (next_begin_it != distinct_column->values().cend() && *next_begin_it <= current_end_value) {
         next_begin_it++;
       }
 
-      const auto next_begin_index = std::distance(distinct_column->values().begin(), next_begin_it);
+      const auto next_begin_index = std::distance(distinct_column->values().cbegin(), next_begin_it);
       _counts.emplace_back(std::accumulate(count_column->values().begin() + current_begin_index,
                                            count_column->values().begin() + next_begin_index, uint64_t{0}));
       _distinct_counts.emplace_back(next_begin_index - current_begin_index);
@@ -243,7 +215,7 @@ void EqualWidthHistogram<T>::_generate(const ColumnID column_id, const size_t ma
     _num_buckets_with_larger_range = base_width % num_buckets;
 
     T current_begin_value = _min;
-    auto current_begin_it = distinct_column->values().begin();
+    auto current_begin_it = distinct_column->values().cbegin();
     auto current_begin_index = 0l;
     for (auto current_bucket_id = 0u; current_bucket_id < num_buckets; current_bucket_id++) {
       Assert(current_begin_value.find_first_not_of(this->_supported_characters) == std::string::npos,
@@ -265,11 +237,11 @@ void EqualWidthHistogram<T>::_generate(const ColumnID column_id, const size_t ma
 
       // TODO(tim): think about replacing with binary search (same for other hists)
       auto next_begin_it = current_begin_it;
-      while (next_begin_it != distinct_column->values().end() && *next_begin_it <= current_end_value) {
+      while (next_begin_it != distinct_column->values().cend() && *next_begin_it <= current_end_value) {
         next_begin_it++;
       }
 
-      const auto next_begin_index = std::distance(distinct_column->values().begin(), next_begin_it);
+      const auto next_begin_index = std::distance(distinct_column->values().cbegin(), next_begin_it);
       _counts.emplace_back(std::accumulate(count_column->values().begin() + current_begin_index,
                                            count_column->values().begin() + next_begin_index, uint64_t{0}));
       _distinct_counts.emplace_back(next_begin_index - current_begin_index);

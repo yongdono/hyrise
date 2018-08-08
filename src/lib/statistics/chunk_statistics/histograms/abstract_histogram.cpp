@@ -138,7 +138,21 @@ const std::shared_ptr<const Table> AbstractHistogram<std::string>::_get_value_co
 template <typename T>
 void AbstractHistogram<T>::generate(const ColumnID column_id, const size_t max_num_buckets) {
   DebugAssert(max_num_buckets > 0u, "Cannot generate histogram with less than one bucket.");
-  _generate(column_id, max_num_buckets);
+
+  const auto result = _get_value_counts(column_id);
+  if (result->row_count() == 0u) {
+    return;
+  }
+
+  // TODO(tim): fix
+  DebugAssert(result->chunk_count() == 1u, "Multiple chunks are currently not supported.");
+
+  const auto distinct_column =
+      std::static_pointer_cast<const ValueColumn<T>>(result->get_chunk(ChunkID{0})->get_column(ColumnID{0}));
+  const auto count_column =
+      std::static_pointer_cast<const ValueColumn<int64_t>>(result->get_chunk(ChunkID{0})->get_column(ColumnID{1}));
+
+  _generate(distinct_column, count_column, max_num_buckets);
 }
 
 template <typename T>
