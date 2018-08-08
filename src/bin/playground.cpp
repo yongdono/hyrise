@@ -22,6 +22,7 @@
 using namespace opossum;  // NOLINT
 
 int main() {
+#if HYRISE_JIT_SUPPORT
   auto table_a = opossum::load_table("src/test/tables/int_float.tbl", 2);
   opossum::StorageManager::get().add_table("table_a", table_a);
 
@@ -109,5 +110,6 @@ int main() {
   jit_operator->execute();
   print->execute();
   context->commit();
+#endif
   return 0;
 }
