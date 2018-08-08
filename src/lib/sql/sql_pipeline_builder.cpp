@@ -1,7 +1,9 @@
 #include "sql_pipeline_builder.hpp"
 
 #include "global.hpp"
+#if HYRISE_JIT_SUPPORT
 #include "logical_query_plan/jit_aware_lqp_translator.hpp"
+#endif
 
 namespace opossum {
 

@@ -1,6 +1,6 @@
 #include <cstdlib>
 #include <iostream>
-
+#if HYRISE_JIT_SUPPORT
 #include "concurrency/transaction_manager.hpp"
 #include "global.hpp"
 #include "operators/delete.hpp"
@@ -18,6 +18,7 @@
 #include "storage/storage_manager.hpp"
 #include "types.hpp"
 #include "utils/load_table.hpp"
+#endif
 
 using namespace opossum;  // NOLINT
 
