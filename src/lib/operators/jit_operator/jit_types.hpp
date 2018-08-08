@@ -11,6 +11,13 @@
 
 namespace opossum {
 
+// opt none flag to ensure that functions handling strings are not optimized
+#if __has_attribute(optnone)
+#define OPTNONE __attribute__((optnone))
+#else
+#define OPTNONE
+#endif
+
 // We need a boolean data type in the JitOperatorWrapper, but don't want to add it to
 // DATA_TYPE_INFO to avoid costly template instantiations.
 // See "all_type_variant.hpp" for details.
@@ -75,20 +82,20 @@ class JitVariantVector {
   void resize(const size_t new_size);
 
   template <typename T>
-  __attribute__((optnone)) T get(const size_t index) const;
+  OPTNONE T get(const size_t index) const;
   /*
   template <typename T, typename = typename std::enable_if_t<!std::is_scalar_v<T>>>
-  __attribute__((optnone))
+  OPTNONE
   std::string get(const size_t index) const {
     String[index];
   }
   */
 
   template <typename T>
-  __attribute__((optnone)) void set(const size_t index, const T& value);
+  OPTNONE void set(const size_t index, const T& value);
   /*
   template <typename T, typename = typename std::enable_if_t<!std::is_scalar_v<T>>>
-  __attribute__((optnone))
+  OPTNONE
   void set(const size_t index, const std::string value) {
     String[index] = value;
   }
@@ -210,24 +217,24 @@ class JitHashmapValue {
   size_t column_index() const;
 
   template <typename T>
-  __attribute__((optnone)) T get(const size_t index, JitRuntimeContext& context) const {
+  OPTNONE T get(const size_t index, JitRuntimeContext& context) const {
     return context.hashmap.columns[_column_index].get<T>(index);
   }
   /*
   template <typename T, typename = typename std::enable_if_t<!std::is_scalar_v<T>>>
-  __attribute__((optnone))
+  OPTNONE
   std::string get(const size_t index, JitRuntimeContext& context) const {
     return context.hashmap.columns[_column_index].get<std::string>(index);
   }
   */
 
   template <typename T>
-  __attribute__((optnone)) void set(const T value, const size_t index, JitRuntimeContext& context) const {
+  OPTNONE void set(const T value, const size_t index, JitRuntimeContext& context) const {
     context.hashmap.columns[_column_index].set<T>(index, value);
   }
   /*
   template <typename T, typename = typename std::enable_if_t<!std::is_scalar_v<T>>>
-  __attribute__((optnone))
+  OPTNONE
   void set(const std::string& value, const size_t index, JitRuntimeContext& context) const {
     context.hashmap.columns[_column_index].set<std::string>(index, value);
   }
