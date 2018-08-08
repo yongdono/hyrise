@@ -17,7 +17,6 @@ class JitValidate : public AbstractJittable {
   std::string description() const final;
 
  protected:
-//	__attribute__((optnone))
   void _consume(JitRuntimeContext& context) const final;
 };
 

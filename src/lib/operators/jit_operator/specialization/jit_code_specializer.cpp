@@ -122,7 +122,6 @@ void JitCodeSpecializer::_inline_function_calls(SpecializationContext& context) 
   _visit<llvm::InvokeInst>(*context.root_function,
                            [&](llvm::InvokeInst& inst) { call_sites.push(llvm::CallSite(&inst)); });
 
-
   while (!call_sites.empty()) {
     auto& call_site = call_sites.front();
 
@@ -174,12 +173,10 @@ void JitCodeSpecializer::_inline_function_calls(SpecializationContext& context) 
 
     auto& function = *call_site.getCalledFunction();
     auto function_name = function.getName().str();
-    // std::cout << "current func: " << function_name << "  virtual_resolved: " << std::boolalpha << virtual_resolved << std::endl;
 
     // auto function_has_opossum_namespace = boost::contains(function.getName().str(), "opossum");
     auto function_has_opossum_namespace = boost::starts_with(function.getName().str(), "_ZNK7opossum") ||
                                           boost::starts_with(function.getName().str(), "_ZN7opossum");
-
 
     // A note about "__clang_call_terminate":
     // __clang_call_terminate is generated / used internally by clang to call the std::terminate function when expection
@@ -243,12 +240,12 @@ void JitCodeSpecializer::_inline_function_calls(SpecializationContext& context) 
     // Instruct LLVM to perform the function inlining and push all new call sites to the working queue
     llvm::InlineFunctionInfo info;
     if (InlineFunction(call_site, info, nullptr, false, nullptr, context)) {
-      std::cout << "+++     inlined func: " << function_name << std::endl;
+      // std::cout << "+++     inlined func: " << function_name << std::endl;
       for (const auto& new_call_site : info.InlinedCallSites) {
         call_sites.push(new_call_site);
       }
     } else {
-      std::cout << "--- not inlined func: " << function_name << std::endl;
+      // std::cout << "--- not inlined func: " << function_name << std::endl;
     }
 
     // std::cout << "Inlining function: " << function.getName().str() << std::endl;

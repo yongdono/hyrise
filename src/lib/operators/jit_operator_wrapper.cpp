@@ -117,7 +117,7 @@ std::shared_ptr<const Table> JitOperatorWrapper::_on_execute() {
     (*it)->set_next_operator(*(next));
   }
 
-  std::cout << description(DescriptionMode::MultiLine) << std::endl;
+  // std::cout << description(DescriptionMode::MultiLine) << std::endl;
 
   std::function<void(const JitReadTuples*, JitRuntimeContext&)> execute_func;
   // We want to perform two specialization passes if the operator chain contains a JitAggregate operator, since the

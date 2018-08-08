@@ -8,13 +8,14 @@ namespace opossum {
 // Returns the data type (e.g., int32_t, std::string) of a data type defined in the DATA_TYPE_INFO sequence
 #define JIT_GET_DATA_TYPE(index, s) BOOST_PP_TUPLE_ELEM(3, 0, BOOST_PP_SEQ_ELEM(index, s))
 
-#define JIT_HASH_CASE(r, types)                      \
-  case JIT_GET_ENUM_VALUE(0, types):                 \
+#define JIT_HASH_CASE(r, types)      \
+  case JIT_GET_ENUM_VALUE(0, types): \
     return _jit_hash(context.tuple.get<JIT_GET_DATA_TYPE(0, types)>(value.tuple_index()));
 
-#define JIT_AGGREGATE_EQUALS_CASE(r, types) \
-  case JIT_GET_ENUM_VALUE(0, types):        \
-    return jit_equals(lhs.get<JIT_GET_DATA_TYPE(0, types)>(context), rhs.get<JIT_GET_DATA_TYPE(0, types)>(rhs_index, context));
+#define JIT_AGGREGATE_EQUALS_CASE(r, types)                          \
+  case JIT_GET_ENUM_VALUE(0, types):                                 \
+    return jit_equals(lhs.get<JIT_GET_DATA_TYPE(0, types)>(context), \
+                      rhs.get<JIT_GET_DATA_TYPE(0, types)>(rhs_index, context));
 
 #define JIT_ASSIGN_CASE(r, types)    \
   case JIT_GET_ENUM_VALUE(0, types): \
@@ -118,7 +119,7 @@ bool jit_aggregate_equals(const JitTupleValue& lhs, const JitHashmapValue& rhs, 
   if (lhs.is_null(context) || rhs.is_null(rhs_index, context)) {
     return false;
   }
-  
+
   // DebugAssert(lhs.data_type() == rhs.data_type(), "Data types don't match in jit_aggregate_equals.");
 
   switch (lhs.data_type()) {
@@ -133,7 +134,7 @@ void jit_assign(const JitTupleValue& from, const JitHashmapValue& to, const size
   // jit_assign only supports identical data types. This is sufficient for the current JitAggregate implementation.
   // However, this function could easily be extended to support cross-data type assignment in a fashion similar to the
   // jit_compute function.
-  
+
   // DebugAssert(from.data_type() == to.data_type(), "Data types don't match in jit_assign.");
 
   if (to.is_nullable()) {
