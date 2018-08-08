@@ -18,9 +18,10 @@
 #include "storage/storage_manager.hpp"
 #include "types.hpp"
 #include "utils/load_table.hpp"
-#endif
 
 using namespace opossum;  // NOLINT
+#endif
+
 
 int main() {
 #if HYRISE_JIT_SUPPORT
