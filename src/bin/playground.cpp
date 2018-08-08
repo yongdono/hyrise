@@ -42,7 +42,7 @@ int main() {
   get_table->execute();
 
   auto table_scan =
-      std::make_shared<opossum::TableScan>(get_table, opossum::ColumnID{0}, opossum::JitExpressionType::LessThan, 200);
+      std::make_shared<opossum::TableScan>(get_table, opossum::ColumnID{0}, PredicateCondition::LessThan, 200);
   // table_scan->set_transaction_context(context);
   table_scan->execute();
   auto delete_op = std::make_shared<opossum::Delete>("tmp", table_scan);
@@ -52,7 +52,7 @@ int main() {
 
   context = opossum::TransactionManager::get().new_transaction_context();
   table_scan = std::make_shared<opossum::TableScan>(get_table, opossum::ColumnID{0},
-                                                    opossum::JitExpressionType::GreaterThan, 10000);
+                                                    PredicateCondition::GreaterThan, 10000);
   // table_scan->set_transaction_context(context);
   table_scan->execute();
   delete_op = std::make_shared<opossum::Delete>("tmp", table_scan);
@@ -74,7 +74,7 @@ int main() {
   get_table->execute(); */
 
   auto filter = std::make_shared<opossum::TableScan>(get_table, opossum::ColumnID{0},
-                                                     opossum::JitExpressionType::GreaterThanEquals, 0);
+                                                     PredicateCondition::GreaterThanEquals, 0);
   filter->execute();
 
   // auto validate = std::make_shared<opossum::Validate>(get_table);
