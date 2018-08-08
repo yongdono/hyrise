@@ -6,7 +6,10 @@
 #include <memory>
 #include <vector>
 
+#include "expression/expression_functional.hpp"
+#include "expression/pqp_column_expression.hpp"
 #include "operators/aggregate.hpp"
+#include "operators/projection.hpp"
 #include "operators/sort.hpp"
 #include "operators/table_wrapper.hpp"
 #include "storage/table.hpp"
@@ -97,6 +100,33 @@ const std::shared_ptr<const Table> AbstractHistogram<T>::_get_value_counts(const
 
   const auto aggregate_args = std::vector<AggregateColumnDefinition>{{std::nullopt, AggregateFunction::Count}};
   auto aggregate = std::make_shared<Aggregate>(table_wrapper, aggregate_args, std::vector<ColumnID>{column_id});
+  aggregate->execute();
+
+  auto sort = std::make_shared<Sort>(aggregate, ColumnID{0});
+  sort->execute();
+
+  return sort->get_output();
+}
+
+template <>
+const std::shared_ptr<const Table> AbstractHistogram<std::string>::_get_value_counts(const ColumnID column_id) const {
+  auto table = _table.lock();
+  DebugAssert(table != nullptr, "Corresponding table of histogram is deleted.");
+
+  auto table_wrapper = std::make_shared<TableWrapper>(table);
+  table_wrapper->execute();
+
+  const auto col_expression =
+      std::make_shared<PQPColumnExpression>(column_id, table->column_data_type(column_id),
+                                            table->column_is_nullable(column_id), table->column_name(column_id));
+  const auto substr_expression =
+      opossum::expression_functional::substr_(col_expression, 1, static_cast<int>(_string_prefix_length));
+  auto projection =
+      std::make_shared<Projection>(table_wrapper, std::vector<std::shared_ptr<AbstractExpression>>{substr_expression});
+  projection->execute();
+
+  const auto aggregate_args = std::vector<AggregateColumnDefinition>{{std::nullopt, AggregateFunction::Count}};
+  auto aggregate = std::make_shared<Aggregate>(projection, aggregate_args, std::vector<ColumnID>{ColumnID{0}});
   aggregate->execute();
 
   auto sort = std::make_shared<Sort>(aggregate, ColumnID{0});
@@ -314,17 +344,22 @@ float AbstractHistogram<T>::estimate_cardinality(const PredicateCondition predic
                                                  const std::optional<T>& value2) const {
   DebugAssert(num_buckets() > 0u, "Called method on histogram before initialization.");
 
+  T cleaned_value = value;
   if constexpr (std::is_same_v<T, std::string>) {
-    Assert(value.find_first_not_of(_supported_characters) == std::string::npos, "Unsupported characters.");
+    cleaned_value = value.substr(0, _string_prefix_length);
   }
 
-  if (can_prune(predicate_type, AllTypeVariant{value}, std::optional<AllTypeVariant>(*value2))) {
+  if constexpr (std::is_same_v<T, std::string>) {
+    Assert(cleaned_value.find_first_not_of(_supported_characters) == std::string::npos, "Unsupported characters.");
+  }
+
+  if (can_prune(predicate_type, AllTypeVariant{cleaned_value}, std::optional<AllTypeVariant>(*value2))) {
     return 0.f;
   }
 
   switch (predicate_type) {
     case PredicateCondition::Equals: {
-      const auto index = _bucket_for_value(value);
+      const auto index = _bucket_for_value(cleaned_value);
 
       if (index == INVALID_BUCKET_ID) {
         return 0.f;
@@ -333,7 +368,7 @@ float AbstractHistogram<T>::estimate_cardinality(const PredicateCondition predic
       return static_cast<float>(_bucket_count(index)) / static_cast<float>(_bucket_count_distinct(index));
     }
     case PredicateCondition::NotEquals: {
-      const auto index = _bucket_for_value(value);
+      const auto index = _bucket_for_value(cleaned_value);
 
       if (index == INVALID_BUCKET_ID) {
         return total_count();
@@ -343,23 +378,23 @@ float AbstractHistogram<T>::estimate_cardinality(const PredicateCondition predic
              static_cast<float>(_bucket_count(index)) / static_cast<float>(_bucket_count_distinct(index));
     }
     case PredicateCondition::LessThan: {
-      if (value > max()) {
+      if (cleaned_value > max()) {
         return total_count();
       }
 
-      if (value <= min()) {
+      if (cleaned_value <= min()) {
         return 0.f;
       }
 
-      auto index = _bucket_for_value(value);
+      auto index = _bucket_for_value(cleaned_value);
       auto cardinality = 0.f;
 
       if (index == INVALID_BUCKET_ID) {
         // The value is within the range of the histogram, but does not belong to a bucket.
         // Therefore, we need to sum up the counts of all buckets with a max < value.
-        index = _upper_bound_for_value(value);
+        index = _upper_bound_for_value(cleaned_value);
       } else {
-        cardinality += _bucket_share(index, value) * _bucket_count(index);
+        cardinality += _bucket_share(index, cleaned_value) * _bucket_count(index);
       }
 
       // Sum up all buckets before the bucket (or gap) containing the value.
@@ -383,15 +418,15 @@ float AbstractHistogram<T>::estimate_cardinality(const PredicateCondition predic
       return std::min(cardinality, static_cast<float>(total_count()));
     }
     case PredicateCondition::LessThanEquals:
-      return estimate_cardinality(PredicateCondition::LessThan, next_value(value));
+      return estimate_cardinality(PredicateCondition::LessThan, next_value(cleaned_value));
     case PredicateCondition::GreaterThanEquals:
-      return estimate_cardinality(PredicateCondition::GreaterThan, previous_value(value));
+      return estimate_cardinality(PredicateCondition::GreaterThan, previous_value(cleaned_value));
     case PredicateCondition::GreaterThan:
-      return total_count() - estimate_cardinality(PredicateCondition::LessThanEquals, value);
+      return total_count() - estimate_cardinality(PredicateCondition::LessThanEquals, cleaned_value);
     case PredicateCondition::Between: {
       Assert(static_cast<bool>(value2), "Between operator needs two values.");
       return estimate_cardinality(PredicateCondition::LessThanEquals, *value2) -
-             estimate_cardinality(PredicateCondition::LessThan, value);
+             estimate_cardinality(PredicateCondition::LessThan, cleaned_value);
     }
     // TODO(tim): implement more meaningful things here
     case PredicateCondition::Like:
