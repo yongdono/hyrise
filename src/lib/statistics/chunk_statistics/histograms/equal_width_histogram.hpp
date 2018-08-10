@@ -7,6 +7,15 @@
 
 namespace opossum {
 
+template <typename T>
+struct EqualWidthBucketStats {
+  T min;
+  T max;
+  std::vector<uint64_t> counts;
+  std::vector<uint64_t> distinct_counts;
+  uint64_t num_buckets_with_larger_range;
+};
+
 class Table;
 
 template <typename T>
@@ -19,6 +28,14 @@ class EqualWidthHistogram : public AbstractHistogram<T> {
                       const std::vector<uint64_t>& distinct_counts, const uint64_t num_buckets_with_larger_range,
                       const std::string& supported_characters, const uint64_t string_prefix_length);
 
+  static std::shared_ptr<EqualWidthHistogram<T>> from_column(const std::shared_ptr<const BaseColumn>& column,
+                                                             const size_t max_num_buckets);
+
+  static std::shared_ptr<EqualWidthHistogram<std::string>> from_column(const std::shared_ptr<const BaseColumn>& column,
+                                                                       const size_t max_num_buckets,
+                                                                       const std::string& supported_characters,
+                                                                       const uint64_t string_prefix_length);
+
   std::shared_ptr<AbstractHistogram<T>> clone() const override;
 
   HistogramType histogram_type() const override;
@@ -29,6 +46,12 @@ class EqualWidthHistogram : public AbstractHistogram<T> {
  protected:
   void _generate(const std::shared_ptr<const ValueColumn<T>> distinct_column,
                  const std::shared_ptr<const ValueColumn<int64_t>> count_column, const size_t max_num_buckets) override;
+  static EqualWidthBucketStats<T> _get_bucket_stats(const std::vector<std::pair<T, uint64_t>>& value_counts,
+                                                    const uint64_t max_num_buckets);
+  static EqualWidthBucketStats<T> _get_bucket_stats(const std::vector<std::pair<T, uint64_t>>& value_counts,
+                                                    const uint64_t max_num_buckets,
+                                                    const std::string& supported_characters,
+                                                    const uint64_t string_prefix_length);
 
   BucketID _bucket_for_value(const T value) const override;
   BucketID _lower_bound_for_value(const T value) const override;

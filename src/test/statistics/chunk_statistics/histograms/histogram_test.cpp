@@ -58,6 +58,29 @@ class HistogramTest : public BaseTest {
   std::shared_ptr<Table> _string3;
 };
 
+TEST_F(HistogramTest, EqualNumElementsFromColumn) {
+  auto hist1 =
+      EqualNumElementsHistogram<int32_t>::from_column(_int_float4->get_chunk(ChunkID{0})->get_column(ColumnID{0}), 2u);
+  auto hist2 =
+      EqualNumElementsHistogram<std::string>::from_column(_string2->get_chunk(ChunkID{0})->get_column(ColumnID{0}), 2u);
+  auto hist3 =
+      EqualHeightHistogram<int32_t>::from_column(_int_float4->get_chunk(ChunkID{0})->get_column(ColumnID{0}), 2u);
+  auto hist4 =
+      EqualHeightHistogram<std::string>::from_column(_string2->get_chunk(ChunkID{0})->get_column(ColumnID{0}), 2u);
+  auto hist5 =
+      EqualWidthHistogram<int32_t>::from_column(_int_float4->get_chunk(ChunkID{0})->get_column(ColumnID{0}), 2u);
+  auto hist6 = EqualWidthHistogram<std::string>::from_column(
+      _string2->get_chunk(ChunkID{0})->get_column(ColumnID{0}), 2u,
+      " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~", 9);
+
+  EXPECT_EQ(hist1->num_buckets(), 2u);
+  EXPECT_EQ(hist2->num_buckets(), 2u);
+  EXPECT_EQ(hist3->num_buckets(), 2u);
+  EXPECT_EQ(hist4->num_buckets(), 2u);
+  EXPECT_EQ(hist5->num_buckets(), 2u);
+  EXPECT_EQ(hist6->num_buckets(), 2u);
+}
+
 TEST_F(HistogramTest, EqualNumElementsBasic) {
   auto hist = EqualNumElementsHistogram<int32_t>(_int_float4);
   hist.generate(ColumnID{0}, 2u);

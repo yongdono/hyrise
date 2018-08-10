@@ -73,13 +73,7 @@ std::shared_ptr<ChunkColumnStatistics> ChunkColumnStatistics::build_statistics(
 
   auto statistics = std::make_shared<ChunkColumnStatistics>();
 
-  TableColumnDefinitions column_definitions;
-  column_definitions.emplace_back("col_1", data_type);
-  auto table = std::make_shared<Table>(column_definitions, TableType::Data);
-  // TODO(tim): change such that no pointer casts are required
-  table->append_chunk({std::const_pointer_cast<BaseColumn>(column)});
-
-  resolve_data_and_column_type(*column, [&statistics, &table](auto type, auto& typed_column) {
+  resolve_data_and_column_type(*column, [&statistics, &column](auto type, auto& typed_column) {
     using ColumnType = typename std::decay<decltype(typed_column)>::type;
     using DataTypeT = typename decltype(type)::type;
 
@@ -95,8 +89,9 @@ std::shared_ptr<ChunkColumnStatistics> ChunkColumnStatistics::build_statistics(
       num_buckets = std::max(num_buckets, proposed_buckets);
     }
 
-    auto hist = std::make_shared<EqualNumElementsHistogram<DataTypeT>>(table);
-    hist->generate(ColumnID{0}, num_buckets);
+    // auto hist = std::make_shared<EqualNumElementsHistogram<DataTypeT>>(table);
+    // hist->generate(ColumnID{0}, num_buckets);
+    auto hist = EqualNumElementsHistogram<DataTypeT>::from_column(column, num_buckets);
 
     statistics->add_filter(hist);
   });

@@ -33,6 +33,68 @@ EqualNumElementsHistogram<std::string>::EqualNumElementsHistogram(
       _num_buckets_with_extra_value(num_buckets_with_extra_value) {}
 
 template <typename T>
+EqualNumElementsBucketStats<T> EqualNumElementsHistogram<T>::_get_bucket_stats(
+    const std::vector<std::pair<T, uint64_t>>& value_counts, const uint64_t max_num_buckets) {
+  // If there are fewer distinct values than the number of desired buckets use that instead.
+  const auto distinct_count = value_counts.size();
+  const auto num_buckets = distinct_count < max_num_buckets ? static_cast<size_t>(distinct_count) : max_num_buckets;
+
+  // Split values evenly among buckets.
+  const auto distinct_count_per_bucket = distinct_count / num_buckets;
+  const auto num_buckets_with_extra_value = distinct_count % num_buckets;
+
+  std::vector<T> mins;
+  std::vector<T> maxs;
+  std::vector<uint64_t> counts;
+
+  auto begin_index = 0ul;
+  for (BucketID bucket_index = 0; bucket_index < num_buckets; bucket_index++) {
+    auto end_index = begin_index + distinct_count_per_bucket - 1;
+    if (bucket_index < num_buckets_with_extra_value) {
+      end_index++;
+    }
+
+    const auto current_min = value_counts[begin_index].first;
+    const auto current_max = value_counts[end_index].first;
+
+    mins.emplace_back(current_min);
+    maxs.emplace_back(current_max);
+    counts.emplace_back(std::accumulate(value_counts.cbegin(), value_counts.cend(), uint64_t{0},
+                                        [](uint64_t a, std::pair<T, uint64_t> b) { return a + b.second; }));
+
+    begin_index = end_index + 1;
+  }
+
+  return {mins, maxs, counts, distinct_count_per_bucket, num_buckets_with_extra_value};
+}
+
+template <typename T>
+std::shared_ptr<EqualNumElementsHistogram<T>> EqualNumElementsHistogram<T>::from_column(
+    const std::shared_ptr<const BaseColumn>& column, const size_t max_num_buckets) {
+  const auto value_counts = AbstractHistogram<T>::_calculate_value_counts(column);
+
+  const auto bucket_stats = EqualNumElementsHistogram<T>::_get_bucket_stats(value_counts, max_num_buckets);
+
+  return std::make_shared<EqualNumElementsHistogram<T>>(bucket_stats.mins, bucket_stats.maxs, bucket_stats.counts,
+                                                        bucket_stats.distinct_count_per_bucket,
+                                                        bucket_stats.num_buckets_with_extra_value);
+}
+
+template <>
+std::shared_ptr<EqualNumElementsHistogram<std::string>> EqualNumElementsHistogram<std::string>::from_column(
+    const std::shared_ptr<const BaseColumn>& column, const size_t max_num_buckets,
+    const std::string& supported_characters, const uint64_t string_prefix_length) {
+  const auto value_counts =
+      AbstractHistogram<std::string>::_calculate_value_counts(column, supported_characters, string_prefix_length);
+
+  const auto bucket_stats = EqualNumElementsHistogram<std::string>::_get_bucket_stats(value_counts, max_num_buckets);
+
+  return std::make_shared<EqualNumElementsHistogram<std::string>>(
+      bucket_stats.mins, bucket_stats.maxs, bucket_stats.counts, bucket_stats.distinct_count_per_bucket,
+      bucket_stats.num_buckets_with_extra_value, supported_characters, string_prefix_length);
+}
+
+template <typename T>
 std::shared_ptr<AbstractHistogram<T>> EqualNumElementsHistogram<T>::clone() const {
   return std::make_shared<EqualNumElementsHistogram<T>>(_mins, _maxs, _counts, _distinct_count_per_bucket,
                                                         _num_buckets_with_extra_value);

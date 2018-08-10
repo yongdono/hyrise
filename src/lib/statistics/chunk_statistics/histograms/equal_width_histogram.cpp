@@ -34,6 +34,154 @@ EqualWidthHistogram<std::string>::EqualWidthHistogram(const std::string& min, co
       _num_buckets_with_larger_range(num_buckets_with_larger_range) {}
 
 template <typename T>
+EqualWidthBucketStats<T> EqualWidthHistogram<T>::_get_bucket_stats(
+    const std::vector<std::pair<T, uint64_t>>& value_counts, const uint64_t max_num_buckets) {
+  // Buckets shall have the same range.
+  const auto min = value_counts.front().first;
+  const auto max = value_counts.back().first;
+
+  const auto num_buckets = max_num_buckets <= value_counts.size() ? max_num_buckets : value_counts.size();
+
+  std::vector<uint64_t> counts;
+  std::vector<uint64_t> distinct_counts;
+  uint64_t num_buckets_with_larger_range;
+
+  const T base_width = max - min;
+  const T bucket_width = AbstractHistogram<T>::next_value(base_width) / num_buckets;
+
+  if constexpr (std::is_integral_v<T>) {
+    num_buckets_with_larger_range = (base_width + 1) % num_buckets;
+  } else {
+    num_buckets_with_larger_range = 0u;
+  }
+
+  T current_begin_value = min;
+  auto current_begin_it = value_counts.cbegin();
+  auto current_begin_index = 0l;
+  for (auto current_bucket_id = 0u; current_bucket_id < num_buckets; current_bucket_id++) {
+    T next_begin_value = current_begin_value + bucket_width;
+    T current_end_value = AbstractHistogram<T>::previous_value(next_begin_value);
+
+    if constexpr (std::is_integral_v<T>) {
+      if (current_bucket_id < num_buckets_with_larger_range) {
+        current_end_value++;
+        next_begin_value++;
+      }
+    }
+
+    // TODO(tim): think about replacing with binary search (same for other hists)
+    auto next_begin_it = current_begin_it;
+    while (next_begin_it != value_counts.cend() && (*next_begin_it).first <= current_end_value) {
+      next_begin_it++;
+    }
+
+    const auto next_begin_index = std::distance(value_counts.cbegin(), next_begin_it);
+    counts.emplace_back(std::accumulate(value_counts.cbegin() + current_begin_index,
+                                        value_counts.cbegin() + next_begin_index, uint64_t{0},
+                                        [](uint64_t a, std::pair<T, uint64_t> b) { return a + b.second; }));
+    distinct_counts.emplace_back(next_begin_index - current_begin_index);
+
+    current_begin_value = next_begin_value;
+    current_begin_index = next_begin_index;
+  }
+
+  return {min, max, counts, distinct_counts, num_buckets_with_larger_range};
+}
+
+template <>
+EqualWidthBucketStats<std::string> EqualWidthHistogram<std::string>::_get_bucket_stats(
+    const std::vector<std::pair<std::string, uint64_t>>& value_counts, const uint64_t max_num_buckets) {
+  // TODO(tim): disable
+  Fail("Not supported.");
+}
+
+template <>
+EqualWidthBucketStats<std::string> EqualWidthHistogram<std::string>::_get_bucket_stats(
+    const std::vector<std::pair<std::string, uint64_t>>& value_counts, const uint64_t max_num_buckets,
+    const std::string& supported_characters, const uint64_t string_prefix_length) {
+  // Buckets shall have the same range.
+  const auto min = value_counts.front().first;
+  const auto max = value_counts.back().first;
+
+  const auto num_buckets = max_num_buckets <= value_counts.size() ? max_num_buckets : value_counts.size();
+
+  std::vector<uint64_t> counts;
+  std::vector<uint64_t> distinct_counts;
+  uint64_t num_buckets_with_larger_range;
+
+  const auto num_min = AbstractHistogram<std::string>::convert_string_to_number_representation(
+      min, supported_characters, string_prefix_length);
+  const auto num_max = AbstractHistogram<std::string>::convert_string_to_number_representation(
+      max, supported_characters, string_prefix_length);
+  const auto base_width = num_max - num_min + 1;
+  const auto bucket_width = base_width / num_buckets;
+
+  num_buckets_with_larger_range = base_width % num_buckets;
+
+  auto current_begin_value = min;
+  auto current_begin_it = value_counts.cbegin();
+  auto current_begin_index = 0l;
+  for (auto current_bucket_id = 0u; current_bucket_id < num_buckets; current_bucket_id++) {
+    auto num_current_begin_value = AbstractHistogram<std::string>::convert_string_to_number_representation(
+        current_begin_value, supported_characters, string_prefix_length);
+    auto next_begin_value = AbstractHistogram<std::string>::convert_number_representation_to_string(
+        num_current_begin_value + bucket_width, supported_characters, string_prefix_length);
+    auto current_end_value =
+        AbstractHistogram<std::string>::previous_value(next_begin_value, supported_characters, string_prefix_length);
+
+    if (current_bucket_id < num_buckets_with_larger_range) {
+      current_end_value = next_begin_value;
+      next_begin_value =
+          AbstractHistogram<std::string>::next_value(next_begin_value, supported_characters, string_prefix_length);
+    }
+
+    // TODO(tim): think about replacing with binary search (same for other hists)
+    auto next_begin_it = current_begin_it;
+    while (next_begin_it != value_counts.cend() && (*next_begin_it).first <= current_end_value) {
+      next_begin_it++;
+    }
+
+    const auto next_begin_index = std::distance(value_counts.cbegin(), next_begin_it);
+    counts.emplace_back(std::accumulate(value_counts.begin() + current_begin_index,
+                                        value_counts.begin() + next_begin_index, uint64_t{0},
+                                        [](uint64_t a, std::pair<std::string, uint64_t> b) { return a + b.second; }));
+    distinct_counts.emplace_back(next_begin_index - current_begin_index);
+
+    current_begin_value = next_begin_value;
+    current_begin_index = next_begin_index;
+  }
+
+  return {min, max, counts, distinct_counts, num_buckets_with_larger_range};
+}
+
+template <typename T>
+std::shared_ptr<EqualWidthHistogram<T>> EqualWidthHistogram<T>::from_column(
+    const std::shared_ptr<const BaseColumn>& column, const size_t max_num_buckets) {
+  const auto value_counts = AbstractHistogram<T>::_calculate_value_counts(column);
+
+  const auto bucket_stats = EqualWidthHistogram<T>::_get_bucket_stats(value_counts, max_num_buckets);
+
+  return std::make_shared<EqualWidthHistogram<T>>(bucket_stats.min, bucket_stats.max, bucket_stats.counts,
+                                                  bucket_stats.distinct_counts,
+                                                  bucket_stats.num_buckets_with_larger_range);
+}
+
+template <>
+std::shared_ptr<EqualWidthHistogram<std::string>> EqualWidthHistogram<std::string>::from_column(
+    const std::shared_ptr<const BaseColumn>& column, const size_t max_num_buckets,
+    const std::string& supported_characters, const uint64_t string_prefix_length) {
+  const auto value_counts =
+      AbstractHistogram<std::string>::_calculate_value_counts(column, supported_characters, string_prefix_length);
+
+  const auto bucket_stats = EqualWidthHistogram<std::string>::_get_bucket_stats(
+      value_counts, max_num_buckets, supported_characters, string_prefix_length);
+
+  return std::make_shared<EqualWidthHistogram<std::string>>(
+      bucket_stats.min, bucket_stats.max, bucket_stats.counts, bucket_stats.distinct_counts,
+      bucket_stats.num_buckets_with_larger_range, supported_characters, string_prefix_length);
+}
+
+template <typename T>
 std::shared_ptr<AbstractHistogram<T>> EqualWidthHistogram<T>::clone() const {
   return std::make_shared<EqualWidthHistogram<T>>(_min, _max, _counts, _distinct_counts,
                                                   _num_buckets_with_larger_range);

@@ -33,6 +33,75 @@ EqualHeightHistogram<std::string>::EqualHeightHistogram(const std::vector<std::s
       _total_count(total_count) {}
 
 template <typename T>
+EqualHeightBucketStats<T> EqualHeightHistogram<T>::_get_bucket_stats(
+    const std::vector<std::pair<T, uint64_t>>& value_counts, const uint64_t max_num_buckets) {
+  const auto min = value_counts.front().first;
+  const auto num_buckets = max_num_buckets <= value_counts.size() ? max_num_buckets : value_counts.size();
+
+  // Buckets shall have (approximately) the same height.
+  const auto total_count = std::accumulate(value_counts.cbegin(), value_counts.cend(), uint64_t{0},
+                                           [](uint64_t a, std::pair<T, uint64_t> b) { return a + b.second; });
+  auto count_per_bucket = total_count / num_buckets;
+
+  if (total_count % num_buckets > 0u) {
+    // Add 1 so that we never create more buckets than requested.
+    count_per_bucket++;
+  }
+
+  std::vector<T> maxs;
+  std::vector<uint64_t> distinct_counts;
+
+  auto current_begin = 0u;
+  auto current_height = 0u;
+  for (auto current_end = 0u; current_end < value_counts.size(); current_end++) {
+    current_height += value_counts[current_end].second;
+
+    if (current_height >= count_per_bucket) {
+      const auto current_value = value_counts[current_end].first;
+
+      maxs.emplace_back(current_value);
+      distinct_counts.emplace_back(current_end - current_begin + 1);
+      current_height = 0u;
+      current_begin = current_end + 1;
+    }
+  }
+
+  if (current_height > 0u) {
+    const auto current_value = value_counts.back().first;
+
+    maxs.emplace_back(current_value);
+    distinct_counts.emplace_back(value_counts.size() - current_begin);
+  }
+
+  return {maxs, distinct_counts, min, count_per_bucket, total_count};
+}
+
+template <typename T>
+std::shared_ptr<EqualHeightHistogram<T>> EqualHeightHistogram<T>::from_column(
+    const std::shared_ptr<const BaseColumn>& column, const size_t max_num_buckets) {
+  const auto value_counts = AbstractHistogram<T>::_calculate_value_counts(column);
+
+  const auto bucket_stats = EqualHeightHistogram<T>::_get_bucket_stats(value_counts, max_num_buckets);
+
+  return std::make_shared<EqualHeightHistogram<T>>(bucket_stats.maxs, bucket_stats.distinct_counts, bucket_stats.min,
+                                                   bucket_stats.count_per_bucket, bucket_stats.total_count);
+}
+
+template <>
+std::shared_ptr<EqualHeightHistogram<std::string>> EqualHeightHistogram<std::string>::from_column(
+    const std::shared_ptr<const BaseColumn>& column, const size_t max_num_buckets,
+    const std::string& supported_characters, const uint64_t string_prefix_length) {
+  const auto value_counts =
+      AbstractHistogram<std::string>::_calculate_value_counts(column, supported_characters, string_prefix_length);
+
+  const auto bucket_stats = EqualHeightHistogram<std::string>::_get_bucket_stats(value_counts, max_num_buckets);
+
+  return std::make_shared<EqualHeightHistogram<std::string>>(
+      bucket_stats.maxs, bucket_stats.distinct_counts, bucket_stats.min, bucket_stats.count_per_bucket,
+      bucket_stats.total_count, supported_characters, string_prefix_length);
+}
+
+template <typename T>
 std::shared_ptr<AbstractHistogram<T>> EqualHeightHistogram<T>::clone() const {
   return std::make_shared<EqualHeightHistogram<T>>(_maxs, _distinct_counts, _min, _count_per_bucket, _total_count);
 }

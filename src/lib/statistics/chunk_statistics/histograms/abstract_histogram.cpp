@@ -12,9 +12,11 @@
 #include "operators/projection.hpp"
 #include "operators/sort.hpp"
 #include "operators/table_wrapper.hpp"
+#include "storage/create_iterable_from_column.hpp"
 #include "storage/table.hpp"
 
 #include "constant_mappings.hpp"
+#include "resolve_type.hpp"
 
 namespace opossum {
 
@@ -108,6 +110,60 @@ const std::shared_ptr<const Table> AbstractHistogram<T>::_get_value_counts(const
   return sort->get_output();
 }
 
+template <typename T>
+std::vector<std::pair<T, uint64_t>> AbstractHistogram<T>::_sort_value_counts(
+    const std::unordered_map<T, uint64_t>& value_counts) {
+  std::vector<std::pair<T, uint64_t>> result(value_counts.cbegin(), value_counts.cend());
+
+  std::sort(result.begin(), result.end(),
+            [](std::pair<T, uint64_t> lhs, std::pair<T, uint64_t> rhs) { return lhs.first < rhs.first; });
+
+  return result;
+}
+
+template <typename T>
+// typename std::enable_if_t<std::is_arithmetic_v<T>, std::vector<std::pair<T, uint64_t>>>
+std::vector<std::pair<T, uint64_t>> AbstractHistogram<T>::_calculate_value_counts(
+    const std::shared_ptr<const BaseColumn>& column) {
+  std::unordered_map<T, uint64_t> value_counts;
+  uint64_t nulls = 0;
+
+  resolve_column_type<T>(*column, [&](auto& typed_column) {
+    auto iterable = create_iterable_from_column<T>(typed_column);
+    iterable.for_each([&](const auto& value) {
+      if (value.is_null()) {
+        nulls++;
+      } else {
+        value_counts[value.value()]++;
+      }
+    });
+  });
+
+  return AbstractHistogram<T>::_sort_value_counts(value_counts);
+}
+
+template <>
+std::vector<std::pair<std::string, uint64_t>> AbstractHistogram<std::string>::_calculate_value_counts(
+    const std::shared_ptr<const BaseColumn>& column, const std::string& supported_characters,
+    const uint64_t string_prefix_length) {
+  std::unordered_map<std::string, uint64_t> value_counts;
+  uint64_t nulls = 0;
+
+  resolve_column_type<std::string>(*column, [&](auto& typed_column) {
+    auto iterable = create_iterable_from_column<std::string>(typed_column);
+    iterable.for_each([&](const auto& value) {
+      if (value.is_null()) {
+        nulls++;
+      } else {
+        Assert(value.value().find_first_not_of(supported_characters) == std::string::npos, "Unsupported characters.");
+        value_counts[value.value().substr(0, string_prefix_length)]++;
+      }
+    });
+  });
+
+  return AbstractHistogram<std::string>::_sort_value_counts(value_counts);
+}
+
 template <>
 const std::shared_ptr<const Table> AbstractHistogram<std::string>::_get_value_counts(const ColumnID column_id) const {
   auto table = _table.lock();
@@ -178,33 +234,8 @@ T AbstractHistogram<T>::_bucket_width(const BucketID index) const {
   return next_value(_bucket_max(index) - _bucket_min(index));
 }
 
-template <>
-std::string AbstractHistogram<std::string>::previous_value(const std::string value, const bool pad_and_trim) const {
-  if (value.empty() || value.find_first_not_of(_supported_characters.front()) == std::string::npos) {
-    return "";
-  }
-
-  std::string cleaned_value;
-  if (pad_and_trim) {
-    cleaned_value = value.length() >= _string_prefix_length
-                        ? value.substr(0, _string_prefix_length)
-                        : value + std::string(_string_prefix_length - value.length(), _supported_characters.front());
-  } else {
-    cleaned_value = value;
-  }
-
-  const auto last_char = cleaned_value.back();
-  const auto sub_string = cleaned_value.substr(0, cleaned_value.length() - 1);
-
-  if (last_char == _supported_characters.front()) {
-    return previous_value(sub_string, false) + _supported_characters.back();
-  }
-
-  return sub_string + static_cast<char>(last_char - 1);
-}
-
 template <typename T>
-T AbstractHistogram<T>::previous_value(const T value, const bool /*pad_and_trim*/) const {
+T AbstractHistogram<T>::previous_value(const T value, const bool /*pad_and_trim*/) {
   if constexpr (std::is_floating_point_v<T>) {
     return std::nextafter(value, value - 1);
   }
@@ -213,36 +244,54 @@ T AbstractHistogram<T>::previous_value(const T value, const bool /*pad_and_trim*
 }
 
 template <>
-std::string AbstractHistogram<std::string>::next_value(const std::string value, const bool pad_and_trim) const {
-  if (value.empty()) {
-    return std::string{_supported_characters.front()};
-  }
+std::string AbstractHistogram<std::string>::previous_value(const std::string value, const bool /*pad_and_trim*/) {
+  // TODO(tim): deactivate
+  Fail("Not supported.");
+}
 
-  if (value == std::string(_string_prefix_length, _supported_characters.back())) {
-    return value + _supported_characters.front();
+template <>
+std::string AbstractHistogram<std::string>::previous_value(const std::string& value,
+                                                           const std::string& supported_characters,
+                                                           const uint64_t string_prefix_length,
+                                                           const bool pad_and_trim) {
+  if (value.empty() || value.find_first_not_of(supported_characters.front()) == std::string::npos) {
+    return "";
   }
 
   std::string cleaned_value;
   if (pad_and_trim) {
-    cleaned_value = value.length() >= _string_prefix_length
-                        ? value.substr(0, _string_prefix_length)
-                        : value + std::string(_string_prefix_length - value.length(), _supported_characters.front());
+    cleaned_value = value.length() >= string_prefix_length
+                        ? value.substr(0, string_prefix_length)
+                        : value + std::string(string_prefix_length - value.length(), supported_characters.front());
   } else {
     cleaned_value = value;
   }
 
   const auto last_char = cleaned_value.back();
-  const auto sub_string = cleaned_value.substr(0, cleaned_value.length() - 1);
+  const auto substring = cleaned_value.substr(0, cleaned_value.length() - 1);
 
-  if (last_char != _supported_characters.back()) {
-    return sub_string + static_cast<char>(last_char + 1);
+  if (last_char == supported_characters.front()) {
+    return AbstractHistogram<std::string>::previous_value(substring, supported_characters, string_prefix_length,
+                                                          false) +
+           supported_characters.back();
   }
 
-  return next_value(sub_string, false) + _supported_characters.front();
+  return substring + static_cast<char>(last_char - 1);
+}
+
+template <>
+std::string AbstractHistogram<std::string>::_previous_value(const std::string value, const bool pad_and_trim) const {
+  return AbstractHistogram<std::string>::previous_value(value, _supported_characters, _string_prefix_length,
+                                                        pad_and_trim);
 }
 
 template <typename T>
-T AbstractHistogram<T>::next_value(const T value, const bool /*pad_and_trim*/) const {
+T AbstractHistogram<T>::_previous_value(const T value, const bool /*pad_and_trim*/) const {
+  return AbstractHistogram<T>::previous_value(value);
+}
+
+template <typename T>
+T AbstractHistogram<T>::next_value(const T value, const bool /*pad_and_trim*/) {
   if constexpr (std::is_floating_point_v<T>) {
     return std::nextafter(value, value + 1);
   }
@@ -251,7 +300,54 @@ T AbstractHistogram<T>::next_value(const T value, const bool /*pad_and_trim*/) c
 }
 
 template <>
-uint64_t AbstractHistogram<std::string>::_ipow(uint64_t base, uint64_t exp) const {
+std::string AbstractHistogram<std::string>::next_value(const std::string value, const bool /*pad_and_trim*/) {
+  // TODO(tim): deactivate
+  Fail("Not supported.");
+}
+
+template <>
+std::string AbstractHistogram<std::string>::next_value(const std::string& value,
+                                                       const std::string& supported_characters,
+                                                       const uint64_t string_prefix_length, const bool pad_and_trim) {
+  if (value.empty()) {
+    return std::string{supported_characters.front()};
+  }
+
+  if (value == std::string(string_prefix_length, supported_characters.back())) {
+    return value + supported_characters.front();
+  }
+
+  std::string cleaned_value;
+  if (pad_and_trim) {
+    cleaned_value = value.length() >= string_prefix_length
+                        ? value.substr(0, string_prefix_length)
+                        : value + std::string(string_prefix_length - value.length(), supported_characters.front());
+  } else {
+    cleaned_value = value;
+  }
+
+  const auto last_char = cleaned_value.back();
+  const auto substring = cleaned_value.substr(0, cleaned_value.length() - 1);
+
+  if (last_char != supported_characters.back()) {
+    return substring + static_cast<char>(last_char + 1);
+  }
+
+  return next_value(substring, supported_characters, string_prefix_length, false) + supported_characters.front();
+}
+
+template <>
+std::string AbstractHistogram<std::string>::_next_value(const std::string value, const bool pad_and_trim) const {
+  return AbstractHistogram<std::string>::next_value(value, _supported_characters, _string_prefix_length, pad_and_trim);
+}
+
+template <typename T>
+T AbstractHistogram<T>::_next_value(const T value, const bool /*pad_and_trim*/) const {
+  return AbstractHistogram<T>::next_value(value);
+}
+
+template <>
+uint64_t AbstractHistogram<std::string>::_ipow(uint64_t base, uint64_t exp) {
   uint64_t result = 1;
 
   for (;;) {
@@ -272,24 +368,34 @@ uint64_t AbstractHistogram<std::string>::_ipow(uint64_t base, uint64_t exp) cons
 }
 
 template <>
-int64_t AbstractHistogram<std::string>::_convert_string_to_number_representation(const std::string& value) const {
+int64_t AbstractHistogram<std::string>::convert_string_to_number_representation(const std::string& value,
+                                                                                const std::string& supported_characters,
+                                                                                const uint64_t string_prefix_length) {
   if (value.empty()) {
     return -1;
   }
 
-  const auto trimmed = value.substr(0, _string_prefix_length);
+  const auto trimmed = value.substr(0, string_prefix_length);
 
   uint64_t result = 0;
   for (auto it = trimmed.cbegin(); it < trimmed.cend(); it++) {
-    const auto power = _string_prefix_length - std::distance(trimmed.cbegin(), it) - 1;
-    result += (*it - _supported_characters.front()) * _ipow(_supported_characters.length(), power);
+    const auto power = string_prefix_length - std::distance(trimmed.cbegin(), it) - 1;
+    result += (*it - supported_characters.front()) *
+              AbstractHistogram<std::string>::_ipow(supported_characters.length(), power);
   }
 
   return result;
 }
 
 template <>
-std::string AbstractHistogram<std::string>::_convert_number_representation_to_string(const int64_t value) const {
+int64_t AbstractHistogram<std::string>::_convert_string_to_number_representation(const std::string& value) const {
+  return AbstractHistogram<std::string>::convert_string_to_number_representation(value, _supported_characters,
+                                                                                 _string_prefix_length);
+}
+
+template <>
+std::string AbstractHistogram<std::string>::convert_number_representation_to_string(
+    const int64_t value, const std::string& supported_characters, const uint64_t string_prefix_length) {
   if (value < 0) {
     return "";
   }
@@ -297,14 +403,20 @@ std::string AbstractHistogram<std::string>::_convert_number_representation_to_st
   std::string result_string;
 
   auto remainder = value;
-  for (auto str_pos = _string_prefix_length; str_pos > 0; str_pos--) {
-    const auto pow_result = static_cast<uint64_t>(std::pow(_supported_characters.length(), str_pos - 1));
+  for (auto str_pos = string_prefix_length; str_pos > 0; str_pos--) {
+    const auto pow_result = static_cast<uint64_t>(std::pow(supported_characters.length(), str_pos - 1));
     const auto div = remainder / pow_result;
     remainder -= div * pow_result;
-    result_string += _supported_characters.at(div);
+    result_string += supported_characters.at(div);
   }
 
   return result_string;
+}
+
+template <>
+std::string AbstractHistogram<std::string>::_convert_number_representation_to_string(const int64_t value) const {
+  return AbstractHistogram<std::string>::convert_number_representation_to_string(value, _supported_characters,
+                                                                                 _string_prefix_length);
 }
 
 template <typename T>

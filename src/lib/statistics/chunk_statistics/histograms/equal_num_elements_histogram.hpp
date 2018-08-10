@@ -7,6 +7,15 @@
 
 namespace opossum {
 
+template <typename T>
+struct EqualNumElementsBucketStats {
+  std::vector<T> mins;
+  std::vector<T> maxs;
+  std::vector<uint64_t> counts;
+  uint64_t distinct_count_per_bucket;
+  uint64_t num_buckets_with_extra_value;
+};
+
 class Table;
 
 template <typename T>
@@ -20,6 +29,13 @@ class EqualNumElementsHistogram : public AbstractHistogram<T> {
                             const uint64_t num_buckets_with_extra_value, const std::string& supported_characters,
                             const uint64_t string_prefix_length);
 
+  static std::shared_ptr<EqualNumElementsHistogram<T>> from_column(const std::shared_ptr<const BaseColumn>& column,
+                                                                   const size_t max_num_buckets);
+
+  static std::shared_ptr<EqualNumElementsHistogram<std::string>> from_column(
+      const std::shared_ptr<const BaseColumn>& column, const size_t max_num_buckets,
+      const std::string& supported_characters, const uint64_t string_prefix_length);
+
   std::shared_ptr<AbstractHistogram<T>> clone() const override;
 
   HistogramType histogram_type() const override;
@@ -30,6 +46,9 @@ class EqualNumElementsHistogram : public AbstractHistogram<T> {
  protected:
   void _generate(const std::shared_ptr<const ValueColumn<T>> distinct_column,
                  const std::shared_ptr<const ValueColumn<int64_t>> count_column, const size_t max_num_buckets) override;
+
+  static EqualNumElementsBucketStats<T> _get_bucket_stats(const std::vector<std::pair<T, uint64_t>>& value_counts,
+                                                          const uint64_t max_num_buckets);
 
   BucketID _bucket_for_value(const T value) const override;
   BucketID _lower_bound_for_value(const T value) const override;

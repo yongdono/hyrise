@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <unordered_map>
 #include <vector>
 
 #include "statistics/chunk_statistics/abstract_filter.hpp"
@@ -29,6 +30,7 @@ class AbstractHistogram : public AbstractFilter {
   const std::string& supported_characters() const;
 
   void generate(const ColumnID column_id, const size_t max_num_buckets);
+
   float estimate_selectivity(const PredicateCondition predicate_type, const T value,
                              const std::optional<T>& value2 = std::nullopt) const;
   float estimate_cardinality(const PredicateCondition predicate_type, const T value,
@@ -40,8 +42,19 @@ class AbstractHistogram : public AbstractFilter {
 
   T min() const;
   T max() const;
-  T previous_value(const T value, const bool pad_and_trim = true) const;
-  T next_value(const T value, const bool pad_and_trim = true) const;
+
+  static T previous_value(const T value, const bool pad_and_trim = true);
+  static T next_value(const T value, const bool pad_and_trim = true);
+  static std::string previous_value(const std::string& value, const std::string& supported_characters,
+                                    const uint64_t string_prefix_length, const bool pad_and_trim = true);
+  static std::string next_value(const std::string& value, const std::string& supported_characters,
+                                const uint64_t string_prefix_length, const bool pad_and_trim = true);
+  static int64_t convert_string_to_number_representation(const std::string& value,
+                                                         const std::string& supported_characters,
+                                                         const uint64_t string_prefix_length);
+  static std::string convert_number_representation_to_string(const int64_t value,
+                                                             const std::string& supported_characters,
+                                                             const uint64_t string_prefix_length);
 
   virtual size_t num_buckets() const = 0;
   virtual uint64_t total_count() const = 0;
@@ -49,11 +62,25 @@ class AbstractHistogram : public AbstractFilter {
 
  protected:
   const std::shared_ptr<const Table> _get_value_counts(const ColumnID column_id) const;
+
+  static
+      // typename std::enable_if_t<std::is_arithmetic_v<T>, std::vector<std::pair<T, uint64_t>>>
+      std::vector<std::pair<T, uint64_t>>
+      _calculate_value_counts(const std::shared_ptr<const BaseColumn>& column);
+
+  static std::vector<std::pair<std::string, uint64_t>> _calculate_value_counts(
+      const std::shared_ptr<const BaseColumn>& column, const std::string& supported_characters,
+      const uint64_t string_prefix_length);
+  static std::vector<std::pair<T, uint64_t>> _sort_value_counts(const std::unordered_map<T, uint64_t>& value_counts);
+
   virtual void _generate(const std::shared_ptr<const ValueColumn<T>> distinct_column,
                          const std::shared_ptr<const ValueColumn<int64_t>> count_column,
                          const size_t max_num_buckets) = 0;
 
-  uint64_t _ipow(uint64_t base, uint64_t exp) const;
+  T _previous_value(const T value, const bool pad_and_trim = true) const;
+  T _next_value(const T value, const bool pad_and_trim = true) const;
+  static uint64_t _ipow(uint64_t base, uint64_t exp);
+
   int64_t _convert_string_to_number_representation(const std::string& value) const;
   std::string _convert_number_representation_to_string(const int64_t value) const;
   float _bucket_share(const BucketID bucket_id, const T value) const;
