@@ -13,6 +13,14 @@ template <typename T>
 class EqualNumElementsHistogram : public AbstractHistogram<T> {
  public:
   using AbstractHistogram<T>::AbstractHistogram;
+  EqualNumElementsHistogram(const std::vector<T>& mins, const std::vector<T>& maxs, const std::vector<uint64_t>& counts,
+                            const uint64_t distinct_count_per_bucket, const uint64_t num_buckets_with_extra_value);
+  EqualNumElementsHistogram(const std::vector<std::string>& mins, const std::vector<std::string>& maxs,
+                            const std::vector<uint64_t>& counts, const uint64_t distinct_count_per_bucket,
+                            const uint64_t num_buckets_with_extra_value, const std::string& supported_characters,
+                            const uint64_t string_prefix_length);
+
+  std::shared_ptr<AbstractHistogram<T>> clone() const override;
 
   HistogramType histogram_type() const override;
   uint64_t total_count_distinct() const override;

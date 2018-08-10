@@ -9,6 +9,41 @@
 namespace opossum {
 
 template <typename T>
+EqualHeightHistogram<T>::EqualHeightHistogram(const std::vector<T>& maxs, const std::vector<uint64_t>& distinct_counts,
+                                              T min, const uint64_t count_per_bucket, const uint64_t total_count)
+    : AbstractHistogram<T>(nullptr),
+      _maxs(maxs),
+      _distinct_counts(distinct_counts),
+      _min(min),
+      _count_per_bucket(count_per_bucket),
+      _total_count(total_count) {}
+
+template <>
+EqualHeightHistogram<std::string>::EqualHeightHistogram(const std::vector<std::string>& maxs,
+                                                        const std::vector<uint64_t>& distinct_counts,
+                                                        const std::string& min, const uint64_t count_per_bucket,
+                                                        const uint64_t total_count,
+                                                        const std::string& supported_characters,
+                                                        const uint64_t string_prefix_length)
+    : AbstractHistogram<std::string>(nullptr, supported_characters, string_prefix_length),
+      _maxs(maxs),
+      _distinct_counts(distinct_counts),
+      _min(min),
+      _count_per_bucket(count_per_bucket),
+      _total_count(total_count) {}
+
+template <typename T>
+std::shared_ptr<AbstractHistogram<T>> EqualHeightHistogram<T>::clone() const {
+  return std::make_shared<EqualHeightHistogram<T>>(_maxs, _distinct_counts, _min, _count_per_bucket, _total_count);
+}
+
+template <>
+std::shared_ptr<AbstractHistogram<std::string>> EqualHeightHistogram<std::string>::clone() const {
+  return std::make_shared<EqualHeightHistogram<std::string>>(
+      _maxs, _distinct_counts, _min, _count_per_bucket, _total_count, _supported_characters, _string_prefix_length);
+}
+
+template <typename T>
 HistogramType EqualHeightHistogram<T>::histogram_type() const {
   return HistogramType::EqualHeight;
 }

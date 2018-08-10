@@ -13,6 +13,13 @@ template <typename T>
 class EqualWidthHistogram : public AbstractHistogram<T> {
  public:
   using AbstractHistogram<T>::AbstractHistogram;
+  EqualWidthHistogram(const T min, const T max, const std::vector<uint64_t>& counts,
+                      const std::vector<uint64_t>& distinct_counts, const uint64_t num_buckets_with_larger_range);
+  EqualWidthHistogram(const std::string& min, const std::string& max, const std::vector<uint64_t>& counts,
+                      const std::vector<uint64_t>& distinct_counts, const uint64_t num_buckets_with_larger_range,
+                      const std::string& supported_characters, const uint64_t string_prefix_length);
+
+  std::shared_ptr<AbstractHistogram<T>> clone() const override;
 
   HistogramType histogram_type() const override;
   uint64_t total_count_distinct() const override;

@@ -9,6 +9,43 @@
 namespace opossum {
 
 template <typename T>
+EqualNumElementsHistogram<T>::EqualNumElementsHistogram(const std::vector<T>& mins, const std::vector<T>& maxs,
+                                                        const std::vector<uint64_t>& counts,
+                                                        const uint64_t distinct_count_per_bucket,
+                                                        const uint64_t num_buckets_with_extra_value)
+    : AbstractHistogram<T>(nullptr),
+      _mins(mins),
+      _maxs(maxs),
+      _counts(counts),
+      _distinct_count_per_bucket(distinct_count_per_bucket),
+      _num_buckets_with_extra_value(num_buckets_with_extra_value) {}
+
+template <>
+EqualNumElementsHistogram<std::string>::EqualNumElementsHistogram(
+    const std::vector<std::string>& mins, const std::vector<std::string>& maxs, const std::vector<uint64_t>& counts,
+    const uint64_t distinct_count_per_bucket, const uint64_t num_buckets_with_extra_value,
+    const std::string& supported_characters, const uint64_t string_prefix_length)
+    : AbstractHistogram<std::string>(nullptr, supported_characters, string_prefix_length),
+      _mins(mins),
+      _maxs(maxs),
+      _counts(counts),
+      _distinct_count_per_bucket(distinct_count_per_bucket),
+      _num_buckets_with_extra_value(num_buckets_with_extra_value) {}
+
+template <typename T>
+std::shared_ptr<AbstractHistogram<T>> EqualNumElementsHistogram<T>::clone() const {
+  return std::make_shared<EqualNumElementsHistogram<T>>(_mins, _maxs, _counts, _distinct_count_per_bucket,
+                                                        _num_buckets_with_extra_value);
+}
+
+template <>
+std::shared_ptr<AbstractHistogram<std::string>> EqualNumElementsHistogram<std::string>::clone() const {
+  return std::make_shared<EqualNumElementsHistogram<std::string>>(_mins, _maxs, _counts, _distinct_count_per_bucket,
+                                                                  _num_buckets_with_extra_value, _supported_characters,
+                                                                  _string_prefix_length);
+}
+
+template <typename T>
 HistogramType EqualNumElementsHistogram<T>::histogram_type() const {
   return HistogramType::EqualNumElements;
 }

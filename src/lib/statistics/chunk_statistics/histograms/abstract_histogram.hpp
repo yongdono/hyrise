@@ -22,6 +22,8 @@ class AbstractHistogram : public AbstractFilter {
                     const uint64_t string_prefix_length);
   virtual ~AbstractHistogram() = default;
 
+  virtual std::shared_ptr<AbstractHistogram<T>> clone() const = 0;
+
   virtual HistogramType histogram_type() const = 0;
   std::string description() const;
   const std::string& supported_characters() const;

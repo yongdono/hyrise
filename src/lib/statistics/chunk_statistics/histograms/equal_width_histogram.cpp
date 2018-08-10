@@ -9,6 +9,44 @@
 namespace opossum {
 
 template <typename T>
+EqualWidthHistogram<T>::EqualWidthHistogram(const T min, const T max, const std::vector<uint64_t>& counts,
+                                            const std::vector<uint64_t>& distinct_counts,
+                                            const uint64_t num_buckets_with_larger_range)
+    : AbstractHistogram<T>(nullptr),
+      _min(min),
+      _max(max),
+      _counts(counts),
+      _distinct_counts(distinct_counts),
+      _num_buckets_with_larger_range(num_buckets_with_larger_range) {}
+
+template <>
+EqualWidthHistogram<std::string>::EqualWidthHistogram(const std::string& min, const std::string& max,
+                                                      const std::vector<uint64_t>& counts,
+                                                      const std::vector<uint64_t>& distinct_counts,
+                                                      const uint64_t num_buckets_with_larger_range,
+                                                      const std::string& supported_characters,
+                                                      const uint64_t string_prefix_length)
+    : AbstractHistogram<std::string>(nullptr, supported_characters, string_prefix_length),
+      _min(min),
+      _max(max),
+      _counts(counts),
+      _distinct_counts(distinct_counts),
+      _num_buckets_with_larger_range(num_buckets_with_larger_range) {}
+
+template <typename T>
+std::shared_ptr<AbstractHistogram<T>> EqualWidthHistogram<T>::clone() const {
+  return std::make_shared<EqualWidthHistogram<T>>(_min, _max, _counts, _distinct_counts,
+                                                  _num_buckets_with_larger_range);
+}
+
+template <>
+std::shared_ptr<AbstractHistogram<std::string>> EqualWidthHistogram<std::string>::clone() const {
+  return std::make_shared<EqualWidthHistogram<std::string>>(_min, _max, _counts, _distinct_counts,
+                                                            _num_buckets_with_larger_range, _supported_characters,
+                                                            _string_prefix_length);
+}
+
+template <typename T>
 HistogramType EqualWidthHistogram<T>::histogram_type() const {
   return HistogramType::EqualWidth;
 }
