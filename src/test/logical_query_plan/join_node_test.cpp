@@ -106,4 +106,22 @@ TEST_F(JoinNodeTest, OutputColumnReferencesAntiJoin) {
   EXPECT_EQ(*_anti_join_node->column_expressions().at(2), *column_(_t_a_c));
 }
 
+TEST_F(JoinNodeTest, OutputColumnTypes) {
+  const auto table_name = "table_test_outer_join_output_column_types";
+  StorageManager::get().add_table(table_name, load_table("src/test/tables/int.tbl"));
+  auto table_node = std::make_shared<StoredTableNode>(table_name);
+  auto &input_columns = table_node->column_expressions();
+  auto left_input_column = input_columns.front();
+  // The input column is not nullable
+  EXPECT_FALSE(left_input_column->is_nullable());
+
+  LQPColumnReference column_ref{table_node, ColumnID(0)};
+  auto _left_outer_join_node = JoinNode::make(JoinMode::Right, equals_(column_ref, column_ref), table_node, table_node);
+  auto &output_columns = _left_outer_join_node->column_expressions();
+  auto left_output_column = output_columns.front();
+  // The output column must be nullable
+  EXPECT_TRUE(left_output_column->is_nullable());
+}
+
+
 }  // namespace opossum
