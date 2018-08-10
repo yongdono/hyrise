@@ -434,7 +434,7 @@ float AbstractHistogram<T>::estimate_cardinality(const PredicateCondition predic
     case PredicateCondition::LessThanEquals:
       return estimate_cardinality(PredicateCondition::LessThan, next_value(cleaned_value));
     case PredicateCondition::GreaterThanEquals:
-      return estimate_cardinality(PredicateCondition::GreaterThan, previous_value(cleaned_value));
+      return total_count() - estimate_cardinality(PredicateCondition::LessThan, cleaned_value);
     case PredicateCondition::GreaterThan:
       return total_count() - estimate_cardinality(PredicateCondition::LessThanEquals, cleaned_value);
     case PredicateCondition::Between: {
@@ -508,7 +508,7 @@ float AbstractHistogram<T>::estimate_distinct_count(const PredicateCondition pre
     case PredicateCondition::LessThanEquals:
       return estimate_distinct_count(PredicateCondition::LessThan, next_value(value));
     case PredicateCondition::GreaterThanEquals:
-      return estimate_distinct_count(PredicateCondition::GreaterThan, previous_value(value));
+      return total_count_distinct() - estimate_distinct_count(PredicateCondition::LessThan, value);
     case PredicateCondition::GreaterThan:
       return total_count_distinct() - estimate_distinct_count(PredicateCondition::LessThanEquals, value);
     case PredicateCondition::Between: {

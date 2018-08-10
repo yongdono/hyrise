@@ -21,13 +21,12 @@ size_t EqualHeightHistogram<T>::num_buckets() const {
 template <typename T>
 BucketID EqualHeightHistogram<T>::_bucket_for_value(const T value) const {
   const auto it = std::lower_bound(_maxs.begin(), _maxs.end(), value);
-  const auto index = static_cast<BucketID>(std::distance(_maxs.begin(), it));
 
   if (it == _maxs.end() || value < _min) {
     return INVALID_BUCKET_ID;
   }
 
-  return index;
+  return static_cast<BucketID>(std::distance(_maxs.begin(), it));
 }
 
 template <typename T>
