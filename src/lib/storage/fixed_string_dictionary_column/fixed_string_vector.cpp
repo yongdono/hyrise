@@ -19,31 +19,27 @@ void FixedStringVector::push_back(const std::string& string) {
   string.copy(&_chars[pos], string.size());
 }
 
-FixedStringIterator<false> FixedStringVector::begin() noexcept {
-  return FixedStringIterator<false>(_string_length, _chars, 0);
+FixedStringIterator FixedStringVector::begin() noexcept { return FixedStringIterator(_string_length, _chars, 0); }
+
+FixedStringIterator FixedStringVector::end() noexcept {
+  return FixedStringIterator(_string_length, _chars, _string_length == 0 ? 0 : _chars.size());
 }
 
-FixedStringIterator<false> FixedStringVector::end() noexcept {
-  return FixedStringIterator<false>(_string_length, _chars, _string_length == 0 ? 0 : _chars.size());
+FixedStringIterator FixedStringVector::begin() const noexcept { return FixedStringIterator(_string_length, _chars, 0); }
+
+FixedStringIterator FixedStringVector::end() const noexcept {
+  return FixedStringIterator(_string_length, _chars, _string_length == 0 ? 0 : _chars.size());
 }
 
-FixedStringIterator<true> FixedStringVector::begin() const noexcept {
-  return FixedStringIterator<true>(_string_length, _chars, 0);
+FixedStringIterator FixedStringVector::cbegin() const noexcept {
+  return FixedStringIterator(_string_length, _chars, 0);
 }
 
-FixedStringIterator<true> FixedStringVector::end() const noexcept {
-  return FixedStringIterator<true>(_string_length, _chars, _string_length == 0 ? 0 : _chars.size());
+FixedStringIterator FixedStringVector::cend() const noexcept {
+  return FixedStringIterator(_string_length, _chars, _string_length == 0 ? 0 : _chars.size());
 }
 
-FixedStringIterator<true> FixedStringVector::cbegin() const noexcept {
-  return FixedStringIterator<true>(_string_length, _chars, 0);
-}
-
-FixedStringIterator<true> FixedStringVector::cend() const noexcept {
-  return FixedStringIterator<true>(_string_length, _chars, _string_length == 0 ? 0 : _chars.size());
-}
-
-using ReverseIterator = boost::reverse_iterator<FixedStringIterator<false>>;
+using ReverseIterator = boost::reverse_iterator<FixedStringIterator>;
 ReverseIterator FixedStringVector::rbegin() noexcept { return ReverseIterator(end()); }
 
 ReverseIterator FixedStringVector::rend() noexcept { return ReverseIterator(begin()); }
@@ -79,7 +75,7 @@ size_t FixedStringVector::size() const {
 
 size_t FixedStringVector::capacity() const { return _chars.capacity(); }
 
-void FixedStringVector::erase(const FixedStringIterator<false> start, const FixedStringIterator<false> end) {
+void FixedStringVector::erase(const FixedStringIterator start, const FixedStringIterator end) {
   if (_string_length == 0) return;
   auto it = _chars.begin();
   std::advance(it, _chars.size() - std::distance(start, end) * _string_length);
@@ -97,7 +93,7 @@ size_t FixedStringVector::data_size() const { return sizeof(*this) + _chars.size
 std::shared_ptr<const pmr_vector<std::string>> FixedStringVector::dictionary() const {
   pmr_vector<std::string> string_values;
   for (auto it = cbegin(); it != cend(); ++it) {
-    string_values.emplace_back(*it);
+    string_values.push_back(it->string());
   }
   return std::make_shared<pmr_vector<std::string>>(std::move(string_values));
 }

@@ -47,8 +47,7 @@ class BTreeIndexImpl : public BaseBTreeIndexImpl {
 
  public:
   BTreeIndexImpl() = delete;
-  ~BTreeIndexImpl() = default;
-  explicit BTreeIndexImpl(const std::shared_ptr<const BaseColumn>& index_column);
+  explicit BTreeIndexImpl(std::shared_ptr<const BaseColumn> index_column);
 
   BTreeIndexImpl(const BTreeIndexImpl&) = delete;
   BTreeIndexImpl& operator=(const BTreeIndexImpl&) = delete;
@@ -67,7 +66,7 @@ class BTreeIndexImpl : public BaseBTreeIndexImpl {
   Iterator cend() const override;
 
  protected:
-  void _bulk_insert(const std::shared_ptr<const BaseColumn>&);
+  void _bulk_insert(const std::shared_ptr<const BaseColumn>);
 
   btree::btree_map<DataType, size_t> _btree;
 };

@@ -3,14 +3,14 @@
 #include <memory>
 #include <string>
 
-#include "base_non_query_node.hpp"
+#include "abstract_lqp_node.hpp"
 
 namespace opossum {
 
 /**
  * Node type to represent deleting a view from the StorageManager
  */
-class DropViewNode : public EnableMakeForLQPNode<DropViewNode>, public BaseNonQueryNode {
+class DropViewNode : public EnableMakeForLQPNode<DropViewNode>, public AbstractLQPNode {
  public:
   explicit DropViewNode(const std::string& view_name);
 

@@ -23,11 +23,10 @@ struct GraphvizConfig {
 struct VizGraphInfo {
   std::string bg_color = "black";
   std::string rankdir = "BT";
-  std::string ratio = "compress";
+  double ratio = 0.5;
 };
 
 struct VizVertexInfo {
-  uintptr_t id;
   std::string label;
   std::string color = "white";
   std::string font_color = "white";
@@ -68,7 +67,7 @@ class AbstractVisualizer {
     _add_graph_property("ratio", _graph_info.ratio);
 
     // Add vertex properties
-    _add_property("node_id", &VizVertexInfo::id);
+    _add_property("node_id", boost::vertex_index);
     _add_property("color", &VizVertexInfo::color);
     _add_property("label", &VizVertexInfo::label);
     _add_property("shape", &VizVertexInfo::shape);
@@ -106,7 +105,6 @@ class AbstractVisualizer {
   template <typename T>
   void _add_vertex(const T& vertex, const std::string& label = "") {
     VizVertexInfo info = _default_vertex;
-    info.id = reinterpret_cast<uintptr_t>(vertex.get());
     info.label = label;
     _add_vertex(vertex, info);
   }
@@ -120,7 +118,6 @@ class AbstractVisualizer {
       return;
     }
 
-    vertex_info.id = vertex_id;
     vertex_info.label = _wrap_label(vertex_info.label);
     boost::add_vertex(vertex_info, _graph);
   }
@@ -169,7 +166,7 @@ class AbstractVisualizer {
       auto word_length = word.length() + 1;  // include whitespace
 
       if (current_line_length + word_length > MAX_LABEL_WIDTH) {
-        wrapped_label << "\\n";
+        wrapped_label << '\n';
         current_line_length = 0u;
       }
 

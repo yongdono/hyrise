@@ -51,12 +51,10 @@ VariableLengthKeyProxy& VariableLengthKeyProxy::operator=(const VariableLengthKe
 }
 
 VariableLengthKeyProxy& VariableLengthKeyProxy::operator=(const VariableLengthKey& other) {
-  operator=(other._impl);
-  return *this;
+  return operator=(other._impl);
 }
 VariableLengthKeyProxy& VariableLengthKeyProxy::operator=(const VariableLengthKeyProxy& other) {
-  operator=(other._impl);
-  return *this;
+  return operator=(other._impl);
 }
 
 VariableLengthKeyProxy& VariableLengthKeyProxy::operator<<=(CompositeKeyLength shift) {

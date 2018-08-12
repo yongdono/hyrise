@@ -74,7 +74,7 @@ class JoinNestedLoop : public AbstractJoinOperator {
   ColumnID _left_column_id;
   ColumnID _right_column_id;
 
-  bool _is_outer_join{false};
+  bool _is_outer_join;
   std::shared_ptr<PosList> _pos_list_left;
   std::shared_ptr<PosList> _pos_list_right;
 

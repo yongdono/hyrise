@@ -9,7 +9,7 @@
 
 namespace opossum {
 
-bool AbstractRule::_apply_to_inputs(std::shared_ptr<AbstractLQPNode> node) const {  // NOLINT
+bool AbstractRule::_apply_to_inputs(std::shared_ptr<AbstractLQPNode> node) const {
   auto inputs_changed = false;
 
   // Apply this rule recursively

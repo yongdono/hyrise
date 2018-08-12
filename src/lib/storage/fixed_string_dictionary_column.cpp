@@ -1,6 +1,5 @@
 #include "fixed_string_dictionary_column.hpp"
 
-#include <algorithm>
 #include <memory>
 #include <string>
 
