@@ -67,7 +67,7 @@ TEST_F(DpCcpTest, Basic) {
     std::vector<LQPOutputRelation>(),
     std::vector<std::shared_ptr<JoinEdge>>({join_edge})
   );
-  DpCcp dp_ccp{cost_model, cardinality_estimator};
+  DpCcp dp_ccp{cost_model, nullptr, cardinality_estimator};
 
   const auto actual_lqp = dp_ccp(join_graph).lqp;
 

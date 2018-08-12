@@ -44,6 +44,13 @@ void DpCcpTopK::_on_execute() {
     enumerate_ccp_edges.emplace_back(first_vertex_idx, second_vertex_idx);
   }
 
+
+#if VERBOSE
+  for (auto vertex_idx = size_t{0}; vertex_idx < _join_graph->vertices.size(); ++vertex_idx) {
+    std::cout << vertex_idx << ": " << _join_graph->vertices[vertex_idx]->description() << std::endl;
+  }
+#endif
+
   /**
    * Actual DpCcpTopK algorithm
    */

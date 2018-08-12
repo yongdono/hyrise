@@ -89,6 +89,7 @@ void EnumerateCcp::_enumerate_csg_recursive(std::vector<boost::dynamic_bitset<>>
 }
 
 void EnumerateCcp::_enumerate_cmp(const boost::dynamic_bitset<>& vertex_set) {
+
   const auto exclusion_set = _exclusion_set(vertex_set.find_first()) | vertex_set;
   const auto neighbourhood = _neighbourhood(vertex_set, exclusion_set);
 

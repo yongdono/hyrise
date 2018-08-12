@@ -1,6 +1,7 @@
 #include "gtest/gtest.h"
 
 #include "logical_query_plan/mock_node.hpp"
+#include "optimizer/join_ordering/join_edge.hpp"
 #include "optimizer/join_ordering/join_graph.hpp"
 #include "optimizer/join_ordering/join_graph_builder.hpp"
 #include "optimizer/join_ordering/join_plan_predicate.hpp"
@@ -76,6 +77,35 @@ TEST_F(JoinGraphTest, SingleVertexMultiplePredicates) {
   EXPECT_TRUE(contains_predicate(found_predicates, predicate_a));
   EXPECT_TRUE(contains_predicate(found_predicates, predicate_b));
   EXPECT_TRUE(contains_predicate(found_predicates, predicate_c));
+}
+
+TEST_F(JoinGraphTest, BFSOrder) {
+  const auto vertex_a = std::make_shared<MockNode>(MockNode::ColumnDefinitions{{DataType::Int, "x"}});
+  const auto vertex_b = std::make_shared<MockNode>(MockNode::ColumnDefinitions{{DataType::Int, "x"}});
+  const auto vertex_c = std::make_shared<MockNode>(MockNode::ColumnDefinitions{{DataType::Int, "x"}});
+  const auto vertex_d = std::make_shared<MockNode>(MockNode::ColumnDefinitions{{DataType::Int, "x"}});
+  const auto vertex_e = std::make_shared<MockNode>(MockNode::ColumnDefinitions{{DataType::Int, "x"}});
+
+  const auto edge_a = std::make_shared<JoinEdge>(JoinVertexSet(5, 0b00101));
+  const auto edge_b = std::make_shared<JoinEdge>(JoinVertexSet(5, 0b10100));
+  const auto edge_c = std::make_shared<JoinEdge>(JoinVertexSet(5, 0b11000));
+  const auto edge_d = std::make_shared<JoinEdge>(JoinVertexSet(5, 0b01100));
+  const auto edge_e = std::make_shared<JoinEdge>(JoinVertexSet(5, 0b01010));
+
+  const auto join_graph = JoinGraph{{vertex_a, vertex_b, vertex_c, vertex_d, vertex_e}, {}, {edge_a, edge_b, edge_c, edge_d, edge_e}};
+  const auto bfs = join_graph.bfs_order();
+
+  EXPECT_EQ(bfs->vertices.at(0), vertex_a);
+  EXPECT_EQ(bfs->vertices.at(1), vertex_c);
+  EXPECT_EQ(bfs->vertices.at(2), vertex_e);
+  EXPECT_EQ(bfs->vertices.at(3), vertex_d);
+  EXPECT_EQ(bfs->vertices.at(4), vertex_b);
+
+  EXPECT_EQ(bfs->edges.at(0)->vertex_set, JoinVertexSet(5, 0b00011));
+  EXPECT_EQ(bfs->edges.at(1)->vertex_set, JoinVertexSet(5, 0b00110));
+  EXPECT_EQ(bfs->edges.at(2)->vertex_set, JoinVertexSet(5, 0b01100));
+  EXPECT_EQ(bfs->edges.at(3)->vertex_set, JoinVertexSet(5, 0b01010));
+  EXPECT_EQ(bfs->edges.at(4)->vertex_set, JoinVertexSet(5, 0b11000));
 }
 
 TEST_F(JoinGraphTest, MultipleVerticesMultiplePredicates) {

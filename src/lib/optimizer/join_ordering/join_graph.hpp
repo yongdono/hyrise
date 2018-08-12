@@ -41,6 +41,8 @@ class JoinGraph final {
   JoinGraph(std::vector<std::shared_ptr<AbstractLQPNode>> vertices, std::vector<LQPOutputRelation> output_relations,
             std::vector<std::shared_ptr<JoinEdge>> edges);
 
+  std::shared_ptr<JoinGraph> bfs_order() const;
+
   /**
    * Find all predicates that use exactly the nodes in vertex set
    */
