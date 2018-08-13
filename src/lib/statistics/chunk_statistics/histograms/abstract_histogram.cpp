@@ -421,19 +421,15 @@ float AbstractHistogram<T>::estimate_selectivity(const PredicateCondition predic
 template <typename T>
 float AbstractHistogram<T>::estimate_distinct_count(const PredicateCondition predicate_type, const T value,
                                                     const std::optional<T>& value2) const {
+  if (can_prune(predicate_type, value, value2)) {
+    return 0.f;
+  }
+
   switch (predicate_type) {
     case PredicateCondition::Equals: {
-      if (can_prune(predicate_type, value)) {
-        return 0.f;
-      }
-
       return 1.f;
     }
     case PredicateCondition::NotEquals: {
-      if (can_prune(predicate_type, value)) {
-        return 0.f;
-      }
-
       if (_bucket_for_value(value) == INVALID_BUCKET_ID) {
         return total_count_distinct();
       }
@@ -441,10 +437,6 @@ float AbstractHistogram<T>::estimate_distinct_count(const PredicateCondition pre
       return total_count_distinct() - 1.f;
     }
     case PredicateCondition::LessThan: {
-      if (value <= min()) {
-        return 0.f;
-      }
-
       if (value > max()) {
         return total_count_distinct();
       }
@@ -587,7 +579,7 @@ bool AbstractHistogram<std::string>::can_prune(const PredicateCondition predicat
        * histogram: `war >= wb` is false, and the predicate will not be pruned.
        * Note that `col > water` will, however, not be pruned either (which it theoretically could).
        */
-      return value >= next_value(max());
+      return value >= get_next_value(max());
     case PredicateCondition::Between: {
       Assert(static_cast<bool>(variant_value2), "Between operator needs two values.");
       const auto value2 = type_cast<std::string>(*variant_value2);
