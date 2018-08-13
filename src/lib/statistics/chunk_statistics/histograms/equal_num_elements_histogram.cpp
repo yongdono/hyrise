@@ -59,7 +59,8 @@ EqualNumElementsBucketStats<T> EqualNumElementsHistogram<T>::_get_bucket_stats(
 
     mins.emplace_back(current_min);
     maxs.emplace_back(current_max);
-    counts.emplace_back(std::accumulate(value_counts.cbegin(), value_counts.cend(), uint64_t{0},
+    counts.emplace_back(std::accumulate(value_counts.cbegin() + begin_index, value_counts.cbegin() + end_index + 1,
+                                        uint64_t{0},
                                         [](uint64_t a, std::pair<T, uint64_t> b) { return a + b.second; }));
 
     begin_index = end_index + 1;
