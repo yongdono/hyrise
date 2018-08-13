@@ -152,6 +152,7 @@ std::vector<std::pair<T, uint64_t>> AbstractHistogram<T>::_sort_value_counts(
 template <typename T>
 std::vector<std::pair<T, uint64_t>> AbstractHistogram<T>::_calculate_value_counts(
     const std::shared_ptr<const BaseColumn>& column) {
+  // TODO(anyone): reserve size based on dictionary, if possible
   std::unordered_map<T, uint64_t> value_counts;
   // TODO(tim): incorporate null values
   uint64_t nulls = 0;
@@ -174,6 +175,7 @@ template <>
 std::vector<std::pair<std::string, uint64_t>> AbstractHistogram<std::string>::_calculate_value_counts(
     const std::shared_ptr<const BaseColumn>& column, const std::string& supported_characters,
     const uint64_t string_prefix_length) {
+  // TODO(anyone): reserve size based on dictionary, if possible
   std::unordered_map<std::string, uint64_t> value_counts;
   // TODO(tim): incorporate null values
   uint64_t nulls = 0;
@@ -507,7 +509,90 @@ bool AbstractHistogram<T>::can_prune(const PredicateCondition predicate_type, co
     case PredicateCondition::Between: {
       Assert(static_cast<bool>(variant_value2), "Between operator needs two values.");
       const auto value2 = type_cast<T>(*variant_value2);
-      return value > max() || value2 < min() ||
+      return can_prune(PredicateCondition::GreaterThanEquals, value) ||
+             can_prune(PredicateCondition::LessThanEquals, value2) ||
+             (_bucket_for_value(value) == INVALID_BUCKET_ID && _bucket_for_value(value2) == INVALID_BUCKET_ID &&
+              _upper_bound_for_value(value) == _upper_bound_for_value(value2));
+    }
+    default:
+      // Rather than failing we simply do not prune for things we cannot (yet) handle.
+      // TODO(tim): think about like and not like
+      return false;
+  }
+}
+
+template <>
+bool AbstractHistogram<std::string>::can_prune(const PredicateCondition predicate_type,
+                                               const AllTypeVariant& variant_value,
+                                               const std::optional<AllTypeVariant>& variant_value2) const {
+  DebugAssert(num_buckets() > 0, "Called method on histogram before initialization.");
+
+  const auto value = type_cast<std::string>(variant_value);
+
+  switch (predicate_type) {
+    case PredicateCondition::Equals:
+      // If the substring is between buckets, the full string must be between buckets as well.
+      return _bucket_for_value(value) == INVALID_BUCKET_ID;
+    case PredicateCondition::NotEquals:
+      /**
+       * We never know that we can prune this when using substrings.
+       * Long story short: since one substring value represents an infinite number of possible strings,
+       * we can never decide for sure that there are no other matching values just based on the substring.
+       * Therefore, we can only prune this if the string is shorter than the prefix.
+       *
+       * Example:
+       * prefix_length = 2
+       * There is only one bucket, which has as both lower and upper bound the value 'wa'.
+       * The values existing in the column are 'war' and 'wash'.
+       * We cannot prune `col != war` or `col != wash` and certainly not `col != walk`.
+       * However, we cannot decide this based on the substring, which is `wa` in all three cases.
+       *
+       * In contrast, let's assume we have only one bucket with both lower and upper bound as the value 'w'.
+       * The prefix length is still 2.
+       *
+       * If we now look for `col != w`, we know for sure that the column only contains the value 'w'.
+       * If there was another value then either the lower or upper boundary of the bucket would be different,
+       * or there would be more than one bucket.
+       */
+      return value.size() < _string_prefix_length
+                 ? num_buckets() == 1 && _bucket_min(0) == value && _bucket_max(0) == value
+                 : false;
+    case PredicateCondition::LessThan:
+      return value <= min();
+    case PredicateCondition::LessThanEquals:
+      return value < min();
+    case PredicateCondition::GreaterThanEquals:
+      /**
+       * We have to make sure to only consider the substring here.
+       *
+       * Example:
+       * prefix_length = 2
+       * values in last bucket: rain, walk, wash
+       * -> last bucket: [ra, wa]
+       * `col >= war` must not be pruned because `wash >= war`. However, `war > wa`.
+       * Therefore, we take the substring of the search value: `wa > wa` is false, and the predicate will not be pruned.
+       * Note that `col >= water` will, however, not be pruned either (which it theoretically could).
+       */
+      return value.substr(0, _string_prefix_length) > max();
+    case PredicateCondition::GreaterThan:
+      /**
+       * We have to make sure to only consider the substring here.
+       *
+       * Example:
+       * prefix_length = 2
+       * values in last bucket: rain, walk, wash
+       * -> last bucket: [ra, wa]
+       * `col > war` must not be pruned because `wash > war`. However, `war >= wa`.
+       * Instead, we need to compare the search_value to the first value that is larger than the upper bound of the
+       * histogram: `war >= wb` is false, and the predicate will not be pruned.
+       * Note that `col > water` will, however, not be pruned either (which it theoretically could).
+       */
+      return value >= next_value(max());
+    case PredicateCondition::Between: {
+      Assert(static_cast<bool>(variant_value2), "Between operator needs two values.");
+      const auto value2 = type_cast<std::string>(*variant_value2);
+      return can_prune(PredicateCondition::GreaterThanEquals, value) ||
+             can_prune(PredicateCondition::LessThanEquals, value2) ||
              (_bucket_for_value(value) == INVALID_BUCKET_ID && _bucket_for_value(value2) == INVALID_BUCKET_ID &&
               _upper_bound_for_value(value) == _upper_bound_for_value(value2));
     }

@@ -292,19 +292,19 @@ T EqualWidthHistogram<T>::_bucket_max(const BucketID index) const {
 
 template <>
 BucketID EqualWidthHistogram<std::string>::_bucket_for_value(const std::string value) const {
-  if (value < _min || value > _max) {
+  const auto cleaned_value = value.substr(0, _string_prefix_length);
+
+  if (cleaned_value < _min || cleaned_value > _max) {
     return INVALID_BUCKET_ID;
   }
 
-  if (_num_buckets_with_larger_range == 0u || value <= _bucket_max(_num_buckets_with_larger_range - 1u)) {
-    // Get the numerical representation for strings first.
-    const auto num_value = this->_convert_string_to_number_representation(value);
+  const auto num_value = this->_convert_string_to_number_representation(cleaned_value);
+
+  if (_num_buckets_with_larger_range == 0u || cleaned_value <= _bucket_max(_num_buckets_with_larger_range - 1u)) {
     const auto num_min = this->_convert_string_to_number_representation(_min);
     return (num_value - num_min) / _string_bucket_width(0u);
   }
 
-  // Get the numerical representation for strings first.
-  const auto num_value = this->_convert_string_to_number_representation(value);
   const auto num_base_min = this->_convert_string_to_number_representation(_bucket_min(_num_buckets_with_larger_range));
   return _num_buckets_with_larger_range +
          (num_value - num_base_min) / _string_bucket_width(_num_buckets_with_larger_range);
