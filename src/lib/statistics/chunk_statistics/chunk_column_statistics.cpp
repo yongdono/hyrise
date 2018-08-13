@@ -89,8 +89,6 @@ std::shared_ptr<ChunkColumnStatistics> ChunkColumnStatistics::build_statistics(
       num_buckets = std::max(num_buckets, proposed_buckets);
     }
 
-    // auto hist = std::make_shared<EqualNumElementsHistogram<DataTypeT>>(table);
-    // hist->generate(ColumnID{0}, num_buckets);
     if (std::is_same_v<DataTypeT, std::string>) {
       statistics->add_filter(EqualNumElementsHistogram<DataTypeT>::from_column(
           column, num_buckets,
