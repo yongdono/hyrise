@@ -34,7 +34,7 @@ EqualNumElementsHistogram<std::string>::EqualNumElementsHistogram(
 
 template <typename T>
 EqualNumElementsBucketStats<T> EqualNumElementsHistogram<T>::_get_bucket_stats(
-    const std::vector<std::pair<T, uint64_t>>& value_counts, const uint64_t max_num_buckets) {
+    const std::vector<std::pair<T, uint64_t>>& value_counts, const size_t max_num_buckets) {
   // If there are fewer distinct values than the number of desired buckets use that instead.
   const auto distinct_count = value_counts.size();
   const auto num_buckets = distinct_count < max_num_buckets ? static_cast<size_t>(distinct_count) : max_num_buckets;
@@ -72,6 +72,10 @@ template <typename T>
 std::shared_ptr<EqualNumElementsHistogram<T>> EqualNumElementsHistogram<T>::from_column(
     const std::shared_ptr<const BaseColumn>& column, const size_t max_num_buckets) {
   const auto value_counts = AbstractHistogram<T>::_calculate_value_counts(column);
+
+  if (value_counts.empty()) {
+    return nullptr;
+  }
 
   const auto bucket_stats = EqualNumElementsHistogram<T>::_get_bucket_stats(value_counts, max_num_buckets);
 

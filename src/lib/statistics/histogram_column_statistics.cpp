@@ -70,11 +70,11 @@ FilterByValueEstimate HistogramColumnStatistics<ColumnDataType>::estimate_predic
     case PredicateCondition::LessThanEquals:
       return estimate_range(selectivity, can_prune, _histogram->min(), value);
     case PredicateCondition::LessThan:
-      return estimate_range(selectivity, can_prune, _histogram->min(), _histogram->previous_value(value));
+      return estimate_range(selectivity, can_prune, _histogram->min(), _histogram->get_previous_value(value));
     case PredicateCondition::GreaterThanEquals:
       return estimate_range(selectivity, can_prune, value, _histogram->max());
     case PredicateCondition::GreaterThan:
-      return estimate_range(selectivity, can_prune, _histogram->next_value(value), _histogram->max());
+      return estimate_range(selectivity, can_prune, _histogram->get_next_value(value), _histogram->max());
     case PredicateCondition::Between:
       return estimate_range(selectivity, can_prune, value, value2);
     default:
@@ -354,9 +354,10 @@ FilterByValueEstimate HistogramColumnStatistics<ColumnDataType>::estimate_not_eq
   // If the value filtered for is either the min or max, we can update the min/max.
   // Unfortunately, we do not know exactly which value is the second lowest/highest,
   // so we simply take the next higher/lower one.
-  const auto new_min = _histogram->min() == value && update_min_max ? _histogram->next_value(value) : _histogram->min();
+  const auto new_min =
+      _histogram->min() == value && update_min_max ? _histogram->get_next_value(value) : _histogram->min();
   const auto new_max =
-      _histogram->max() == value && update_min_max ? _histogram->previous_value(value) : _histogram->max();
+      _histogram->max() == value && update_min_max ? _histogram->get_previous_value(value) : _histogram->max();
 
   const auto new_distinct_count = can_prune ? 0.f : distinct_count() - 1;
   auto column_statistics =

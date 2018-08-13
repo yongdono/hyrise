@@ -47,7 +47,7 @@ class EqualHeightHistogram : public AbstractHistogram<T> {
   void _generate(const std::shared_ptr<const ValueColumn<T>> distinct_column,
                  const std::shared_ptr<const ValueColumn<int64_t>> count_column, const size_t max_num_buckets) override;
   static EqualHeightBucketStats<T> _get_bucket_stats(const std::vector<std::pair<T, uint64_t>>& value_counts,
-                                                     const uint64_t max_num_buckets);
+                                                     const size_t max_num_buckets);
 
   BucketID _bucket_for_value(const T value) const override;
   BucketID _lower_bound_for_value(const T value) const override;

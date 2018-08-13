@@ -47,9 +47,9 @@ class EqualWidthHistogram : public AbstractHistogram<T> {
   void _generate(const std::shared_ptr<const ValueColumn<T>> distinct_column,
                  const std::shared_ptr<const ValueColumn<int64_t>> count_column, const size_t max_num_buckets) override;
   static EqualWidthBucketStats<T> _get_bucket_stats(const std::vector<std::pair<T, uint64_t>>& value_counts,
-                                                    const uint64_t max_num_buckets);
+                                                    const size_t max_num_buckets);
   static EqualWidthBucketStats<T> _get_bucket_stats(const std::vector<std::pair<T, uint64_t>>& value_counts,
-                                                    const uint64_t max_num_buckets,
+                                                    const size_t max_num_buckets,
                                                     const std::string& supported_characters,
                                                     const uint64_t string_prefix_length);
 

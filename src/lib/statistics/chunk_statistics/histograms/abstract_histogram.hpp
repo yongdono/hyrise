@@ -43,18 +43,8 @@ class AbstractHistogram : public AbstractFilter {
   T min() const;
   T max() const;
 
-  static T previous_value(const T value, const bool pad_and_trim = true);
-  static T next_value(const T value, const bool pad_and_trim = true);
-  static std::string previous_value(const std::string& value, const std::string& supported_characters,
-                                    const uint64_t string_prefix_length, const bool pad_and_trim = true);
-  static std::string next_value(const std::string& value, const std::string& supported_characters,
-                                const uint64_t string_prefix_length, const bool pad_and_trim = true);
-  static int64_t convert_string_to_number_representation(const std::string& value,
-                                                         const std::string& supported_characters,
-                                                         const uint64_t string_prefix_length);
-  static std::string convert_number_representation_to_string(const int64_t value,
-                                                             const std::string& supported_characters,
-                                                             const uint64_t string_prefix_length);
+  T get_previous_value(const T value, const bool pad_and_trim = true) const;
+  T get_next_value(const T value, const bool pad_and_trim = true) const;
 
   virtual size_t num_buckets() const = 0;
   virtual uint64_t total_count() const = 0;
@@ -76,10 +66,6 @@ class AbstractHistogram : public AbstractFilter {
   virtual void _generate(const std::shared_ptr<const ValueColumn<T>> distinct_column,
                          const std::shared_ptr<const ValueColumn<int64_t>> count_column,
                          const size_t max_num_buckets) = 0;
-
-  T _previous_value(const T value, const bool pad_and_trim = true) const;
-  T _next_value(const T value, const bool pad_and_trim = true) const;
-  static uint64_t _ipow(uint64_t base, uint64_t exp);
 
   int64_t _convert_string_to_number_representation(const std::string& value) const;
   std::string _convert_number_representation_to_string(const int64_t value) const;

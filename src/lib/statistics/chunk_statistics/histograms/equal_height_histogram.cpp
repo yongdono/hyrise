@@ -34,7 +34,7 @@ EqualHeightHistogram<std::string>::EqualHeightHistogram(const std::vector<std::s
 
 template <typename T>
 EqualHeightBucketStats<T> EqualHeightHistogram<T>::_get_bucket_stats(
-    const std::vector<std::pair<T, uint64_t>>& value_counts, const uint64_t max_num_buckets) {
+    const std::vector<std::pair<T, uint64_t>>& value_counts, const size_t max_num_buckets) {
   const auto min = value_counts.front().first;
   const auto num_buckets = max_num_buckets <= value_counts.size() ? max_num_buckets : value_counts.size();
 
@@ -44,7 +44,7 @@ EqualHeightBucketStats<T> EqualHeightHistogram<T>::_get_bucket_stats(
   auto count_per_bucket = total_count / num_buckets;
 
   if (total_count % num_buckets > 0u) {
-    // Add 1 so that we never create more buckets than requested.
+    // Make sure that we never create more buckets than requested.
     count_per_bucket++;
   }
 
@@ -80,6 +80,10 @@ template <typename T>
 std::shared_ptr<EqualHeightHistogram<T>> EqualHeightHistogram<T>::from_column(
     const std::shared_ptr<const BaseColumn>& column, const size_t max_num_buckets) {
   const auto value_counts = AbstractHistogram<T>::_calculate_value_counts(column);
+
+  if (value_counts.empty()) {
+    return nullptr;
+  }
 
   const auto bucket_stats = EqualHeightHistogram<T>::_get_bucket_stats(value_counts, max_num_buckets);
 
@@ -166,7 +170,7 @@ T EqualHeightHistogram<T>::_bucket_min(const BucketID index) const {
     return _min;
   }
 
-  return this->next_value(this->_bucket_max(index - 1));
+  return this->get_next_value(this->_bucket_max(index - 1));
 }
 
 template <typename T>

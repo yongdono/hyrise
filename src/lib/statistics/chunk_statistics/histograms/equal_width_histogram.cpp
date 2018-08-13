@@ -3,6 +3,7 @@
 #include <memory>
 #include <numeric>
 
+#include "histogram_helper.hpp"
 #include "storage/table.hpp"
 #include "storage/value_column.hpp"
 
@@ -35,7 +36,7 @@ EqualWidthHistogram<std::string>::EqualWidthHistogram(const std::string& min, co
 
 template <typename T>
 EqualWidthBucketStats<T> EqualWidthHistogram<T>::_get_bucket_stats(
-    const std::vector<std::pair<T, uint64_t>>& value_counts, const uint64_t max_num_buckets) {
+    const std::vector<std::pair<T, uint64_t>>& value_counts, const size_t max_num_buckets) {
   // Buckets shall have the same range.
   const auto min = value_counts.front().first;
   const auto max = value_counts.back().first;
@@ -47,7 +48,7 @@ EqualWidthBucketStats<T> EqualWidthHistogram<T>::_get_bucket_stats(
   uint64_t num_buckets_with_larger_range;
 
   const T base_width = max - min;
-  const T bucket_width = AbstractHistogram<T>::next_value(base_width) / num_buckets;
+  const T bucket_width = next_value(base_width) / num_buckets;
 
   if constexpr (std::is_integral_v<T>) {
     num_buckets_with_larger_range = (base_width + 1) % num_buckets;
@@ -60,7 +61,7 @@ EqualWidthBucketStats<T> EqualWidthHistogram<T>::_get_bucket_stats(
   auto current_begin_index = 0l;
   for (auto current_bucket_id = 0u; current_bucket_id < num_buckets; current_bucket_id++) {
     T next_begin_value = current_begin_value + bucket_width;
-    T current_end_value = AbstractHistogram<T>::previous_value(next_begin_value);
+    T current_end_value = previous_value(next_begin_value);
 
     if constexpr (std::is_integral_v<T>) {
       if (current_bucket_id < num_buckets_with_larger_range) {
@@ -90,14 +91,14 @@ EqualWidthBucketStats<T> EqualWidthHistogram<T>::_get_bucket_stats(
 
 template <>
 EqualWidthBucketStats<std::string> EqualWidthHistogram<std::string>::_get_bucket_stats(
-    const std::vector<std::pair<std::string, uint64_t>>& value_counts, const uint64_t max_num_buckets) {
+    const std::vector<std::pair<std::string, uint64_t>>& value_counts, const size_t max_num_buckets) {
   // TODO(tim): disable
   Fail("Not supported.");
 }
 
 template <>
 EqualWidthBucketStats<std::string> EqualWidthHistogram<std::string>::_get_bucket_stats(
-    const std::vector<std::pair<std::string, uint64_t>>& value_counts, const uint64_t max_num_buckets,
+    const std::vector<std::pair<std::string, uint64_t>>& value_counts, const size_t max_num_buckets,
     const std::string& supported_characters, const uint64_t string_prefix_length) {
   // Buckets shall have the same range.
   const auto min = value_counts.front().first;
@@ -109,10 +110,8 @@ EqualWidthBucketStats<std::string> EqualWidthHistogram<std::string>::_get_bucket
   std::vector<uint64_t> distinct_counts;
   uint64_t num_buckets_with_larger_range;
 
-  const auto num_min = AbstractHistogram<std::string>::convert_string_to_number_representation(
-      min, supported_characters, string_prefix_length);
-  const auto num_max = AbstractHistogram<std::string>::convert_string_to_number_representation(
-      max, supported_characters, string_prefix_length);
+  const auto num_min = convert_string_to_number_representation(min, supported_characters, string_prefix_length);
+  const auto num_max = convert_string_to_number_representation(max, supported_characters, string_prefix_length);
   const auto base_width = num_max - num_min + 1;
   const auto bucket_width = base_width / num_buckets;
 
@@ -122,17 +121,15 @@ EqualWidthBucketStats<std::string> EqualWidthHistogram<std::string>::_get_bucket
   auto current_begin_it = value_counts.cbegin();
   auto current_begin_index = 0l;
   for (auto current_bucket_id = 0u; current_bucket_id < num_buckets; current_bucket_id++) {
-    auto num_current_begin_value = AbstractHistogram<std::string>::convert_string_to_number_representation(
-        current_begin_value, supported_characters, string_prefix_length);
-    auto next_begin_value = AbstractHistogram<std::string>::convert_number_representation_to_string(
-        num_current_begin_value + bucket_width, supported_characters, string_prefix_length);
-    auto current_end_value =
-        AbstractHistogram<std::string>::previous_value(next_begin_value, supported_characters, string_prefix_length);
+    auto num_current_begin_value =
+        convert_string_to_number_representation(current_begin_value, supported_characters, string_prefix_length);
+    auto next_begin_value = convert_number_representation_to_string(num_current_begin_value + bucket_width,
+                                                                    supported_characters, string_prefix_length);
+    auto current_end_value = previous_value(next_begin_value, supported_characters, string_prefix_length);
 
     if (current_bucket_id < num_buckets_with_larger_range) {
       current_end_value = next_begin_value;
-      next_begin_value =
-          AbstractHistogram<std::string>::next_value(next_begin_value, supported_characters, string_prefix_length);
+      next_begin_value = next_value(next_begin_value, supported_characters, string_prefix_length);
     }
 
     // TODO(tim): think about replacing with binary search (same for other hists)
@@ -158,6 +155,10 @@ template <typename T>
 std::shared_ptr<EqualWidthHistogram<T>> EqualWidthHistogram<T>::from_column(
     const std::shared_ptr<const BaseColumn>& column, const size_t max_num_buckets) {
   const auto value_counts = AbstractHistogram<T>::_calculate_value_counts(column);
+
+  if (value_counts.empty()) {
+    return nullptr;
+  }
 
   const auto bucket_stats = EqualWidthHistogram<T>::_get_bucket_stats(value_counts, max_num_buckets);
 
@@ -235,7 +236,7 @@ template <typename T>
 T EqualWidthHistogram<T>::_bucket_width(const BucketID index) const {
   DebugAssert(index < num_buckets(), "Index is not a valid bucket.");
 
-  const auto base_width = this->next_value(_max - _min) / this->num_buckets();
+  const auto base_width = this->get_next_value(_max - _min) / this->num_buckets();
 
   if constexpr (std::is_integral_v<T>) {
     return base_width + (index < _num_buckets_with_larger_range ? 1 : 0);
@@ -286,7 +287,7 @@ T EqualWidthHistogram<T>::_bucket_max(const BucketID index) const {
   }
 
   // Otherwise it is the value just before the minimum of the next bucket.
-  return this->previous_value(_bucket_min(index + 1));
+  return this->get_previous_value(_bucket_min(index + 1));
 }
 
 template <>
@@ -356,7 +357,7 @@ void EqualWidthHistogram<T>::_generate(const std::shared_ptr<const ValueColumn<T
 
   if constexpr (!std::is_same_v<T, std::string>) {
     const T base_width = _max - _min;
-    const T bucket_width = this->next_value(base_width) / num_buckets;
+    const T bucket_width = this->get_next_value(base_width) / num_buckets;
 
     if constexpr (std::is_integral_v<T>) {
       _num_buckets_with_larger_range = (base_width + 1) % num_buckets;
@@ -369,7 +370,7 @@ void EqualWidthHistogram<T>::_generate(const std::shared_ptr<const ValueColumn<T
     auto current_begin_index = 0l;
     for (auto current_bucket_id = 0u; current_bucket_id < num_buckets; current_bucket_id++) {
       T next_begin_value = current_begin_value + bucket_width;
-      T current_end_value = this->previous_value(next_begin_value);
+      T current_end_value = this->get_previous_value(next_begin_value);
 
       if constexpr (std::is_integral_v<T>) {
         if (current_bucket_id < _num_buckets_with_larger_range) {
@@ -409,11 +410,11 @@ void EqualWidthHistogram<T>::_generate(const std::shared_ptr<const ValueColumn<T
 
       auto num_current_begin_value = this->_convert_string_to_number_representation(current_begin_value);
       T next_begin_value = this->_convert_number_representation_to_string(num_current_begin_value + bucket_width);
-      T current_end_value = this->previous_value(next_begin_value);
+      T current_end_value = this->get_previous_value(next_begin_value);
 
       if (current_bucket_id < _num_buckets_with_larger_range) {
         current_end_value = next_begin_value;
-        next_begin_value = this->next_value(next_begin_value);
+        next_begin_value = this->get_next_value(next_begin_value);
       }
 
       Assert(current_end_value.find_first_not_of(this->_supported_characters) == std::string::npos,

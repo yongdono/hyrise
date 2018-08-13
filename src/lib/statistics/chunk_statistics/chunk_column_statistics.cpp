@@ -91,9 +91,13 @@ std::shared_ptr<ChunkColumnStatistics> ChunkColumnStatistics::build_statistics(
 
     // auto hist = std::make_shared<EqualNumElementsHistogram<DataTypeT>>(table);
     // hist->generate(ColumnID{0}, num_buckets);
-    auto hist = EqualNumElementsHistogram<DataTypeT>::from_column(column, num_buckets);
-
-    statistics->add_filter(hist);
+    if (std::is_same_v<DataTypeT, std::string>) {
+      statistics->add_filter(EqualNumElementsHistogram<DataTypeT>::from_column(
+          column, num_buckets,
+          " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~", 9));
+    } else {
+      statistics->add_filter(EqualNumElementsHistogram<DataTypeT>::from_column(column, num_buckets));
+    }
   });
 
   return statistics;
