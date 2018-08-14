@@ -40,22 +40,25 @@ EqualWidthBucketStats<T> EqualWidthHistogram<T>::_get_bucket_stats(
   // Buckets shall have the same range.
   const auto min = value_counts.front().first;
   const auto max = value_counts.back().first;
+  const T base_width = next_value(max - min);
 
-  const auto num_buckets = max_num_buckets <= value_counts.size() ? max_num_buckets : value_counts.size();
-
-  std::vector<uint64_t> counts;
-  std::vector<uint64_t> distinct_counts;
-  uint64_t num_buckets_with_larger_range;
-
-  const T base_width = max - min;
-  const T bucket_width = next_value(base_width) / num_buckets;
-
+  // Never have more buckets than representable values.
+  // TODO(anyone): fix for floats. This is more of a theoretical issue, however.
+  auto num_buckets = max_num_buckets;
   if constexpr (std::is_integral_v<T>) {
-    num_buckets_with_larger_range = (base_width + 1) % num_buckets;
+    num_buckets = max_num_buckets <= static_cast<uint64_t>(base_width) ? max_num_buckets : base_width;
+  }
+
+  const T bucket_width = base_width / num_buckets;
+  uint64_t num_buckets_with_larger_range;
+  if constexpr (std::is_integral_v<T>) {
+    num_buckets_with_larger_range = base_width % num_buckets;
   } else {
     num_buckets_with_larger_range = 0u;
   }
 
+  std::vector<uint64_t> counts;
+  std::vector<uint64_t> distinct_counts;
   T current_begin_value = min;
   auto current_begin_it = value_counts.cbegin();
   auto current_begin_index = 0l;
@@ -104,7 +107,12 @@ EqualWidthBucketStats<std::string> EqualWidthHistogram<std::string>::_get_bucket
   const auto min = value_counts.front().first;
   const auto max = value_counts.back().first;
 
-  const auto num_buckets = max_num_buckets <= value_counts.size() ? max_num_buckets : value_counts.size();
+  const auto repr_min = convert_string_to_number_representation(min, supported_characters, string_prefix_length);
+  const auto repr_max = convert_string_to_number_representation(max, supported_characters, string_prefix_length);
+
+  // Never have more buckets than representable values.
+  const auto num_buckets =
+      max_num_buckets <= static_cast<uint64_t>(repr_max - repr_min + 1) ? max_num_buckets : repr_max - repr_min + 1;
 
   std::vector<uint64_t> counts;
   std::vector<uint64_t> distinct_counts;

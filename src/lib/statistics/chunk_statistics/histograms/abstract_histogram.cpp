@@ -340,7 +340,14 @@ float AbstractHistogram<T>::estimate_cardinality(const PredicateCondition predic
         return 0.f;
       }
 
-      return static_cast<float>(_bucket_count(index)) / static_cast<float>(_bucket_count_distinct(index));
+      const auto bucket_count = _bucket_count(index);
+      const auto bucket_count_distinct = _bucket_count_distinct(index);
+
+      if (bucket_count == 0 || bucket_count_distinct == 0) {
+        return 0.f;
+      }
+
+      return static_cast<float>(bucket_count) / static_cast<float>(bucket_count_distinct);
     }
     case PredicateCondition::NotEquals: {
       const auto index = _bucket_for_value(cleaned_value);
@@ -349,8 +356,14 @@ float AbstractHistogram<T>::estimate_cardinality(const PredicateCondition predic
         return total_count();
       }
 
-      return total_count() -
-             static_cast<float>(_bucket_count(index)) / static_cast<float>(_bucket_count_distinct(index));
+      const auto bucket_count = _bucket_count(index);
+      const auto bucket_count_distinct = _bucket_count_distinct(index);
+
+      if (bucket_count == 0 || bucket_count_distinct == 0) {
+        return total_count();
+      }
+
+      return total_count() - static_cast<float>(bucket_count) / static_cast<float>(bucket_count_distinct);
     }
     case PredicateCondition::LessThan: {
       if (cleaned_value > max()) {
@@ -486,8 +499,11 @@ bool AbstractHistogram<T>::can_prune(const PredicateCondition predicate_type, co
   }
 
   switch (predicate_type) {
-    case PredicateCondition::Equals:
-      return _bucket_for_value(value) == INVALID_BUCKET_ID;
+    case PredicateCondition::Equals: {
+      const auto bucket_id = _bucket_for_value(value);
+      // It is possible for EqualWidthHistograms to have empty buckets.
+      return bucket_id == INVALID_BUCKET_ID || _bucket_count(bucket_id) == 0;
+    }
     case PredicateCondition::NotEquals:
       return num_buckets() == 1 && _bucket_min(0) == value && _bucket_max(0) == value;
     case PredicateCondition::LessThan:
