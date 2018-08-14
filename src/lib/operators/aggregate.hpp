@@ -131,7 +131,7 @@ class Aggregate : public AbstractReadOnlyOperator {
   void _write_groupby_output(PosList& pos_list);
 
   template <typename ColumnDataType, AggregateFunction function>
-  void _aggregate_column(ChunkID chunk_id, ColumnID column_index, const BaseColumn& base_column,
+  void _aggregate_column(const ChunkID chunk_id, const ColumnID column_index, const BaseColumn& base_column,
                          const KeysPerChunk& keys_per_chunk);
 
   std::shared_ptr<ColumnVisitorContext> _create_aggregate_context(const DataType data_type,

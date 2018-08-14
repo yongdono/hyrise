@@ -197,7 +197,7 @@ struct AggregateFunctionBuilder<ColumnType, AggregateType, AggregateFunction::Co
 };
 
 template <typename ColumnDataType, AggregateFunction function>
-void Aggregate::_aggregate_column(ChunkID chunk_id, ColumnID column_index, const BaseColumn& base_column,
+void Aggregate::_aggregate_column(const ChunkID chunk_id, const ColumnID column_index, const BaseColumn& base_column,
                                   const KeysPerChunk& keys_per_chunk) {
   using AggregateType = typename AggregateTraits<ColumnDataType, function>::AggregateType;
 
@@ -288,11 +288,8 @@ std::shared_ptr<const Table> Aggregate::_on_execute() {
     keys_per_chunk.push_back(AggregateKeys(chunk->size(), AggregateKey(_groupby_column_ids.size()), allocator));
     // keys_per_chunk.emplace_back(chunk->size(), AggregateKey(_groupby_column_ids.size()), allocator);
 
-    // const auto start_next_buffer_size2 = temp_buffer.next_buffer_size();
-
     // // Make sure that we did not have to allocate more memory than originally computed
-    // if (temp_buffer.next_buffer_size() != (start_next_buffer_size) * 2) {
-    //   std::cerr << (start_next_buffer_size) * 2 << " - " << start_next_buffer_size2 << std::endl;
+    // if (temp_buffer.next_buffer_size() != start_next_buffer_size) {
     //   // The buffer sizes are increasing when the current buffer is full. We can use this to make sure that we allocated
     //   // enough space from the beginning on. It would be more intuitive to compare current_buffer(), but this seems to
     //   // be broken in boost: https://svn.boost.org/trac10/ticket/13639#comment:1
