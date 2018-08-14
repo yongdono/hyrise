@@ -9,6 +9,10 @@
 
 namespace opossum {
 
+enum class CacheEvictionStrategy {
+  None, Random, LRU,
+};
+
 class CardinalityEstimationCache final {
  public:
   // Cardinality that is assumed if a join graph timed out

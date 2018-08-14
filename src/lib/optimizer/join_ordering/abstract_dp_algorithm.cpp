@@ -16,7 +16,8 @@ AbstractDpAlgorithm::AbstractDpAlgorithm(const std::shared_ptr<AbstractDpSubplan
 JoinPlanNode AbstractDpAlgorithm::operator()(
     const std::shared_ptr<const JoinGraph>& join_graph) {
   _subplan_cache->clear();
-  _join_graph = join_graph->bfs_order();
+  //_join_graph = join_graph->bfs_order();
+  _join_graph = join_graph;
 
   /**
    * Initialize single-vertex vertex_sets with single node JoinPlans
