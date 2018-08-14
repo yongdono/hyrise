@@ -6,7 +6,6 @@
 #include <cmath>
 
 #include "jit_types.hpp"
-#include "jit_utils.hpp"
 #include "operators/table_scan/like_table_scan_impl.hpp"
 #include "resolve_type.hpp"
 
@@ -67,19 +66,20 @@ namespace opossum {
  * (which throws a runtime error) for invalid data type combinations. Without the decltype return type declaration, the
  * compiler is unable to detect invalid data type combinations at template instanciation time and produces compilation
  * errors.
+ * Functions handling strings are declared as structs with operator() as the previously used lambdas caused the LLVM
+ * ERROR: "Undefined temporary symbol" during specialization. Without the check for string or non-string type, the
+ * compiler also produces compiler errors.
  */
 
 /* Arithmetic operators */
 struct JitAddition {
-  OPTNONE std::string operator()(const std::string& a, const std::string& b) const { return a + b; }
-
   template <typename T1, typename T2,
-            typename = typename std::enable_if_t<std::is_scalar_v<T1> && std::is_scalar_v<T2>>>
+            typename = typename std::enable_if_t<std::is_scalar_v<T1> == std::is_scalar_v<T2>>>
   auto operator()(const T1 a, const T2 b) const {
     return a + b;
   }
 };
-const auto jit_addition = JitAddition();
+const JitAddition jit_addition{};
 const auto jit_subtraction = [](const auto a, const auto b) -> decltype(a - b) { return a - b; };
 const auto jit_multiplication = [](const auto a, const auto b) -> decltype(a * b) { return a * b; };
 const auto jit_division = [](const auto a, const auto b) -> decltype(a / b) { return a / b; };
@@ -89,99 +89,74 @@ const auto jit_power = [](const auto a, const auto b) -> decltype(std::pow(a, b)
 /* Aggregate operations */
 const auto jit_increment = [](const auto a, const auto b) -> decltype(b + 1) { return b + 1; };
 struct JitMaximum {
-  OPTNONE std::string operator()(const std::string& a, const std::string& b) const {
-    return std::max(a, b);
-  }
-
   template <typename T1, typename T2,
-            typename = typename std::enable_if_t<std::is_scalar_v<T1> && std::is_scalar_v<T2>>>
+            typename = typename std::enable_if_t<std::is_scalar_v<T1> == std::is_scalar_v<T2>>>
   auto operator()(const T1 a, const T2 b) const {
     return std::max(a, b);
   }
 };
-const auto jit_maximum = JitMaximum();
+const JitMaximum jit_maximum{};
 struct JitMinimum {
-  OPTNONE std::string operator()(const std::string& a, const std::string& b) const {
-    return std::min(a, b);
-  }
-
   template <typename T1, typename T2,
-            typename = typename std::enable_if_t<std::is_scalar_v<T1> && std::is_scalar_v<T2>>>
+            typename = typename std::enable_if_t<std::is_scalar_v<T1> == std::is_scalar_v<T2>>>
   auto operator()(const T1 a, const T2 b) const {
     return std::min(a, b);
   }
 };
-const auto jit_minimum = JitMinimum();
+const JitMinimum jit_minimum{};
 
 /* Comparison operators */
 struct JitEquals {
-  OPTNONE bool operator()(const std::string& a, const std::string& b) const { return a == b; }
-
   template <typename T1, typename T2,
-            typename = typename std::enable_if_t<std::is_scalar_v<T1> && std::is_scalar_v<T2>>>
+            typename = typename std::enable_if_t<std::is_scalar_v<T1> == std::is_scalar_v<T2>>>
   bool operator()(const T1 a, const T2 b) const {
     return a == b;
   }
 };
-const auto jit_equals = JitEquals();
-
+const JitEquals jit_equals{};
 struct JitNotEquals {
-  OPTNONE bool operator()(const std::string& a, const std::string& b) const { return a != b; }
-
   template <typename T1, typename T2,
-            typename = typename std::enable_if_t<std::is_scalar_v<T1> && std::is_scalar_v<T2>>>
+            typename = typename std::enable_if_t<std::is_scalar_v<T1> == std::is_scalar_v<T2>>>
   bool operator()(const T1 a, const T2 b) const {
     return a != b;
   }
 };
-const auto jit_not_equals = JitNotEquals();
-
+const JitNotEquals jit_not_equals{};
 struct JitLessThan {
-  OPTNONE bool operator()(const std::string& a, const std::string& b) const { return a < b; }
-
   template <typename T1, typename T2,
-            typename = typename std::enable_if_t<std::is_scalar_v<T1> && std::is_scalar_v<T2>>>
+            typename = typename std::enable_if_t<std::is_scalar_v<T1> == std::is_scalar_v<T2>>>
   bool operator()(const T1 a, const T2 b) const {
     return a < b;
   }
 };
-const auto jit_less_than = JitLessThan();
-
+const JitLessThan jit_less_than{};
 struct JitLessThanEquals {
-  OPTNONE bool operator()(const std::string& a, const std::string& b) const { return a <= b; }
-
   template <typename T1, typename T2,
-            typename = typename std::enable_if_t<std::is_scalar_v<T1> && std::is_scalar_v<T2>>>
+            typename = typename std::enable_if_t<std::is_scalar_v<T1> == std::is_scalar_v<T2>>>
   bool operator()(const T1 a, const T2 b) const {
     return a <= b;
   }
 };
-const auto jit_less_than_equals = JitLessThanEquals();
-
+const JitLessThanEquals jit_less_than_equals{};
 struct JitGreaterThan {
-  OPTNONE bool operator()(const std::string& a, const std::string& b) const { return a > b; }
-
   template <typename T1, typename T2,
-            typename = typename std::enable_if_t<std::is_scalar_v<T1> && std::is_scalar_v<T2>>>
+            typename = typename std::enable_if_t<std::is_scalar_v<T1> == std::is_scalar_v<T2>>>
   bool operator()(const T1 a, const T2 b) const {
     return a > b;
   }
 };
-const auto jit_greater_than = JitGreaterThan();
-
+const JitGreaterThan jit_greater_than{};
 struct JitGreaterThanEquals {
-  OPTNONE bool operator()(const std::string& a, const std::string& b) const { return a >= b; }
-
   template <typename T1, typename T2,
-            typename = typename std::enable_if_t<std::is_scalar_v<T1> && std::is_scalar_v<T2>>>
+            typename = typename std::enable_if_t<std::is_scalar_v<T1> == std::is_scalar_v<T2>>>
   bool operator()(const T1 a, const T2 b) const {
     return a >= b;
   }
 };
-const auto jit_greater_than_equals = JitGreaterThanEquals();
+const JitGreaterThanEquals jit_greater_than_equals{};
 
-OPTNONE bool jit_like(const std::string& a, const std::string& b);
-OPTNONE bool jit_not_like(const std::string& a, const std::string& b);
+bool jit_like(const std::string& a, const std::string& b);
+bool jit_not_like(const std::string& a, const std::string& b);
 
 // The InvalidTypeCatcher acts as a fallback implementation, if template specialization
 // fails for a type combination.
@@ -241,7 +216,9 @@ DataType jit_compute_type(const T& op_func, const DataType lhs, const DataType r
   switch (combined_types) {
     BOOST_PP_SEQ_FOR_EACH_PRODUCT(JIT_COMPUTE_TYPE_CASE, (JIT_DATA_TYPE_INFO)(JIT_DATA_TYPE_INFO))
     default:
-      return DataType::Null;  // unreachable
+      // when lhs or rhs is null
+      if (lhs == DataType::Null) return rhs;
+      return lhs;
   }
 }
 
@@ -308,11 +285,13 @@ __attribute__((noinline)) void jit_aggregate_compute(const T& op_func, const Jit
 
   const auto catching_func = InvalidTypeCatcher<decltype(store_result_wrapper), void>(store_result_wrapper);
 
-  // this is only the case for lhs = int and rhs = float which become long / double
+  // JIT_AGGREGATE_COMPUTE_CASE assumes that the left and right side type are the same.
+  // This is not the case when the sum or average of a float or int column is calculated as the temporary sum
+  // is stored in the according 64 bit data type.
   if (lhs.data_type() == DataType::Int && rhs.data_type() == DataType::Long) {
     return catching_func(static_cast<int64_t>(lhs.get<int32_t>(context)), rhs.get<int64_t>(rhs_index, context));
   } else if (lhs.data_type() == DataType::Float && rhs.data_type() == DataType::Double) {
-    catching_func(static_cast<double>(lhs.get<float>(context)), rhs.get<double>(rhs_index, context));
+    return catching_func(static_cast<double>(lhs.get<float>(context)), rhs.get<double>(rhs_index, context));
   }
 
   switch (rhs.data_type()) {
@@ -321,17 +300,6 @@ __attribute__((noinline)) void jit_aggregate_compute(const T& op_func, const Jit
       break;
   }
 }
-
-// Helper to ensure that hashing of strings is specialised
-struct JitHash {
-  OPTNONE size_t operator()(const std::string& value) const { return std::hash<std::string>{}(value); }
-
-  template <typename T, typename = typename std::enable_if_t<std::is_scalar_v<T>>>
-  size_t operator()(const T value) const {
-    return std::hash<T>{}(value);
-  }
-};
-const auto _jit_hash = JitHash();
 
 // cleanup
 #undef JIT_GET_ENUM_VALUE

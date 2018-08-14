@@ -57,8 +57,6 @@ struct JitGroupByColumn {
  */
 class JitAggregate : public AbstractJittableSink {
  public:
-  explicit JitAggregate(const bool has_string_columns = false);
-
   std::string description() const;
 
   // Creates the output table with appropriate column definitions
@@ -83,7 +81,6 @@ class JitAggregate : public AbstractJittableSink {
   const std::vector<JitGroupByColumn> groupby_columns() const;
 
   std::map<size_t, bool> accessed_column_ids() const final;
-  void set_has_string_columns(const bool has_string_columns);
 
  protected:
   std::string aggregate_description() const;
@@ -95,7 +92,6 @@ class JitAggregate : public AbstractJittableSink {
   uint32_t _num_hashmap_columns{0};
   std::vector<JitAggregateColumn> _aggregate_columns;
   std::vector<JitGroupByColumn> _groupby_columns;
-  const bool _has_string_columns;
 };
 
 class JitLimitAggregate : public JitAggregate {

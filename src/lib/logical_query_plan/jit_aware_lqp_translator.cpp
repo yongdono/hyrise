@@ -83,35 +83,20 @@ TableType input_table_type(const std::shared_ptr<AbstractLQPNode>& node) {
   }
 }
 
-bool requires_reference_output(const std::shared_ptr<AbstractLQPNode>& node) {
-  if (node->type == LQPNodeType::Update || node->type == LQPNodeType::Delete) {
-    return true;
-  }
-  for (const auto& output : node->outputs()) {
-    if (requires_reference_output(output)) return true;
-  }
-  return false;
-}
-
 }  // namespace
-
-JitAwareLQPTranslator::JitAwareLQPTranslator() {
-#if !HYRISE_JIT_SUPPORT
-  Fail("Query translation with JIT operators requested, but jitting is not available");
-#else
-  {}  // make clang-tidy happy
-#endif
-}
 
 std::shared_ptr<AbstractOperator> JitAwareLQPTranslator::translate_node(
     const std::shared_ptr<AbstractLQPNode>& node) const {
+  // Jit operators materialize their output table and cannot be used in non-select queries
+  if (node->type == LQPNodeType::Update || node->type == LQPNodeType::Delete) {
+    return LQPTranslator{}.translate_node(node);
+  }
   const auto jit_operator = _try_translate_sub_plan_to_jit_operators(node);
   return jit_operator ? jit_operator : LQPTranslator::translate_node(node);
 }
 
 std::shared_ptr<JitOperatorWrapper> JitAwareLQPTranslator::_try_translate_sub_plan_to_jit_operators(
     const std::shared_ptr<AbstractLQPNode>& node) const {
-  if (requires_reference_output(node)) return nullptr;
   auto jittable_node_count = size_t{0};
 
   auto input_nodes = std::unordered_set<std::shared_ptr<AbstractLQPNode>>{};
@@ -192,17 +177,12 @@ std::shared_ptr<JitOperatorWrapper> JitAwareLQPTranslator::_try_translate_sub_pl
     // aggregate nodes that would be placed in the middle of an operator chain.
     const auto aggregate_node = std::static_pointer_cast<AggregateNode>(last_node);
 
-    bool has_string_columns = false;
-
     auto aggregate = std::make_shared<JitAggregate>();
 
     for (const auto& groupby_expression : aggregate_node->group_by_expressions) {
       const auto jit_expression =
           _try_translate_expression_to_jit_expression(*groupby_expression, *read_tuples, input_node);
       if (!jit_expression) return nullptr;
-
-      has_string_columns |= jit_expression->result().data_type() == DataType::String;
-
       // Create a JitCompute operator for each computed groupby column ...
       if (jit_expression->expression_type() != JitExpressionType::Column) {
         jit_operator->add_jit_operator(std::make_shared<JitCompute>(jit_expression));
@@ -218,9 +198,6 @@ std::shared_ptr<JitOperatorWrapper> JitAwareLQPTranslator::_try_translate_sub_pl
       const auto jit_expression =
           _try_translate_expression_to_jit_expression(*aggregate_expression->arguments[0], *read_tuples, input_node);
       if (!jit_expression) return nullptr;
-
-      has_string_columns |= jit_expression->result().data_type() == DataType::String;
-
       // Create a JitCompute operator for each aggregate expression on a computed value ...
       if (jit_expression->expression_type() != JitExpressionType::Column) {
         jit_operator->add_jit_operator(std::make_shared<JitCompute>(jit_expression));
@@ -229,8 +206,6 @@ std::shared_ptr<JitOperatorWrapper> JitAwareLQPTranslator::_try_translate_sub_pl
       aggregate->add_aggregate_column(aggregate_expression->as_column_name(), jit_expression->result(),
                                       aggregate_expression->aggregate_function);
     }
-
-    aggregate->set_has_string_columns(has_string_columns);
 
     jit_operator->add_jit_operator(aggregate);
   } else {
@@ -304,7 +279,7 @@ std::shared_ptr<const JitExpression> JitAwareLQPTranslator::_try_translate_expre
         return std::make_shared<JitExpression>(jit_expression_arguments[0], jit_expression_type,
                                                jit_source.add_temporary_value());
       } else if (jit_expression_arguments.size() == 2) {
-        // if one is string, both have to be string
+        // An expression can handle strings only exclusively
         if ((jit_expression_arguments[0]->result().data_type() == DataType::String) !=
             (jit_expression_arguments[1]->result().data_type() == DataType::String)) {
           return nullptr;
@@ -313,14 +288,14 @@ std::shared_ptr<const JitExpression> JitAwareLQPTranslator::_try_translate_expre
                                                jit_expression_arguments[1], jit_source.add_temporary_value());
       } else if (jit_expression_arguments.size() == 3) {
         DebugAssert(jit_expression_type == JitExpressionType::Between, "Only Between supported for 3 arguments");
-        auto lower_bound =
+        auto lower_bound_check =
             std::make_shared<JitExpression>(jit_expression_arguments[0], JitExpressionType::GreaterThanEquals,
                                             jit_expression_arguments[1], jit_source.add_temporary_value());
-        auto upper_bound =
+        auto upper_bound_check =
             std::make_shared<JitExpression>(jit_expression_arguments[0], JitExpressionType::LessThanEquals,
                                             jit_expression_arguments[2], jit_source.add_temporary_value());
 
-        return std::make_shared<JitExpression>(lower_bound, JitExpressionType::And, upper_bound,
+        return std::make_shared<JitExpression>(lower_bound_check, JitExpressionType::And, upper_bound_check,
                                                jit_source.add_temporary_value());
       } else {
         Fail("Unexpected number of arguments, can't translate to JitExpression");

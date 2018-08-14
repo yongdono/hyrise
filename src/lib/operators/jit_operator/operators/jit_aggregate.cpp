@@ -2,13 +2,10 @@
 
 #include "constant_mappings.hpp"
 #include "operators/jit_operator/jit_operations.hpp"
-#include "operators/jit_operator/jit_utils.hpp"
 #include "resolve_type.hpp"
 #include "storage/value_column.hpp"
 
 namespace opossum {
-
-JitAggregate::JitAggregate(const bool has_string_columns) : _has_string_columns(has_string_columns) {}
 
 std::string JitAggregate::description() const { return "[Aggregate] " + aggregate_description(); }
 
@@ -172,7 +169,11 @@ void JitAggregate::after_query(Table& out_table, JitRuntimeContext& context) con
   out_table.append_chunk(chunk_columns);
 }
 
-DataType sum_data_type(const DataType data_type) {
+namespace {
+
+// The intermediary result of sum is always stored in a 64 bit data type. The same behaviour is implemented by non-jit
+// operators.
+DataType resolve_sum_data_type(const DataType data_type) {
   switch (data_type) {
     case DataType::Int:
       return DataType::Long;
@@ -182,6 +183,8 @@ DataType sum_data_type(const DataType data_type) {
       return data_type;
   }
 }
+
+}  // namespace
 
 void JitAggregate::add_aggregate_column(const std::string& column_name, const JitTupleValue& value,
                                         const AggregateFunction function) {
@@ -195,28 +198,28 @@ void JitAggregate::add_aggregate_column(const std::string& column_name, const Ji
                              JitHashmapValue(DataType::Long, false, _num_hashmap_columns++)});
       break;
     case AggregateFunction::Sum:
-      Assert(value.data_type() != DataType::String, "Invalid data type for aggregate function.");
+      DebugAssert(value.data_type() != DataType::String, "Invalid data type string for aggregate function sum.");
     case AggregateFunction::Max:
     case AggregateFunction::Min: {
-      Assert(value.data_type() != DataType::Null, "Invalid data type for aggregate function.");
+      DebugAssert(value.data_type() != DataType::Null, "Invalid data type null for aggregate function.");
       // The data type depends on the input value.
-      const auto data_type = function == AggregateFunction::Sum ? sum_data_type(value.data_type()) : value.data_type();
-      _aggregate_columns.emplace_back(
-          JitAggregateColumn{column_name, column_position, function, value,
-                             JitHashmapValue(data_type, true, _num_hashmap_columns++)});
+      const auto data_type =
+          function == AggregateFunction::Sum ? resolve_sum_data_type(value.data_type()) : value.data_type();
+      _aggregate_columns.emplace_back(JitAggregateColumn{column_name, column_position, function, value,
+                                                         JitHashmapValue(data_type, true, _num_hashmap_columns++)});
       break;
     }
     case AggregateFunction::Avg:
-      Assert(value.data_type() != DataType::String && value.data_type() != DataType::Null,
-             "Invalid data type for aggregate function.");
+      DebugAssert(value.data_type() != DataType::String && value.data_type() != DataType::Null,
+                  "Invalid data type for aggregate function average.");
       // Average aggregates are computed by first computing two aggregates: a SUM and a COUNT
       _aggregate_columns.emplace_back(
           JitAggregateColumn{column_name, column_position, function, value,
-                             JitHashmapValue(sum_data_type(value.data_type()), true, _num_hashmap_columns++),
+                             JitHashmapValue(resolve_sum_data_type(value.data_type()), true, _num_hashmap_columns++),
                              JitHashmapValue(DataType::Long, false, _num_hashmap_columns++)});
       break;
     case AggregateFunction::CountDistinct:
-      Fail("Not supported");
+      Fail("Aggregate function count distinct not supported");
   }
 }
 
@@ -251,6 +254,8 @@ void JitAggregate::_consume(JitRuntimeContext& context) const {
 
   // Step 1: Compute hash value of the input tuple
   uint64_t hash_value = 0;
+
+  // Compute a hash for each groupby column and combine the resulting hashes.
   for (uint32_t i = 0; i < num_groupby_columns; ++i) {
     hash_value = (hash_value << 5u) ^ jit_hash(_groupby_columns[i].tuple_value, context);
   }
@@ -265,7 +270,6 @@ void JitAggregate::_consume(JitRuntimeContext& context) const {
   // depends on runtime hash collisions and the loop is thus not specializable (i.e., not unrollable).
   for (const auto& index : hash_bucket) {
     // Compare all values of the row to the currently consumed tuple.
-
     bool all_values_equal = true;
     for (uint32_t i = 0; i < num_groupby_columns; ++i) {
       if (!jit_aggregate_equals(_groupby_columns[i].tuple_value, _groupby_columns[i].hashmap_value, index, context)) {
@@ -287,7 +291,6 @@ void JitAggregate::_consume(JitRuntimeContext& context) const {
   // Aggregates are initialized with a value that is specific to their aggregate function.
   // The it_grow_by_one function appends an element to the end of an output vector and returns the index of that newly
   // added value in the vector.
-
   if (!found_match) {
     if (_limit_reached(context)) {
       return;
@@ -306,7 +309,6 @@ void JitAggregate::_consume(JitRuntimeContext& context) const {
           row_index =
               jit_grow_by_one(_aggregate_columns[i].hashmap_value, JitVariantVector::InitialValue::Zero, context);
           break;
-
         case AggregateFunction::Max:
           row_index =
               jit_grow_by_one(_aggregate_columns[i].hashmap_value, JitVariantVector::InitialValue::MinValue, context);
@@ -315,16 +317,15 @@ void JitAggregate::_consume(JitRuntimeContext& context) const {
           row_index =
               jit_grow_by_one(_aggregate_columns[i].hashmap_value, JitVariantVector::InitialValue::MaxValue, context);
           break;
-
         case AggregateFunction::Avg:
           row_index =
               jit_grow_by_one(_aggregate_columns[i].hashmap_value, JitVariantVector::InitialValue::Zero, context);
-          // DebugAssert(_aggregate_columns[i].hashmap_count_for_avg, "Invalid avg aggregate column.");
+          DebugAssert(_aggregate_columns[i].hashmap_count_for_avg, "Invalid avg aggregate column.");
           jit_grow_by_one(_aggregate_columns[i].hashmap_count_for_avg.value(), JitVariantVector::InitialValue::Zero,
                           context);
           break;
         case AggregateFunction::CountDistinct: {
-          // Fail("Not supported");
+          Fail("Aggregate function count distinct not supported");
         }
       }
     }
@@ -357,20 +358,15 @@ void JitAggregate::_consume(JitRuntimeContext& context) const {
         // In case of an average aggregate, the two auxiliary aggregates need to be updated.
         jit_aggregate_compute(jit_addition, _aggregate_columns[i].tuple_value, _aggregate_columns[i].hashmap_value,
                               row_index, context);
-        // DebugAssert(_aggregate_columns[i].hashmap_count_for_avg, "Invalid avg aggregate column.");
+        DebugAssert(_aggregate_columns[i].hashmap_count_for_avg, "Invalid avg aggregate column.");
         jit_aggregate_compute(jit_increment, _aggregate_columns[i].tuple_value,
                               _aggregate_columns[i].hashmap_count_for_avg.value(), row_index, context);
         break;
       case AggregateFunction::CountDistinct: {
-        // Fail("Not supported");
+        Fail("Aggregate function count distinct not supported");
       }
     }
   }
-  //*/
-}
-
-void JitAggregate::set_has_string_columns(const bool has_string_columns) {
-  const_cast<bool&>(_has_string_columns) = has_string_columns;
 }
 
 bool JitAggregate::_limit_reached(JitRuntimeContext& context) const { return false; }

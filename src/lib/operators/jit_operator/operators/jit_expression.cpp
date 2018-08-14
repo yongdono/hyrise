@@ -1,7 +1,7 @@
 #include "jit_compute.hpp"
 
+#include "../jit_constant_mappings.hpp"
 #include "../jit_operations.hpp"
-#include "constant_mappings.hpp"
 #include "jit_read_tuples.hpp"
 
 namespace opossum {
@@ -80,59 +80,56 @@ void JitExpression::compute(JitRuntimeContext& context) const {
 
   _right_child->compute(context);
 
-  const JitTupleValue& lhs = _left_child->result();
-  const JitTupleValue& rhs = _right_child->result();
-
   switch (_expression_type) {
     case JitExpressionType::Addition:
-      jit_compute(jit_addition, lhs, rhs, _result_value, context);
+      jit_compute(jit_addition, _left_child->result(), _right_child->result(), _result_value, context);
       break;
     case JitExpressionType::Subtraction:
-      jit_compute(jit_subtraction, lhs, rhs, _result_value, context);
+      jit_compute(jit_subtraction, _left_child->result(), _right_child->result(), _result_value, context);
       break;
     case JitExpressionType::Multiplication:
-      jit_compute(jit_multiplication, lhs, rhs, _result_value, context);
+      jit_compute(jit_multiplication, _left_child->result(), _right_child->result(), _result_value, context);
       break;
     case JitExpressionType::Division:
-      jit_compute(jit_division, lhs, rhs, _result_value, context);
+      jit_compute(jit_division, _left_child->result(), _right_child->result(), _result_value, context);
       break;
     case JitExpressionType::Modulo:
-      jit_compute(jit_modulo, lhs, rhs, _result_value, context);
+      jit_compute(jit_modulo, _left_child->result(), _right_child->result(), _result_value, context);
       break;
     case JitExpressionType::Power:
-      jit_compute(jit_power, lhs, rhs, _result_value, context);
+      jit_compute(jit_power, _left_child->result(), _right_child->result(), _result_value, context);
       break;
 
     case JitExpressionType::Equals:
-      jit_compute(jit_equals, lhs, rhs, _result_value, context);
+      jit_compute(jit_equals, _left_child->result(), _right_child->result(), _result_value, context);
       break;
     case JitExpressionType::NotEquals:
-      jit_compute(jit_not_equals, lhs, rhs, _result_value, context);
+      jit_compute(jit_not_equals, _left_child->result(), _right_child->result(), _result_value, context);
       break;
     case JitExpressionType::GreaterThan:
-      jit_compute(jit_greater_than, lhs, rhs, _result_value, context);
+      jit_compute(jit_greater_than, _left_child->result(), _right_child->result(), _result_value, context);
       break;
     case JitExpressionType::GreaterThanEquals:
-      jit_compute(jit_greater_than_equals, lhs, rhs, _result_value, context);
+      jit_compute(jit_greater_than_equals, _left_child->result(), _right_child->result(), _result_value, context);
       break;
     case JitExpressionType::LessThan:
-      jit_compute(jit_less_than, lhs, rhs, _result_value, context);
+      jit_compute(jit_less_than, _left_child->result(), _right_child->result(), _result_value, context);
       break;
     case JitExpressionType::LessThanEquals:
-      jit_compute(jit_less_than_equals, lhs, rhs, _result_value, context);
+      jit_compute(jit_less_than_equals, _left_child->result(), _right_child->result(), _result_value, context);
       break;
     case JitExpressionType::Like:
-      jit_compute(jit_like, lhs, rhs, _result_value, context);
+      jit_compute(jit_like, _left_child->result(), _right_child->result(), _result_value, context);
       break;
     case JitExpressionType::NotLike:
-      jit_compute(jit_not_like, lhs, rhs, _result_value, context);
+      jit_compute(jit_not_like, _left_child->result(), _right_child->result(), _result_value, context);
       break;
 
     case JitExpressionType::And:
-      jit_and(lhs, rhs, _result_value, context, false);
+      jit_and(_left_child->result(), _right_child->result(), _result_value, context, false);
       break;
     case JitExpressionType::Or:
-      jit_or(lhs, rhs, _result_value, context, false);
+      jit_or(_left_child->result(), _right_child->result(), _result_value, context, false);
       break;
     default:
       Fail("Expression type is not supported.");
@@ -194,7 +191,11 @@ std::pair<const DataType, const bool> JitExpression::_compute_result_type() {
       Fail("Expression type not supported.");
   }
 
-  return std::make_pair(result_data_type, _left_child->result().is_nullable() || _right_child->result().is_nullable());
+  const bool input_is_null =
+      _left_child->result().data_type() == DataType::Null || _right_child->result().data_type() == DataType::Null;
+
+  return std::make_pair(result_data_type,
+                        input_is_null || (_left_child->result().is_nullable() || _right_child->result().is_nullable()));
 }
 
 }  // namespace opossum

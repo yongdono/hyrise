@@ -1,16 +1,9 @@
 #pragma once
 
-#if !HYRISE_JIT_SUPPORT
 #include "logical_query_plan/lqp_translator.hpp"
-namespace opossum {
-class JitAwareLQPTranslator final : public LQPTranslator {
- public:
-  JitAwareLQPTranslator();
-};
-}  // namespace opossum
-#else
 
-#include "logical_query_plan/lqp_translator.hpp"
+#if HYRISE_JIT_SUPPORT
+
 #include "operators/jit_operator/operators/jit_expression.hpp"
 #include "operators/jit_operator_wrapper.hpp"
 
@@ -46,7 +39,6 @@ namespace opossum {
  */
 class JitAwareLQPTranslator final : public LQPTranslator {
  public:
-  JitAwareLQPTranslator();
   std::shared_ptr<AbstractOperator> translate_node(const std::shared_ptr<AbstractLQPNode>& node) const final;
 
  private:
@@ -67,6 +59,17 @@ class JitAwareLQPTranslator final : public LQPTranslator {
               const std::function<bool(const std::shared_ptr<AbstractLQPNode>&)>& func) const;
 
   static JitExpressionType _expression_to_jit_expression_type(const AbstractExpression& expression);
+};
+
+}  // namespace opossum
+
+#else
+
+namespace opossum {
+
+class JitAwareLQPTranslator final : public LQPTranslator {
+ public:
+  JitAwareLQPTranslator() { Fail("Query translation with JIT operators requested, but jitting is not available"); }
 };
 
 }  // namespace opossum

@@ -1,5 +1,6 @@
 #include "jit_write_tuples.hpp"
 
+#include "../jit_types.hpp"
 #include "constant_mappings.hpp"
 #include "resolve_type.hpp"
 #include "storage/base_value_column.hpp"
@@ -22,7 +23,7 @@ std::shared_ptr<Table> JitWriteTuples::create_output_table(const ChunkOffset inp
   for (const auto& output_column : _output_columns) {
     // Add a column definition for each output column
     const auto data_type = output_column.tuple_value.data_type();
-    const auto output_column_type = data_type == DataType::Bool ? DataType::Int : data_type;
+    const auto output_column_type = data_type == DataType::Bool ? DataTypeBool : data_type;
     const auto is_nullable = output_column.tuple_value.is_nullable();
     column_definitions.emplace_back(output_column.column_name, output_column_type, is_nullable);
   }
@@ -69,33 +70,35 @@ void JitWriteTuples::_create_output_chunk(JitRuntimeContext& context) const {
     const auto is_nullable = output_column.tuple_value.is_nullable();
 
     // Create the appropriate column writer for the output column
-    const auto func = [&](auto type) {
-      using ColumnDataType = typename decltype(type)::type;
-      auto column = std::make_shared<ValueColumn<ColumnDataType>>(output_column.tuple_value.is_nullable());
-      context.out_chunk.push_back(column);
-
-      if (is_nullable) {
-        context.outputs.push_back(std::make_shared<JitColumnWriter<ValueColumn<ColumnDataType>, ColumnDataType, true>>(
-            column, output_column.tuple_value));
-      } else {
-        context.outputs.push_back(std::make_shared<JitColumnWriter<ValueColumn<ColumnDataType>, ColumnDataType, false>>(
-            column, output_column.tuple_value));
-      }
-    };
-    // Bool handled separately as the callback is not working for this only in jit code existing data type
     if (data_type == DataType::Bool) {
-      auto column = std::make_shared<ValueColumn<int32_t>>(output_column.tuple_value.is_nullable());
+      // Data type bool is a special jit data type and not an opossum data type
+      // Therefore, bools needs to be handled separately as they are transformed to opossum int types
+      auto column = std::make_shared<ValueColumn<Bool>>(output_column.tuple_value.is_nullable());
       context.out_chunk.push_back(column);
-
       if (is_nullable) {
         context.outputs.push_back(
-            std::make_shared<JitColumnWriter<ValueColumn<int32_t>, bool, true>>(column, output_column.tuple_value));
+            std::make_shared<JitColumnWriter<ValueColumn<Bool>, bool, true>>(column, output_column.tuple_value));
       } else {
         context.outputs.push_back(
-            std::make_shared<JitColumnWriter<ValueColumn<int32_t>, bool, false>>(column, output_column.tuple_value));
+            std::make_shared<JitColumnWriter<ValueColumn<Bool>, bool, false>>(column, output_column.tuple_value));
       }
     } else {
-      resolve_data_type(data_type, func);
+      // Opossum data types
+      resolve_data_type(data_type, [&](auto type) {
+        using ColumnDataType = typename decltype(type)::type;
+        auto column = std::make_shared<ValueColumn<ColumnDataType>>(output_column.tuple_value.is_nullable());
+        context.out_chunk.push_back(column);
+
+        if (is_nullable) {
+          context.outputs.push_back(
+              std::make_shared<JitColumnWriter<ValueColumn<ColumnDataType>, ColumnDataType, true>>(
+                  column, output_column.tuple_value));
+        } else {
+          context.outputs.push_back(
+              std::make_shared<JitColumnWriter<ValueColumn<ColumnDataType>, ColumnDataType, false>>(
+                  column, output_column.tuple_value));
+        }
+      });
     }
   }
 }

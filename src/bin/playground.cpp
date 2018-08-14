@@ -22,7 +22,6 @@
 using namespace opossum;  // NOLINT
 #endif
 
-
 int main() {
 #if HYRISE_JIT_SUPPORT
   auto table_a = opossum::load_table("src/test/tables/int_float.tbl", 2);
@@ -54,8 +53,8 @@ int main() {
   context->commit();
 
   context = opossum::TransactionManager::get().new_transaction_context();
-  table_scan = std::make_shared<opossum::TableScan>(get_table, opossum::ColumnID{0},
-                                                    PredicateCondition::GreaterThan, 10000);
+  table_scan =
+      std::make_shared<opossum::TableScan>(get_table, opossum::ColumnID{0}, PredicateCondition::GreaterThan, 10000);
   // table_scan->set_transaction_context(context);
   table_scan->execute();
   delete_op = std::make_shared<opossum::Delete>("tmp", table_scan);
@@ -76,8 +75,8 @@ int main() {
   get_table->set_transaction_context(context);
   get_table->execute(); */
 
-  auto filter = std::make_shared<opossum::TableScan>(get_table, opossum::ColumnID{0},
-                                                     PredicateCondition::GreaterThanEquals, 0);
+  auto filter =
+      std::make_shared<opossum::TableScan>(get_table, opossum::ColumnID{0}, PredicateCondition::GreaterThanEquals, 0);
   filter->execute();
 
   // auto validate = std::make_shared<opossum::Validate>(get_table);

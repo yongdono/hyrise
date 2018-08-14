@@ -506,6 +506,7 @@ set(
     utils/invalid_input_exception.hpp
     utils/load_table.cpp
     utils/load_table.hpp
+    utils/make_bimap.hpp
     utils/murmur_hash.cpp
     utils/murmur_hash.hpp
     utils/numa_memory_resource.cpp
@@ -566,8 +567,10 @@ if (${ENABLE_JIT_SUPPORT})
         SOURCES
         operators/jit_operator/jit_utils.cpp
         operators/jit_operator/jit_utils.hpp
-        operators/jit_operator/operators/jit_expression.cpp
-        operators/jit_operator/operators/jit_expression.hpp
+        logical_query_plan/jit_aware_lqp_translator.cpp
+        logical_query_plan/jit_aware_lqp_translator.hpp
+        operators/jit_operator/jit_constant_mappings.cpp
+        operators/jit_operator/jit_constant_mappings.hpp
         operators/jit_operator/specialization/jit_compiler.cpp
         operators/jit_operator/specialization/jit_compiler.hpp
         operators/jit_operator/specialization/jit_code_specializer.cpp
@@ -584,8 +587,6 @@ if (${ENABLE_JIT_SUPPORT})
         operators/jit_operator/specialization/llvm_utils.hpp
         operators/jit_operator_wrapper.cpp
         operators/jit_operator_wrapper.hpp
-        logical_query_plan/jit_aware_lqp_translator.cpp
-        logical_query_plan/jit_aware_lqp_translator.hpp
         ${SOURCES}
         ${JIT_EMBEDDED_SOURCES}
         ${LLVM_BUNDLE_FILE})
