@@ -159,6 +159,29 @@ EqualWidthBucketStats<std::string> EqualWidthHistogram<std::string>::_get_bucket
   return {min, max, counts, distinct_counts, num_buckets_with_larger_range};
 }
 
+template <>
+std::shared_ptr<EqualWidthHistogram<std::string>> EqualWidthHistogram<std::string>::from_column(
+    const std::shared_ptr<const BaseColumn>& column, const size_t max_num_buckets,
+    const std::string& supported_characters, const uint64_t string_prefix_length) {
+  const auto value_counts =
+      AbstractHistogram<std::string>::_calculate_value_counts(column, supported_characters, string_prefix_length);
+
+  const auto bucket_stats = EqualWidthHistogram<std::string>::_get_bucket_stats(
+      value_counts, max_num_buckets, supported_characters, string_prefix_length);
+
+  return std::make_shared<EqualWidthHistogram<std::string>>(
+      bucket_stats.min, bucket_stats.max, bucket_stats.counts, bucket_stats.distinct_counts,
+      bucket_stats.num_buckets_with_larger_range, supported_characters, string_prefix_length);
+}
+
+template <>
+std::shared_ptr<EqualWidthHistogram<std::string>> EqualWidthHistogram<std::string>::from_column(
+    const std::shared_ptr<const BaseColumn>& column, const size_t max_num_buckets) {
+  return EqualWidthHistogram<std::string>::from_column(
+      column, max_num_buckets,
+      " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~", 9);
+}
+
 template <typename T>
 std::shared_ptr<EqualWidthHistogram<T>> EqualWidthHistogram<T>::from_column(
     const std::shared_ptr<const BaseColumn>& column, const size_t max_num_buckets) {
@@ -173,21 +196,6 @@ std::shared_ptr<EqualWidthHistogram<T>> EqualWidthHistogram<T>::from_column(
   return std::make_shared<EqualWidthHistogram<T>>(bucket_stats.min, bucket_stats.max, bucket_stats.counts,
                                                   bucket_stats.distinct_counts,
                                                   bucket_stats.num_buckets_with_larger_range);
-}
-
-template <>
-std::shared_ptr<EqualWidthHistogram<std::string>> EqualWidthHistogram<std::string>::from_column(
-    const std::shared_ptr<const BaseColumn>& column, const size_t max_num_buckets,
-    const std::string& supported_characters, const uint64_t string_prefix_length) {
-  const auto value_counts =
-      AbstractHistogram<std::string>::_calculate_value_counts(column, supported_characters, string_prefix_length);
-
-  const auto bucket_stats = EqualWidthHistogram<std::string>::_get_bucket_stats(
-      value_counts, max_num_buckets, supported_characters, string_prefix_length);
-
-  return std::make_shared<EqualWidthHistogram<std::string>>(
-      bucket_stats.min, bucket_stats.max, bucket_stats.counts, bucket_stats.distinct_counts,
-      bucket_stats.num_buckets_with_larger_range, supported_characters, string_prefix_length);
 }
 
 template <typename T>

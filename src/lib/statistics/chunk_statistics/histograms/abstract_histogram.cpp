@@ -88,6 +88,41 @@ std::string AbstractHistogram<T>::description() const {
   return stream.str();
 }
 
+template <typename T>
+std::string AbstractHistogram<T>::buckets_to_csv(const bool print_header,
+                                                 const std::optional<ColumnID> column_id) const {
+  std::stringstream stream;
+
+  if (print_header) {
+    stream << "histogram_type";
+
+    if (column_id) {
+      stream << ",column_id";
+    }
+
+    stream << ",num_buckets,bucket_id,bucket_min,bucket_max,bucket_count,bucket_count_distinct";
+    stream << std::endl;
+  }
+
+  for (auto bucket = 0u; bucket < num_buckets(); bucket++) {
+    stream << histogram_type_to_string.at(histogram_type());
+
+    if (column_id) {
+      stream << "," << *column_id;
+    }
+
+    stream << "," << num_buckets();
+    stream << "," << bucket;
+    stream << "," << _bucket_min(bucket);
+    stream << "," << _bucket_max(bucket);
+    stream << "," << _bucket_count(bucket);
+    stream << "," << _bucket_count_distinct(bucket);
+    stream << std::endl;
+  }
+
+  return stream.str();
+}
+
 template <>
 const std::string& AbstractHistogram<std::string>::supported_characters() const {
   return _supported_characters;

@@ -69,6 +69,28 @@ EqualNumElementsBucketStats<T> EqualNumElementsHistogram<T>::_get_bucket_stats(
   return {mins, maxs, counts, distinct_count_per_bucket, num_buckets_with_extra_value};
 }
 
+template <>
+std::shared_ptr<EqualNumElementsHistogram<std::string>> EqualNumElementsHistogram<std::string>::from_column(
+    const std::shared_ptr<const BaseColumn>& column, const size_t max_num_buckets,
+    const std::string& supported_characters, const uint64_t string_prefix_length) {
+  const auto value_counts =
+      AbstractHistogram<std::string>::_calculate_value_counts(column, supported_characters, string_prefix_length);
+
+  const auto bucket_stats = EqualNumElementsHistogram<std::string>::_get_bucket_stats(value_counts, max_num_buckets);
+
+  return std::make_shared<EqualNumElementsHistogram<std::string>>(
+      bucket_stats.mins, bucket_stats.maxs, bucket_stats.counts, bucket_stats.distinct_count_per_bucket,
+      bucket_stats.num_buckets_with_extra_value, supported_characters, string_prefix_length);
+}
+
+template <>
+std::shared_ptr<EqualNumElementsHistogram<std::string>> EqualNumElementsHistogram<std::string>::from_column(
+    const std::shared_ptr<const BaseColumn>& column, const size_t max_num_buckets) {
+  return EqualNumElementsHistogram<std::string>::from_column(
+      column, max_num_buckets,
+      " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~", 9);
+}
+
 template <typename T>
 std::shared_ptr<EqualNumElementsHistogram<T>> EqualNumElementsHistogram<T>::from_column(
     const std::shared_ptr<const BaseColumn>& column, const size_t max_num_buckets) {
@@ -83,20 +105,6 @@ std::shared_ptr<EqualNumElementsHistogram<T>> EqualNumElementsHistogram<T>::from
   return std::make_shared<EqualNumElementsHistogram<T>>(bucket_stats.mins, bucket_stats.maxs, bucket_stats.counts,
                                                         bucket_stats.distinct_count_per_bucket,
                                                         bucket_stats.num_buckets_with_extra_value);
-}
-
-template <>
-std::shared_ptr<EqualNumElementsHistogram<std::string>> EqualNumElementsHistogram<std::string>::from_column(
-    const std::shared_ptr<const BaseColumn>& column, const size_t max_num_buckets,
-    const std::string& supported_characters, const uint64_t string_prefix_length) {
-  const auto value_counts =
-      AbstractHistogram<std::string>::_calculate_value_counts(column, supported_characters, string_prefix_length);
-
-  const auto bucket_stats = EqualNumElementsHistogram<std::string>::_get_bucket_stats(value_counts, max_num_buckets);
-
-  return std::make_shared<EqualNumElementsHistogram<std::string>>(
-      bucket_stats.mins, bucket_stats.maxs, bucket_stats.counts, bucket_stats.distinct_count_per_bucket,
-      bucket_stats.num_buckets_with_extra_value, supported_characters, string_prefix_length);
 }
 
 template <typename T>

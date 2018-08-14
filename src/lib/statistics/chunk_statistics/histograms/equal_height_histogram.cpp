@@ -76,6 +76,28 @@ EqualHeightBucketStats<T> EqualHeightHistogram<T>::_get_bucket_stats(
   return {maxs, distinct_counts, min, count_per_bucket, total_count};
 }
 
+template <>
+std::shared_ptr<EqualHeightHistogram<std::string>> EqualHeightHistogram<std::string>::from_column(
+    const std::shared_ptr<const BaseColumn>& column, const size_t max_num_buckets,
+    const std::string& supported_characters, const uint64_t string_prefix_length) {
+  const auto value_counts =
+      AbstractHistogram<std::string>::_calculate_value_counts(column, supported_characters, string_prefix_length);
+
+  const auto bucket_stats = EqualHeightHistogram<std::string>::_get_bucket_stats(value_counts, max_num_buckets);
+
+  return std::make_shared<EqualHeightHistogram<std::string>>(
+      bucket_stats.maxs, bucket_stats.distinct_counts, bucket_stats.min, bucket_stats.count_per_bucket,
+      bucket_stats.total_count, supported_characters, string_prefix_length);
+}
+
+template <>
+std::shared_ptr<EqualHeightHistogram<std::string>> EqualHeightHistogram<std::string>::from_column(
+    const std::shared_ptr<const BaseColumn>& column, const size_t max_num_buckets) {
+  return EqualHeightHistogram<std::string>::from_column(
+      column, max_num_buckets,
+      " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~", 9);
+}
+
 template <typename T>
 std::shared_ptr<EqualHeightHistogram<T>> EqualHeightHistogram<T>::from_column(
     const std::shared_ptr<const BaseColumn>& column, const size_t max_num_buckets) {
@@ -89,20 +111,6 @@ std::shared_ptr<EqualHeightHistogram<T>> EqualHeightHistogram<T>::from_column(
 
   return std::make_shared<EqualHeightHistogram<T>>(bucket_stats.maxs, bucket_stats.distinct_counts, bucket_stats.min,
                                                    bucket_stats.count_per_bucket, bucket_stats.total_count);
-}
-
-template <>
-std::shared_ptr<EqualHeightHistogram<std::string>> EqualHeightHistogram<std::string>::from_column(
-    const std::shared_ptr<const BaseColumn>& column, const size_t max_num_buckets,
-    const std::string& supported_characters, const uint64_t string_prefix_length) {
-  const auto value_counts =
-      AbstractHistogram<std::string>::_calculate_value_counts(column, supported_characters, string_prefix_length);
-
-  const auto bucket_stats = EqualHeightHistogram<std::string>::_get_bucket_stats(value_counts, max_num_buckets);
-
-  return std::make_shared<EqualHeightHistogram<std::string>>(
-      bucket_stats.maxs, bucket_stats.distinct_counts, bucket_stats.min, bucket_stats.count_per_bucket,
-      bucket_stats.total_count, supported_characters, string_prefix_length);
 }
 
 template <typename T>
