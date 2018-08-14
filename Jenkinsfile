@@ -63,7 +63,7 @@ node {
 
       parallel clangRelease: {
         stage("clang-release") {
-          if (env.BRANCH_NAME == 'master' || full_ci) {
+          if (true) {
             sh "export CCACHE_BASEDIR=`pwd`; cd clang-release && make all -j \$(( \$(cat /proc/cpuinfo | grep processor | wc -l) / 3))"
             sh "./clang-release/hyriseTest clang-release"
             sh "./clang-release/hyriseSystemTest clang-release"

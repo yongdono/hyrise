@@ -1,3 +1,7 @@
+-- Limit
+SELECT a, b, c FROM mixed WHERE b != 10 LIMIT 5;
+SELECT a, AVG(id), MAX(c), MIN(c), COUNT(d) AS x FROM mixed GROUP BY a LIMIT 3;
+
 -- Select entire table
 SELECT * FROM mixed;
 SELECT * FROM mixed_null;
