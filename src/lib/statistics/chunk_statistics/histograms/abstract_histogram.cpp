@@ -6,6 +6,8 @@
 #include <memory>
 #include <vector>
 
+#include "boost/algorithm/string/replace.hpp"
+
 #include "expression/expression_functional.hpp"
 #include "expression/pqp_column_expression.hpp"
 #include "histogram_helper.hpp"
@@ -89,8 +91,8 @@ std::string AbstractHistogram<T>::description() const {
 }
 
 template <typename T>
-std::string AbstractHistogram<T>::buckets_to_csv(const bool print_header,
-                                                 const std::optional<ColumnID> column_id) const {
+std::string AbstractHistogram<T>::buckets_to_csv(const bool print_header, const std::optional<ColumnID> column_id,
+                                                 const std::optional<uint64_t> requested_num_buckets) const {
   std::stringstream stream;
 
   if (print_header) {
@@ -100,7 +102,13 @@ std::string AbstractHistogram<T>::buckets_to_csv(const bool print_header,
       stream << ",column_id";
     }
 
-    stream << ",num_buckets,bucket_id,bucket_min,bucket_max,bucket_count,bucket_count_distinct";
+    stream << ",actual_num_buckets";
+
+    if (requested_num_buckets) {
+      stream << ",requested_num_buckets";
+    }
+
+    stream << ",bucket_id,bucket_min,bucket_max,bucket_min_repr,bucket_max_repr,bucket_count,bucket_count_distinct";
     stream << std::endl;
   }
 
@@ -112,9 +120,34 @@ std::string AbstractHistogram<T>::buckets_to_csv(const bool print_header,
     }
 
     stream << "," << num_buckets();
+
+    if (requested_num_buckets) {
+      stream << "," << *requested_num_buckets;
+    }
+
     stream << "," << bucket;
-    stream << "," << _bucket_min(bucket);
-    stream << "," << _bucket_max(bucket);
+
+    if constexpr (std::is_same_v<T, std::string>) {
+      constexpr auto patterns = std::array<std::pair<const char*, const char*>, 2u>{{{"\\", "\\\\"}, {"\"", "\\\""}}};
+      auto min = _bucket_min(bucket);
+      auto max = _bucket_max(bucket);
+
+      for (const auto& pair : patterns) {
+        boost::replace_all(min, pair.first, pair.second);
+        boost::replace_all(max, pair.first, pair.second);
+      }
+
+      stream << ",\"" << min << "\"";
+      stream << ",\"" << max << "\"";
+      stream << "," << _convert_string_to_number_representation(_bucket_min(bucket));
+      stream << "," << _convert_string_to_number_representation(_bucket_max(bucket));
+    } else {
+      stream << "," << _bucket_min(bucket);
+      stream << "," << _bucket_max(bucket);
+      stream << "," << _bucket_min(bucket);
+      stream << "," << _bucket_max(bucket);
+    }
+
     stream << "," << _bucket_count(bucket);
     stream << "," << _bucket_count_distinct(bucket);
     stream << std::endl;
