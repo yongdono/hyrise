@@ -6,7 +6,7 @@
 #include "logical_query_plan/mock_node.hpp"
 #include "optimizer/join_ordering/join_plan_predicate.hpp"
 #include "statistics/cardinality_estimator_cached.hpp"
-#include "statistics/cardinality_estimation_cache.hpp"
+#include "statistics/base_cardinality_cache.hpp"
 
 using namespace std::string_literals;  // NOLINT
 
@@ -35,7 +35,7 @@ class CardinalityEstimatorCachedTest : public ::testing::Test {
     a0_gt_b0 = std::make_shared<JoinPlanAtomicPredicate>(a0, PredicateCondition::GreaterThan, b0);
     b0_lt_a0 = std::make_shared<JoinPlanAtomicPredicate>(b0, PredicateCondition::LessThan, a0);
 
-    cardinality_estimation_cache = std::make_shared<CardinalityEstimationCache>();
+    cardinality_estimation_cache = std::make_shared<CardinalityCacheUncapped>();
     const auto fallback_cardinality_estimator = std::make_shared<CardinalityEstimatorDummy>();
     cardinality_estimator = std::make_shared<CardinalityEstimatorCached>(cardinality_estimation_cache,
     CardinalityEstimationCacheMode::ReadOnly, fallback_cardinality_estimator);
@@ -45,7 +45,7 @@ class CardinalityEstimatorCachedTest : public ::testing::Test {
   LQPColumnReference a0, a1, b0;
   std::shared_ptr<AbstractJoinPlanPredicate> b0_eq_a0, a0_eq_b0, b0_lt_a0, a0_gt_b0;
 
-  std::shared_ptr<CardinalityEstimationCache> cardinality_estimation_cache;
+  std::shared_ptr<BaseCardinalityCache> cardinality_estimation_cache;
   std::shared_ptr<CardinalityEstimatorCached> cardinality_estimator;
 };
 

@@ -182,7 +182,7 @@ void JoeQueryIteration::dump_cardinality_estimation_cache() {
   const auto config = query.joe.config;
   if (!config->cardinality_estimation_cache_dump) return;
 
-  std::ofstream stream{prefix() + "CardinalityEstimationCache.Dump.log"};
+  std::ofstream stream{prefix() + "BaseCardinalityCache.Dump.log"};
   config->cardinality_estimation_cache->print(stream);
 }
 

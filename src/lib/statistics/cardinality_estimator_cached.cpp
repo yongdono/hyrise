@@ -3,12 +3,12 @@
 #include <chrono>
 #include <iostream>
 
-#include "cardinality_estimation_cache.hpp"
+#include "base_cardinality_cache.hpp"
 #include "cardinality_estimator_execution.hpp"
 
 namespace opossum {
 
-CardinalityEstimatorCached::CardinalityEstimatorCached(const std::shared_ptr<CardinalityEstimationCache>& cache,
+CardinalityEstimatorCached::CardinalityEstimatorCached(const std::shared_ptr<BaseCardinalityCache>& cache,
                            const CardinalityEstimationCacheMode cache_mode,
                            const std::shared_ptr<AbstractCardinalityEstimator>& fallback_estimator):
   _cache(cache), _cache_mode(cache_mode), _fallback_estimator(fallback_estimator)
