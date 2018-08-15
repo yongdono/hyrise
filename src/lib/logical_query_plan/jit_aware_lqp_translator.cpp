@@ -195,16 +195,23 @@ std::shared_ptr<JitOperatorWrapper> JitAwareLQPTranslator::_try_translate_sub_pl
       const auto aggregate_expression = std::dynamic_pointer_cast<AggregateExpression>(expression);
       DebugAssert(aggregate_expression, "Expression is not a function.");
 
-      const auto jit_expression =
-          _try_translate_expression_to_jit_expression(*aggregate_expression->arguments[0], *read_tuples, input_node);
-      if (!jit_expression) return nullptr;
-      // Create a JitCompute operator for each aggregate expression on a computed value ...
-      if (jit_expression->expression_type() != JitExpressionType::Column) {
-        jit_operator->add_jit_operator(std::make_shared<JitCompute>(jit_expression));
+      if (aggregate_expression->arguments.empty()) {
+        // count(*)
+        aggregate->add_aggregate_column(aggregate_expression->as_column_name(), {DataType::Long, false, 0},
+                                        aggregate_expression->aggregate_function);
+      } else {
+        const auto jit_expression =
+            _try_translate_expression_to_jit_expression(*aggregate_expression->arguments[0], *read_tuples, input_node);
+        if (!jit_expression) return nullptr;
+        // Create a JitCompute operator for each aggregate expression on a computed value ...
+        if (jit_expression->expression_type() != JitExpressionType::Column) {
+          jit_operator->add_jit_operator(std::make_shared<JitCompute>(jit_expression));
+        }
+
+        // ... and add the aggregate expression to the JitAggregate operator.
+        aggregate->add_aggregate_column(aggregate_expression->as_column_name(), jit_expression->result(),
+                                        aggregate_expression->aggregate_function);
       }
-      // ... and add the aggregate expression to the JitAggregate operator.
-      aggregate->add_aggregate_column(aggregate_expression->as_column_name(), jit_expression->result(),
-                                      aggregate_expression->aggregate_function);
     }
 
     jit_operator->add_jit_operator(aggregate);
@@ -319,8 +326,7 @@ bool JitAwareLQPTranslator::_node_is_jittable(const std::shared_ptr<AbstractLQPN
           Assert(aggregate_expression, "Expected AggregateExpression");
           // Right now, the JIT doesn't support CountDistinct and Count(*) (which can be recognized by an empty
           // argument list)
-          return aggregate_expression->aggregate_function == AggregateFunction::CountDistinct ||
-                 aggregate_expression->arguments.empty();
+          return aggregate_expression->aggregate_function == AggregateFunction::CountDistinct;
         });
     return allow_aggregate_node && !has_unsupported_aggregate;
   }
