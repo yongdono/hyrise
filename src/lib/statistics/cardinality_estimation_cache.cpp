@@ -19,19 +19,24 @@
 
 namespace opossum {
 
+CardinalityEstimationCache::CardinalityEstimationCache(const CacheEvictionStrategy cache_eviction_strategy, const size_t eviction_threshold):
+  cache_eviction_strategy(cache_eviction_strategy), eviction_threshold(eviction_threshold), _random_generator(std::random_engine{}()) {
+
+}
+
 std::optional<Cardinality> CardinalityEstimationCache::get(const BaseJoinGraph& join_graph) {
-  auto& entry = get_entry(join_graph);
+  const auto entry = get_entry(join_graph);
 
   if (_log) (*_log) << "CardinalityEstimationCache [" << (entry.request_count == 0 ? "I" : "S") << "]";
 
-  ++entry.request_count;
+  ++entry->request_count;
 
   std::optional<Cardinality> result;
 
-  if (entry.cardinality) {
+  if (entry->cardinality) {
     if (_log) (*_log) << "[HIT ]: ";
     ++_hit_count;
-    result = *entry.cardinality;
+    result = *entry->cardinality;
   } else {
     if (_log) (*_log) << "[MISS]: ";
     ++_miss_count;
@@ -39,8 +44,8 @@ std::optional<Cardinality> CardinalityEstimationCache::get(const BaseJoinGraph& 
 
   if (_log) (*_log) << join_graph.description();
 
-  if (entry.cardinality) {
-    if (_log) (*_log) << ": " << *entry.cardinality;
+  if (entry->cardinality) {
+    if (_log) (*_log) << ": " << *entry->cardinality;
   }
 
   if (_log) (*_log) << std::endl;
@@ -49,23 +54,21 @@ std::optional<Cardinality> CardinalityEstimationCache::get(const BaseJoinGraph& 
 }
 
 void CardinalityEstimationCache::put(const BaseJoinGraph& join_graph, const Cardinality cardinality) {
-  auto normalized_join_graph = _normalize(join_graph);
+  const auto entry = get_entry(join_graph);
 
-  auto& entry = _cache[normalized_join_graph];
-
-  if (_log && !entry.cardinality) {
-    (*_log) << "CardinalityEstimationCache [" << (entry.request_count == 0 ? "I" : "S") << "][PUT ]: " << normalized_join_graph.description() << ": " << cardinality << std::endl;
+  if (_log && !entry->cardinality) {
+    (*_log) << "CardinalityEstimationCache [" << (entry->request_count == 0 ? "I" : "S") << "][PUT ]: " << join_graph.description() << ": " << cardinality << std::endl;
   }
 
-  entry.cardinality = cardinality;
+  entry->cardinality = cardinality;
 }
 
 std::optional<std::chrono::seconds> CardinalityEstimationCache::get_timeout(const BaseJoinGraph& join_graph) {
-  return get_entry(join_graph).timeout;
+  return get_entry(join_graph)->timeout;
 }
 
 void CardinalityEstimationCache::set_timeout(const BaseJoinGraph& join_graph, const std::optional<std::chrono::seconds>& timeout) {
-  get_entry(join_graph).timeout = timeout;
+  get_entry(join_graph)->timeout = timeout;
 }
 
 size_t CardinalityEstimationCache::cache_hit_count() const {
@@ -196,8 +199,8 @@ nlohmann::json CardinalityEstimationCache::to_json() const {
     auto entry_json = nlohmann::json();
 
     entry_json["key"] = pair.first.to_json();
-    if (pair.second.cardinality) entry_json["value"] = *pair.second.cardinality;
-    if (pair.second.timeout) entry_json["timeout"] = pair.second.timeout->count();
+    if (pair.second->cardinality) entry_json["value"] = *pair.second->cardinality;
+    if (pair.second->timeout) entry_json["timeout"] = pair.second->timeout->count();
 
     json.push_back(entry_json);
   }
@@ -210,18 +213,32 @@ std::shared_ptr<CardinalityEstimationCache> CardinalityEstimationCache::from_jso
 
   for (const auto& pair : json) {
     const auto key = BaseJoinGraph::from_json(pair["key"]);
-    auto& entry = cache->get_entry(key);
+    auto entry = cache->get_entry(key);
 
-    if (pair.count("timeout")) entry.timeout = std::chrono::seconds{pair["timeout"].get<int>()};
-    if (pair.count("value")) entry.cardinality = pair["value"].get<Cardinality>();
+    if (pair.count("timeout")) entry->timeout = std::chrono::seconds{pair["timeout"].get<int>()};
+    if (pair.count("value")) entry->cardinality = pair["value"].get<Cardinality>();
   }
 
   return cache;
 }
 
-CardinalityEstimationCache::Entry& CardinalityEstimationCache::get_entry(const BaseJoinGraph& join_graph) {
+std::shared_ptr<CardinalityEstimationCache::Entry> CardinalityEstimationCache::get_entry(const BaseJoinGraph& join_graph) {
   auto normalized_join_graph = _normalize(join_graph);
-  return _cache[normalized_join_graph];
+
+  std::shared_ptr<Entry> entry;
+
+  auto iter = _cache.find(normalized_join_graph);
+  if (iter == _cache.end()) {
+    entry = std::make_shared<Entry>();
+    iter = _cache.emplace(normalized_join_graph, entry).first;
+    _add_eviction_entry(entry);
+  } else {
+    entry = iter->second;
+  }
+
+  if (_cache.size() > eviction_threshold) _evict_one();
+
+  return entry;
 }
 
 std::shared_ptr<const AbstractJoinPlanPredicate> CardinalityEstimationCache::_normalize(const std::shared_ptr<const AbstractJoinPlanPredicate>& predicate) {
@@ -254,6 +271,51 @@ std::shared_ptr<const AbstractJoinPlanPredicate> CardinalityEstimationCache::_no
   }
 
   return predicate;
+}
+
+void CardinalityEstimationCache::_add_eviction_entry(const std::shared_ptr<Entry>& entry) {
+}
+
+void CardinalityEstimationCache::_evict_one() {
+  Assert(_cache.size() > 0, "");
+
+  switch (cache_eviction_strategy) {
+    case CacheEvictionStrategy::None:
+      return;
+    case CacheEvictionStrategy::Random:
+      _evict_random();
+      return;
+    case CacheEvictionStrategy::LRU:
+      _evict_lru();
+      return;
+    case CacheEvictionStrategy::LAG:
+      _evict_lag();
+      return;
+  }
+}
+
+void CardinalityEstimationCache::_evict_random() {
+  std::uniform_int_distribution<> distribution(0, _cache.size() - 1);
+  const auto index = distribution(_random_generator);
+  auto iter = _cache.begin();
+
+  std::advance(iter, index);
+
+  if (_log) (*_log) << "Randomly evicting " << iter->first.description() << std::endl;
+
+  _cache.erase(iter);
+}
+
+void CardinalityEstimationCache::_evict_lru() {
+  const auto join_graph = _lru_queue.back();
+  _lru_queue.pop_back();
+
+  const auto erased_count = _cache.erase(join_graph);
+  Assert(erased_count == 1, "");
+}
+
+void CardinalityEstimationCache::_evict_lag() {
+
 }
 
 size_t CardinalityEstimationCache::memory_consumption() const {
