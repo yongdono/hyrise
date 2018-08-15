@@ -150,7 +150,8 @@ std::shared_ptr<JitOperatorWrapper> JitAwareLQPTranslator::_try_translate_sub_pl
   // If we can reach the input node without encountering a UnionNode or PredicateNode,
   // there is no need to filter any tuples
   if (filter_node != input_node) {
-    const auto boolean_expression = lqp_subplan_to_boolean_expression(filter_node);
+    const auto boolean_expression = lqp_subplan_to_boolean_expression(
+        filter_node, [&](const std::shared_ptr<AbstractLQPNode>& lqp) { return _node_is_jittable(lqp, false, false); });
     if (!boolean_expression) return nullptr;
 
     const auto jit_boolean_expression =
@@ -324,14 +325,17 @@ bool JitAwareLQPTranslator::_node_is_jittable(const std::shared_ptr<AbstractLQPN
         std::any_of(aggregate_expressions.begin(), aggregate_expressions.end(), [](auto& expression) {
           const auto aggregate_expression = std::dynamic_pointer_cast<AggregateExpression>(expression);
           Assert(aggregate_expression, "Expected AggregateExpression");
-          // Right now, the JIT doesn't support CountDistinct and Count(*) (which can be recognized by an empty
-          // argument list)
+          // Right now, the JIT does not support CountDistinct
           return aggregate_expression->aggregate_function == AggregateFunction::CountDistinct;
         });
     return allow_aggregate_node && !has_unsupported_aggregate;
   }
 
   if (auto predicate_node = std::dynamic_pointer_cast<PredicateNode>(node)) {
+    // jit does not support place holders (arguments.size() > 0)
+    for (const auto& argument : predicate_node->predicate->arguments) {
+      if (argument->type == ExpressionType::Parameter) return false;
+    }
     return predicate_node->scan_type == ScanType::TableScan;
   }
 

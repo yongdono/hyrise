@@ -481,7 +481,7 @@ std::vector<std::shared_ptr<AbstractExpression>> LQPTranslator::_translate_expre
         const auto lqp_select_expression = std::dynamic_pointer_cast<LQPSelectExpression>(expression);
         Assert(lqp_select_expression, "Expected LQPSelectExpression");
 
-        const auto sub_select_pqp = LQPTranslator{}.translate_node(lqp_select_expression->lqp);
+        const auto sub_select_pqp = translate_node(lqp_select_expression->lqp);
 
         auto sub_select_parameters = PQPSelectExpression::Parameters{};
         sub_select_parameters.reserve(lqp_select_expression->parameter_count());
