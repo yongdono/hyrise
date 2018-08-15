@@ -1,5 +1,6 @@
 #include "jit_operator_wrapper.hpp"
 
+#include "expression/expression_utils.hpp"
 #include "global.hpp"
 #include "operators/jit_operator/operators/jit_aggregate.hpp"
 #include "operators/jit_operator/operators/jit_compute.hpp"
@@ -110,7 +111,7 @@ void JitOperatorWrapper::_prepare() {
     (*it)->set_next_operator(*(next));
   }
 
-  std::cerr << description(DescriptionMode::MultiLine) << std::endl;
+  // std::cerr << description(DescriptionMode::MultiLine) << std::endl;
 
   // We want to perform two specialization passes if the operator chain contains a JitAggregate operator, since the
   // JitAggregate operator contains multiple loops that need unrolling.
@@ -145,6 +146,8 @@ std::shared_ptr<const Table> JitOperatorWrapper::_on_execute() {
     _source()->before_chunk(in_table, in_chunk, context);
     _execute_func(_source().get(), context);
     _sink()->after_chunk(*out_table, context);
+    // break, if limit is reached
+    if (context.chunk_offset == std::numeric_limits<ChunkOffset>::max()) break;
   }
 
   _sink()->after_query(*out_table, context);
@@ -152,10 +155,16 @@ std::shared_ptr<const Table> JitOperatorWrapper::_on_execute() {
   return out_table;
 }
 
-std::shared_ptr<AbstractOperator> JitOperatorWrapper::_on_recreate(
-    const std::vector<AllParameterVariant>& args, const std::shared_ptr<AbstractOperator>& recreated_input_left,
-    const std::shared_ptr<AbstractOperator>& recreated_input_right) const {
-  return std::make_shared<JitOperatorWrapper>(recreated_input_left, _execution_mode, _jit_operators);
+std::shared_ptr<AbstractOperator> JitOperatorWrapper::_on_deep_copy(
+    const std::shared_ptr<AbstractOperator>& copied_input_left,
+    const std::shared_ptr<AbstractOperator>& copied_input_right) const {
+  return std::make_shared<JitOperatorWrapper>(copied_input_left, _execution_mode, _jit_operators);
+}
+
+void JitOperatorWrapper::_on_set_parameters(const std::unordered_map<ParameterID, AllTypeVariant>& parameters) {}
+void JitOperatorWrapper::_on_set_transaction_context(const std::weak_ptr<TransactionContext>& transaction_context) {
+  if (const auto row_count_expression = _source()->row_count_expression())
+    expression_set_transaction_context(row_count_expression, transaction_context);
 }
 
 }  // namespace opossum

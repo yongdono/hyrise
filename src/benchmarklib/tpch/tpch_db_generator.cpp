@@ -11,14 +11,6 @@ extern "C" {
 #include "storage/chunk.hpp"
 #include "storage/storage_manager.hpp"
 
-/**
- * Declare tpch_dbgen function we use that are not exposed by tpch-dbgen via headers
- */
-extern "C" {
-void row_start(int t);
-void row_stop(int t);
-}
-
 extern char** asc_date;
 extern seed_t seed[];
 
@@ -125,7 +117,8 @@ class TableBuilder {
     // Create a column from each column vector and add it to the Chunk, then re-initialize the vector
     boost::hana::for_each(_column_vectors, [&](auto&& vector) {
       using T = typename std::decay_t<decltype(vector)>::value_type;
-      chunk_columns.push_back(std::make_shared<opossum::ValueColumn<T>>(std::move(vector)));
+      // reason for nolint: clang-tidy wants this to be a forward, but that doesn't work
+      chunk_columns.push_back(std::make_shared<opossum::ValueColumn<T>>(std::move(vector)));  // NOLINT
       vector = std::decay_t<decltype(vector)>();
     });
     _table->append_chunk(chunk_columns);
@@ -148,7 +141,7 @@ DSSType call_dbgen_mk(size_t idx, MKRetType (*mk_fn)(DSS_HUGE, DSSType* val, Arg
 
   row_start(dbgen_table_id);
 
-  DSSType value;
+  DSSType value{};
   mk_fn(idx, &value, std::forward<Args>(args)...);
 
   row_stop(dbgen_table_id);
@@ -172,15 +165,15 @@ void dbgen_cleanup() {
                              &nouns,       &adjectives,     &adverbs,        &prepositions,
                              &verbs,       &terminators,    &auxillaries,    &np,
                              &vp,          &grammar}) {
-    free(distribution->permute);
+    free(distribution->permute);  // NOLINT
     distribution->permute = nullptr;
   }
 
   if (asc_date != nullptr) {
     for (size_t idx = 0; idx < TOTDATE; ++idx) {
-      free(asc_date[idx]);
+      free(asc_date[idx]);  // NOLINT
     }
-    free(asc_date);
+    free(asc_date);  // NOLINT
   }
   asc_date = nullptr;
 }

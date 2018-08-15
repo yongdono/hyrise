@@ -2,38 +2,39 @@
 
 namespace opossum {
 
-#define JIT_VARIANT_VECTOR_GET(r, d, type)          \
-  template <>                                       \
-  BOOST_PP_TUPLE_ELEM(3, 0, type)                   \
-  JitVariantVector::get(const size_t index) const { \
-    return BOOST_PP_TUPLE_ELEM(3, 1, type)[index];  \
+#define JIT_VARIANT_VECTOR_GET(r, d, type)                                           \
+  template <>                                                                        \
+  BOOST_PP_TUPLE_ELEM(3, 0, type)                                                    \
+  JitVariantVector::get<BOOST_PP_TUPLE_ELEM(3, 0, type)>(const size_t index) const { \
+    return BOOST_PP_TUPLE_ELEM(3, 1, type)[index];                                   \
   }
 
-#define JIT_VARIANT_VECTOR_SET(r, d, type)                                                      \
-  template <>                                                                                   \
-  void JitVariantVector::set(const size_t index, const BOOST_PP_TUPLE_ELEM(3, 0, type) value) { \
-    BOOST_PP_TUPLE_ELEM(3, 1, type)[index] = value;                                             \
+#define JIT_VARIANT_VECTOR_SET(r, d, type)                                                                     \
+  template <>                                                                                                  \
+  void JitVariantVector::set<BOOST_PP_TUPLE_ELEM(3, 0, type)>(const size_t index,                              \
+                                                              const BOOST_PP_TUPLE_ELEM(3, 0, type) & value) { \
+    BOOST_PP_TUPLE_ELEM(3, 1, type)[index] = value;                                                            \
   }
 
 #define JIT_VARIANT_VECTOR_RESIZE(r, d, type) BOOST_PP_TUPLE_ELEM(3, 1, type).resize(new_size);
 
-#define JIT_VARIANT_VECTOR_GROW_BY_ONE(r, d, type)                                                              \
-  template <>                                                                                                   \
-  size_t JitVariantVector::grow_by_one<BOOST_PP_TUPLE_ELEM(3, 0, type)>(const InitialValue initial_value) {     \
-    _is_null.push_back(true);                                                                                   \
-                                                                                                                \
-    switch (initial_value) {                                                                                    \
-      case InitialValue::Zero:                                                                                  \
-        BOOST_PP_TUPLE_ELEM(3, 1, type).push_back(BOOST_PP_TUPLE_ELEM(3, 0, type)());                           \
-        break;                                                                                                  \
-      case InitialValue::MaxValue:                                                                              \
-        BOOST_PP_TUPLE_ELEM(3, 1, type).push_back(std::numeric_limits<BOOST_PP_TUPLE_ELEM(3, 0, type)>::max()); \
-        break;                                                                                                  \
-      case InitialValue::MinValue:                                                                              \
-        BOOST_PP_TUPLE_ELEM(3, 1, type).push_back(std::numeric_limits<BOOST_PP_TUPLE_ELEM(3, 0, type)>::min()); \
-        break;                                                                                                  \
-    }                                                                                                           \
-    return BOOST_PP_TUPLE_ELEM(3, 1, type).size() - 1;                                                          \
+#define JIT_VARIANT_VECTOR_GROW_BY_ONE(r, d, type)                                                                 \
+  template <>                                                                                                      \
+  size_t JitVariantVector::grow_by_one<BOOST_PP_TUPLE_ELEM(3, 0, type)>(const InitialValue initial_value) {        \
+    _is_null.emplace_back(true);                                                                                   \
+                                                                                                                   \
+    switch (initial_value) {                                                                                       \
+      case InitialValue::Zero:                                                                                     \
+        BOOST_PP_TUPLE_ELEM(3, 1, type).emplace_back(BOOST_PP_TUPLE_ELEM(3, 0, type)());                           \
+        break;                                                                                                     \
+      case InitialValue::MaxValue:                                                                                 \
+        BOOST_PP_TUPLE_ELEM(3, 1, type).emplace_back(std::numeric_limits<BOOST_PP_TUPLE_ELEM(3, 0, type)>::max()); \
+        break;                                                                                                     \
+      case InitialValue::MinValue:                                                                                 \
+        BOOST_PP_TUPLE_ELEM(3, 1, type).emplace_back(std::numeric_limits<BOOST_PP_TUPLE_ELEM(3, 0, type)>::min()); \
+        break;                                                                                                     \
+    }                                                                                                              \
+    return BOOST_PP_TUPLE_ELEM(3, 1, type).size() - 1;                                                             \
   }
 
 #define JIT_VARIANT_VECTOR_GET_VECTOR(r, d, type)                                                                 \
@@ -72,7 +73,7 @@ bool JitTupleValue::is_nullable() const { return _is_nullable; }
 size_t JitTupleValue::tuple_index() const { return _tuple_index; }
 
 bool JitTupleValue::is_null(JitRuntimeContext& context) const {
-  return _is_nullable && context.tuple.is_null(_tuple_index);
+  return _data_type == DataType::Null || (_is_nullable && context.tuple.is_null(_tuple_index));
 }
 
 void JitTupleValue::set_is_null(const bool is_null, JitRuntimeContext& context) const {
@@ -99,6 +100,36 @@ bool JitHashmapValue::is_null(const size_t index, JitRuntimeContext& context) co
 
 void JitHashmapValue::set_is_null(const bool is_null, const size_t index, JitRuntimeContext& context) const {
   context.hashmap.columns[_column_index].set_is_null(index, is_null);
+}
+
+bool jit_expression_is_binary(const JitExpressionType expression_type) {
+  switch (expression_type) {
+    case JitExpressionType::Addition:
+    case JitExpressionType::Subtraction:
+    case JitExpressionType::Multiplication:
+    case JitExpressionType::Division:
+    case JitExpressionType::Modulo:
+    case JitExpressionType::Power:
+    case JitExpressionType::Equals:
+    case JitExpressionType::NotEquals:
+    case JitExpressionType::GreaterThan:
+    case JitExpressionType::GreaterThanEquals:
+    case JitExpressionType::LessThan:
+    case JitExpressionType::LessThanEquals:
+    case JitExpressionType::Like:
+    case JitExpressionType::NotLike:
+    case JitExpressionType::And:
+    case JitExpressionType::Or:
+    case JitExpressionType::In:
+      return true;
+
+    case JitExpressionType::Column:
+    case JitExpressionType::Between:
+    case JitExpressionType::Not:
+    case JitExpressionType::IsNull:
+    case JitExpressionType::IsNotNull:
+      return false;
+  }
 }
 
 // cleanup

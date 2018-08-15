@@ -1,7 +1,9 @@
-#include "operators/jit_operator/operators/jit_filter.hpp"
 #include "../../../base_test.hpp"
+#include "operators/jit_operator/operators/jit_filter.hpp"
 
 namespace opossum {
+
+namespace {
 
 // Mock JitOperator that records whether tuples are passed to it
 class MockSink : public AbstractJittable {
@@ -31,6 +33,8 @@ class MockSource : public AbstractJittable {
  private:
   void _consume(JitRuntimeContext& context) const final {}
 };
+
+}  // namespace
 
 class JitFilterTest : public BaseTest {};
 

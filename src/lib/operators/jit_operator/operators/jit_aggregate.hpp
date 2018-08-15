@@ -1,6 +1,7 @@
 #pragma once
 
 #include "abstract_jittable_sink.hpp"
+#include "expression/aggregate_expression.hpp"
 
 namespace opossum {
 
@@ -56,7 +57,7 @@ struct JitGroupByColumn {
  */
 class JitAggregate : public AbstractJittableSink {
  public:
-  std::string description() const final;
+  std::string description() const;
 
   // Creates the output table with appropriate column definitions
   std::shared_ptr<Table> create_output_table(const ChunkOffset input_table_chunk_size) const final;
@@ -70,23 +71,37 @@ class JitAggregate : public AbstractJittableSink {
   void after_query(Table& out_table, JitRuntimeContext& context) const final;
 
   // Adds an aggregate to the operator that is to be computed on tuple groups.
-  void add_aggregate_column(const std::string& column_name, const JitTupleValue& tuple_value,
+  void add_aggregate_column(const std::string& column_name, const JitTupleValue& value,
                             const AggregateFunction function);
 
   // Adds a column to the operator that is to be considered when grouping tuples.
-  void add_groupby_column(const std::string& column_name, const JitTupleValue& tuple_value);
+  void add_groupby_column(const std::string& column_name, const JitTupleValue& value);
 
   const std::vector<JitAggregateColumn> aggregate_columns() const;
   const std::vector<JitGroupByColumn> groupby_columns() const;
 
   std::map<size_t, bool> accessed_column_ids() const final;
 
+ protected:
+  std::string aggregate_description() const;
+
  private:
-  void _consume(JitRuntimeContext& ctx) const final;
+  void _consume(JitRuntimeContext& context) const final;
+  virtual bool _limit_reached(JitRuntimeContext& context) const;
 
   uint32_t _num_hashmap_columns{0};
   std::vector<JitAggregateColumn> _aggregate_columns;
   std::vector<JitGroupByColumn> _groupby_columns;
+};
+
+class JitLimitAggregate : public JitAggregate {
+ public:
+  using JitAggregate::JitAggregate;
+
+  std::string description() const final;
+
+ private:
+  bool _limit_reached(JitRuntimeContext& context) const final;
 };
 
 }  // namespace opossum

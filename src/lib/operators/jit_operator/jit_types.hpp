@@ -11,6 +11,10 @@
 
 namespace opossum {
 
+// Functions using strings are not optimized to support code specialization on Linux.
+// This specialiation issue came up with pr #933 (https://github.com/hyrise/hyrise/pull/933).
+// The flag __attribute__((optnone)) ensures that clang does not optimize these functions.
+
 // We need a boolean data type in the JitOperatorWrapper, but don't want to add it to
 // DATA_TYPE_INFO to avoid costly template instantiations.
 // See "all_type_variant.hpp" for details.
@@ -18,6 +22,10 @@ namespace opossum {
 
 #define JIT_VARIANT_VECTOR_MEMBER(r, d, type) \
   std::vector<BOOST_PP_TUPLE_ELEM(3, 0, type)> BOOST_PP_TUPLE_ELEM(3, 1, type);
+
+// Expression uses int32_t to store booleans (see src/lib/expression/evaluation/expression_evaluator.hpp)
+using Bool = int32_t;
+static constexpr auto DataTypeBool = DataType::Int;
 
 /* A brief overview of the type system and the way values are handled in the JitOperatorWrapper:
  *
@@ -74,10 +82,14 @@ class JitVariantVector {
 
   void resize(const size_t new_size);
 
-  template <typename T>
+  template <typename T, typename = typename std::enable_if_t<!std::is_scalar_v<T>>>
+  __attribute__((optnone)) std::string get(const size_t index) const;
+  template <typename T, typename = typename std::enable_if_t<std::is_scalar_v<T>>>
   T get(const size_t index) const;
-  template <typename T>
-  void set(const size_t index, const T value);
+  template <typename T, typename = typename std::enable_if_t<!std::is_scalar_v<T>>>
+  __attribute__((optnone)) void set(const size_t index, const std::string& value);
+  template <typename T, typename = typename std::enable_if_t<std::is_scalar_v<T>>>
+  void set(const size_t index, const T& value);
   bool is_null(const size_t index);
   void set_is_null(const size_t index, const bool is_null);
 
@@ -124,11 +136,12 @@ struct JitRuntimeContext {
   std::vector<std::shared_ptr<BaseJitColumnWriter>> outputs;
   JitRuntimeHashmap hashmap;
   ChunkColumns out_chunk;
-  const MvccColumns* columns;
+  const MvccColumns* mvcc_columns;
   std::shared_ptr<const Table> referenced_table;
   std::shared_ptr<const PosList> pos_list;
   TransactionID transaction_id;
   CommitID snapshot_commit_id;
+  int64_t limit_rows;  // signed integer used to allow decrementing below 0
 };
 
 // The JitTupleValue represents a value in the runtime tuple.
@@ -193,11 +206,19 @@ class JitHashmapValue {
   bool is_nullable() const;
   size_t column_index() const;
 
-  template <typename T>
+  template <typename T, typename = typename std::enable_if_t<!std::is_scalar_v<T>>>
+  __attribute__((optnone)) std::string get(const size_t index, JitRuntimeContext& context) const {
+    return context.hashmap.columns[_column_index].get<std::string>(index);
+  }
+  template <typename T, typename = typename std::enable_if_t<std::is_scalar_v<T>>>
   T get(const size_t index, JitRuntimeContext& context) const {
     return context.hashmap.columns[_column_index].get<T>(index);
   }
-  template <typename T>
+  template <typename T, typename = typename std::enable_if_t<!std::is_scalar_v<T>>>
+  __attribute__((optnone)) void set(const std::string& value, const size_t index, JitRuntimeContext& context) const {
+    context.hashmap.columns[_column_index].set<std::string>(index, value);
+  }
+  template <typename T, typename = typename std::enable_if_t<std::is_scalar_v<T>>>
   void set(const T value, const size_t index, JitRuntimeContext& context) const {
     context.hashmap.columns[_column_index].set<T>(index, value);
   }
@@ -210,6 +231,33 @@ class JitHashmapValue {
   const bool _is_nullable;
   const size_t _column_index;
 };
+
+enum class JitExpressionType {
+  Addition,
+  Column,
+  Subtraction,
+  Multiplication,
+  Division,
+  Modulo,
+  Power,
+  Equals,
+  NotEquals,
+  GreaterThan,
+  GreaterThanEquals,
+  LessThan,
+  LessThanEquals,
+  Between,
+  Like,
+  NotLike,
+  And,
+  Or,
+  Not,
+  IsNull,
+  IsNotNull,
+  In
+};
+
+bool jit_expression_is_binary(const JitExpressionType expression_type);
 
 // cleanup
 #undef JIT_VARIANT_VECTOR_MEMBER

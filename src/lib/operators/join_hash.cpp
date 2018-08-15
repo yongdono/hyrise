@@ -13,7 +13,7 @@
 #include "scheduler/abstract_task.hpp"
 #include "scheduler/current_scheduler.hpp"
 #include "scheduler/job_task.hpp"
-#include "storage/column_visitable.hpp"
+#include "storage/abstract_column_visitor.hpp"
 #include "storage/create_iterable_from_column.hpp"
 #include "type_cast.hpp"
 #include "type_comparison.hpp"
@@ -35,12 +35,13 @@ JoinHash::JoinHash(const std::shared_ptr<const AbstractOperator>& left,
 
 const std::string JoinHash::name() const { return "JoinHash"; }
 
-std::shared_ptr<AbstractOperator> JoinHash::_on_recreate(
-    const std::vector<AllParameterVariant>& args, const std::shared_ptr<AbstractOperator>& recreated_input_left,
-    const std::shared_ptr<AbstractOperator>& recreated_input_right) const {
-  return std::make_shared<JoinHash>(recreated_input_left, recreated_input_right, _mode, _column_ids,
-                                    _predicate_condition);
+std::shared_ptr<AbstractOperator> JoinHash::_on_deep_copy(
+    const std::shared_ptr<AbstractOperator>& copied_input_left,
+    const std::shared_ptr<AbstractOperator>& copied_input_right) const {
+  return std::make_shared<JoinHash>(copied_input_left, copied_input_right, _mode, _column_ids, _predicate_condition);
 }
+
+void JoinHash::_on_set_parameters(const std::unordered_map<ParameterID, AllTypeVariant>& parameters) {}
 
 std::shared_ptr<const Table> JoinHash::_on_execute() {
   std::shared_ptr<const AbstractOperator> build_operator;
@@ -97,7 +98,7 @@ struct PartitionedElement {
   PartitionedElement(RowID row, Hash hash, T val) : row_id(row), partition_hash(hash), value(val) {}
 
   RowID row_id;
-  Hash partition_hash;
+  Hash partition_hash{0};
   T value;
 };
 
@@ -167,7 +168,7 @@ Hashes the given value into the HashedType that is defined by the current Hash T
 Performs a lexical cast first, if necessary.
 */
 template <typename OriginalType, typename HashedType>
-constexpr uint32_t hash_value(OriginalType& value, const unsigned int seed) {
+constexpr uint32_t hash_value(const OriginalType& value, const unsigned int seed) {
   // clang-format off
   // doesn't deal with constexpr nicely
   if constexpr(!std::is_same_v<OriginalType, HashedType>) {
@@ -216,68 +217,43 @@ std::shared_ptr<Partition<T>> materialize_input(const std::shared_ptr<const Tabl
     jobs.emplace_back(std::make_shared<JobTask>([&, chunk_id]() {
       // Get information from work queue
       auto output_offset = chunk_offsets[chunk_id];
+      auto output_iterator = elements->begin() + output_offset;
       auto column = in_table->get_chunk(chunk_id)->get_column(column_id);
-      auto& output = static_cast<Partition<T>&>(*elements);
 
       // prepare histogram
       histograms[chunk_id] = std::make_shared<std::vector<size_t>>(num_partitions);
-
       auto& histogram = static_cast<std::vector<size_t>&>(*histograms[chunk_id]);
 
-      auto materialized_chunk = std::vector<std::pair<RowID, T>>();
-
-      // Materialize the chunk
       resolve_column_type<T>(*column, [&, chunk_id, keep_nulls](auto& typed_column) {
+        auto reference_column_offset = ChunkID{0};
         auto iterable = create_iterable_from_column<T>(typed_column);
 
         iterable.for_each([&, chunk_id, keep_nulls](const auto& value) {
           if (!value.is_null() || keep_nulls) {
-            materialized_chunk.emplace_back(RowID{chunk_id, value.chunk_offset()}, value.value());
-          } else {
-            // We need to add this to avoid gaps in the list of offsets when we iterate later on
-            materialized_chunk.emplace_back(NULL_ROW_ID, T{});
+            const uint32_t hashed_value = hash_value<T, HashedType>(value.value(), partitioning_seed);
+
+            /*
+            For ReferenceColumns we do not use the RowIDs from the referenced tables.
+            Instead, we use the index in the ReferenceColumn itself. This way we can later correctly dereference
+            values from different inputs (important for Multi Joins).
+            */
+            if constexpr (std::is_same<std::decay<decltype(typed_column)>, ReferenceColumn>::value) {
+              *(output_iterator++) =
+                  PartitionedElement<T>{RowID{chunk_id, reference_column_offset}, hashed_value, value.value()};
+            } else {
+              *(output_iterator++) =
+                  PartitionedElement<T>{RowID{chunk_id, value.chunk_offset()}, hashed_value, value.value()};
+            }
+
+            const Hash radix = (hashed_value >> (32 - radix_bits * (pass + 1))) & mask;
+            histogram[radix]++;
+          }
+          // reference_column_offset is only used for ReferenceColumns
+          if constexpr (std::is_same<std::decay<decltype(typed_column)>, ReferenceColumn>::value) {
+            reference_column_offset++;
           }
         });
       });
-
-      size_t row_id = output_offset;
-
-      /*
-      For ReferenceColumns we do not use the RowIDs from the referenced tables.
-      Instead, we use the index in the ReferenceColumn itself. This way we can later correctly dereference
-      values from different inputs (important for Multi Joins).
-      For performance reasons this if statement is around the for loop.
-      */
-      if (auto ref_column = std::dynamic_pointer_cast<const ReferenceColumn>(column)) {
-        // hash and add to the other elements
-        ChunkOffset offset = 0;
-        for (auto&& elem : materialized_chunk) {
-          if (elem.first.chunk_offset != INVALID_CHUNK_OFFSET) {
-            uint32_t hashed_value = hash_value<T, HashedType>(elem.second, partitioning_seed);
-            output[row_id] = PartitionedElement<T>{RowID{chunk_id, offset}, hashed_value, elem.second};
-
-            const Hash radix = (output[row_id].partition_hash >> (32 - radix_bits * (pass + 1))) & mask;
-            histogram[radix]++;
-
-            row_id++;
-          }
-
-          offset++;
-        }
-      } else {
-        // hash and add to the other elements
-        for (auto&& elem : materialized_chunk) {
-          if (elem.first.chunk_offset == INVALID_CHUNK_OFFSET) continue;
-
-          uint32_t hashed_value = hash_value<T, HashedType>(elem.second, partitioning_seed);
-          output[row_id] = PartitionedElement<T>{elem.first, hashed_value, elem.second};
-
-          const Hash radix = (output[row_id].partition_hash >> (32 - radix_bits * (pass + 1))) & mask;
-          histogram[radix]++;
-
-          row_id++;
-        }
-      }
     }));
     jobs.back()->schedule();
   }
@@ -408,7 +384,18 @@ void probe(const RadixContainer<RightType>& radix_container,
           const auto& matching_rows = hashtable->get(type_cast<HashedType>(row.value));
 
           if (matching_rows) {
-            for (const auto row_id : matching_rows->get()) {
+            // We store a variant of <RowID, PosList> to reduce the number of allocations (see the cuckoo hashmap)
+            if (matching_rows->get().type() == typeid(PosList)) {
+              // Multiple matches, stored in one PosList
+              for (const auto row_id : boost::get<PosList>(matching_rows->get())) {
+                if (row_id.chunk_offset != INVALID_CHUNK_OFFSET) {
+                  pos_list_left_local.emplace_back(row_id);
+                  pos_list_right_local.emplace_back(row.row_id);
+                }
+              }
+            } else {
+              // A single RowID
+              const auto row_id = boost::get<RowID>(matching_rows->get());
               if (row_id.chunk_offset != INVALID_CHUNK_OFFSET) {
                 pos_list_left_local.emplace_back(row_id);
                 pos_list_right_local.emplace_back(row.row_id);
@@ -430,6 +417,9 @@ void probe(const RadixContainer<RightType>& radix_container,
           we know that there is no match in Left for this partition.
           Hence we are going to write NULL values for each row.
           */
+
+        pos_list_left_local.reserve(partition_end - partition_begin);
+        pos_list_right_local.reserve(partition_end - partition_begin);
 
         for (size_t partition_offset = partition_begin; partition_offset < partition_end; ++partition_offset) {
           auto& row = partition[partition_offset];
@@ -492,6 +482,7 @@ void probe_semi_anti(const RadixContainer<RightType>& radix_container,
         }
       } else if (mode == JoinMode::Anti) {
         // no hashtable on other side, but we are in Anti mode
+        pos_list_local.reserve(partition_end - partition_begin);
         for (size_t partition_offset = partition_begin; partition_offset < partition_end; ++partition_offset) {
           auto& row = partition[partition_offset];
           pos_list_local.emplace_back(row.row_id);

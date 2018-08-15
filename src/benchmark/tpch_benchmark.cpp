@@ -80,9 +80,9 @@ int main(int argc, char* argv[]) {
       query_ids = cli_parse_result["queries"].as<std::vector<opossum::QueryID>>();
     }
 
-    jit = cli_parse_result.count("jit");
-    lazy_load = cli_parse_result.count("lazy_load");
-    jit_validate = cli_parse_result.count("jit_validate");
+    jit = cli_parse_result["jit"].as<bool>();
+    lazy_load = cli_parse_result["lazy_load"].as<bool>();
+    jit_validate = cli_parse_result["jit_validate"].as<bool>();
 
     scale_factor = cli_parse_result["scale"].as<float>();
 
@@ -91,12 +91,17 @@ int main(int argc, char* argv[]) {
   }
 
   auto bool_to_str = [](bool value) { return value ? "true" : "false"; };
+  auto bool_to_verb = [](bool value) { return value ? "enabled" : "disabled"; };
 
   // Build list of query ids to be benchmarked and display it
   if (query_ids.empty()) {
     std::transform(opossum::tpch_queries.begin(), opossum::tpch_queries.end(), std::back_inserter(query_ids),
                    [](auto& pair) { return pair.first; });
   }
+
+  config->out << "- Jitting is " << bool_to_verb(jit) << std::endl;
+  config->out << "- Lazy load is " << bool_to_verb(lazy_load) << std::endl;
+  config->out << "- Jit validate is " << bool_to_verb(jit_validate) << std::endl;
 
   config->out << "- Benchmarking Queries: [ ";
   for (const auto query_id : query_ids) {

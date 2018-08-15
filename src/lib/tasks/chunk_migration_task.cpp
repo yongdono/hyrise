@@ -13,8 +13,11 @@
 namespace opossum {
 
 ChunkMigrationTask::ChunkMigrationTask(const std::string& table_name, const std::vector<ChunkID>& chunk_ids,
-                                       int target_node_id)
-    : _table_name(table_name), _target_node_id(target_node_id), _chunk_ids(chunk_ids) {}
+                                       int target_node_id, SchedulePriority priority, bool stealable)
+    : AbstractTask(priority, stealable),
+      _table_name(table_name),
+      _target_node_id(target_node_id),
+      _chunk_ids(chunk_ids) {}
 
 void ChunkMigrationTask::_on_execute() {
   auto table = StorageManager::get().get_table(_table_name);
@@ -42,7 +45,7 @@ bool ChunkMigrationTask::chunk_is_completed(const std::shared_ptr<const Chunk>& 
   if (chunk->size() != max_chunk_size) return false;
 
   if (chunk->has_mvcc_columns()) {
-    auto mvcc_columns = chunk->mvcc_columns();
+    auto mvcc_columns = chunk->get_scoped_mvcc_columns_lock();
 
     for (const auto begin_cid : mvcc_columns->begin_cids) {
       if (begin_cid == MvccColumns::MAX_COMMIT_ID) return false;

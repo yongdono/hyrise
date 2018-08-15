@@ -1,10 +1,13 @@
 #pragma once
 
+#include "../jit_types.hpp"
 #include "abstract_jittable.hpp"
 #include "storage/chunk.hpp"
 #include "storage/table.hpp"
 
 namespace opossum {
+
+class AbstractExpression;
 
 /* Base class for all column readers.
  * We need this class, so we can store a number of JitColumnReaders with different template
@@ -75,6 +78,10 @@ class JitReadTuples : public AbstractJittable {
       } else {
         context.tuple.set<DataType>(_tuple_value.tuple_index(), value.value());
       }
+      // Non-jit operators store bool values as int values
+      if constexpr (std::is_same_v<DataType, Bool>) {
+        context.tuple.set<bool>(_tuple_value.tuple_index(), value.value());
+      }
       // clang-format on
     }
 
@@ -86,7 +93,8 @@ class JitReadTuples : public AbstractJittable {
   };
 
  public:
-  explicit JitReadTuples(const bool has_validate = false);
+  explicit JitReadTuples(const bool has_validate = false,
+                         const std::shared_ptr<AbstractExpression>& row_count_expression = nullptr);
 
   std::string description() const final;
 
@@ -105,6 +113,8 @@ class JitReadTuples : public AbstractJittable {
 
   void execute(JitRuntimeContext& context) const;
 
+  std::shared_ptr<AbstractExpression> row_count_expression() const;
+
  protected:
   uint32_t _num_tuple_values{0};
   std::vector<JitInputColumn> _input_columns;
@@ -113,6 +123,7 @@ class JitReadTuples : public AbstractJittable {
  private:
   void _consume(JitRuntimeContext& context) const final {}
   const bool _has_validate;
+  const std::shared_ptr<AbstractExpression> _row_count_expression;
 };
 
 }  // namespace opossum

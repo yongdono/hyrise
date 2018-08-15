@@ -83,6 +83,7 @@ std::shared_ptr<llvm::Module> JitCodeSpecializer::specialize_function(
 
   // Conditionally run a second pass
   if (two_passes) {
+    // std::cout << "second pass" << std::endl;
     context.runtime_value_map.clear();
     context.runtime_value_map[context.root_function->arg_begin()] = runtime_this;
     _inline_function_calls(context);
@@ -136,6 +137,7 @@ void JitCodeSpecializer::_inline_function_calls(SpecializationContext& context) 
   while (!call_sites.empty()) {
     auto& call_site = call_sites.front();
 
+    bool virtual_resolved = false;
     // Resolve indirect (virtual) function calls
     if (call_site.isIndirectCall()) {
       const auto called_value = call_site.getCalledValue();
@@ -173,6 +175,7 @@ void JitCodeSpecializer::_inline_function_calls(SpecializationContext& context) 
         if (const auto repo_function = _repository.get_vtable_entry(class_name, vtable_index)) {
           call_site.setCalledFunction(repo_function);
           JitEvaluationHelper::get().result()["resolved_vtables"] = JitEvaluationHelper::get().result()["resolved_vtables"].get<int32_t>() + 1;
+          virtual_resolved = true;
         }
       } else {
         // The virtual call could not be resolved. There is nothing we can inline so we move on.
@@ -182,26 +185,25 @@ void JitCodeSpecializer::_inline_function_calls(SpecializationContext& context) 
       }
     }
 
+    constexpr bool print = false;
+
     auto& function = *call_site.getCalledFunction();
     auto function_name = function.getName().str();
 
+    // auto function_has_opossum_namespace = boost::contains(function.getName().str(), "opossum");
     auto function_has_opossum_namespace = boost::starts_with(function.getName().str(), "_ZNK7opossum") ||
                                           boost::starts_with(function.getName().str(), "_ZN7opossum");
 
-    bool no_inline = boost::contains(function.getName().str(), "no_inline");
-    if (no_inline) {
-      // std::cout << "not inlining: " << function.getName().str() << std::endl;
-    }
-
     // A note about "__clang_call_terminate":
-    // __clang_call_terminate is generated / used internally by clang to call the std::terminate function when expection
+    // __clang_call_terminate is generated / used internally by clang to call the std::terminate function when exception
     // handling fails. For some unknown reason this function cannot be resolved in the Hyrise binary when jit-compiling
     // bitcode that uses the function. The function is, however, present in the bitcode repository.
     // We thus always inline this function from the repository.
 
     // All function that are not in the opossum:: namespace are not considered for inlining. Instead, a function
     // declaration (without a function body) is created.
-    if (no_inline || (!function_has_opossum_namespace && function_name != "__clang_call_terminate")) {
+    if (!function_has_opossum_namespace && function_name != "__clang_call_terminate") {
+      if (print) std::cout << "Func: " << function_name << " ! function_has_opossum_namespace" << std::endl;
       context.llvm_value_map[&function] = _create_function_declaration(context, function, function.getName());
       call_sites.pop();
       continue;
@@ -217,7 +219,11 @@ void JitCodeSpecializer::_inline_function_calls(SpecializationContext& context) 
     auto first_argument_cannot_be_resolved = first_argument->get()->getType()->isPointerTy() &&
                                              !GetRuntimePointerForValue(first_argument->get(), context)->is_valid();
 
+    if (first_argument_cannot_be_resolved) {
+      // std::cout << "first_argument_cannot_be_resolved for func: " << function_name << std::endl;
+    }
     if (first_argument_cannot_be_resolved && function_name != "__clang_call_terminate") {
+      if (print) std::cout << "Func: " << function_name << " first_argument_cannot_be_resolved" << std::endl;
       call_sites.pop();
       continue;
     }
@@ -253,9 +259,14 @@ void JitCodeSpecializer::_inline_function_calls(SpecializationContext& context) 
     llvm::InlineFunctionInfo info;
     if (InlineFunction(call_site, info, nullptr, false, nullptr, context)) {
       JitEvaluationHelper::get().result()["inlined_functions"] = JitEvaluationHelper::get().result()["inlined_functions"].get<int32_t>() + 1;
+      if (print) std::cout << "Func: " << function_name << " inlined" << std::endl;
+      // std::cout << "+++     inlined func: " << function_name << std::endl;
       for (const auto& new_call_site : info.InlinedCallSites) {
         call_sites.push(new_call_site);
       }
+    } else {
+      if (print) std::cout << "Func: " << function_name << " not inlined" << std::endl;
+      // std::cout << "--- not inlined func: " << function_name << std::endl;
     }
 
     // std::cout << "Inlining function: " << function.getName().str() << std::endl;

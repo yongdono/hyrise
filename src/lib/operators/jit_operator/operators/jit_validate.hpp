@@ -6,10 +6,10 @@
 
 namespace opossum {
 
-/* The JitFilter operator filters on a single boolean value and only passes on
- * tuple, for which that value is non-null and true.
+/* The JitValidate operator validates visibility of tuples
+ * within the context of a given transaction
  */
-template <bool use_ref_pos_list = false>
+template <TableType input_table_type = TableType::Data>
 class JitValidate : public AbstractJittable {
  public:
   JitValidate();

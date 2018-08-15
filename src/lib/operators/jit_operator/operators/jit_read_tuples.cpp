@@ -1,12 +1,14 @@
 #include "jit_read_tuples.hpp"
 
-#include "constant_mappings.hpp"
+#include "../jit_types.hpp"
+#include "expression/evaluation/expression_evaluator.hpp"
 #include "resolve_type.hpp"
 #include "storage/create_iterable_from_column.hpp"
 
 namespace opossum {
 
-JitReadTuples::JitReadTuples(const bool has_validate) : _has_validate(has_validate) {}
+JitReadTuples::JitReadTuples(const bool has_validate, const std::shared_ptr<AbstractExpression>& row_count_expression)
+    : _has_validate(has_validate), _row_count_expression(row_count_expression) {}
 
 std::string JitReadTuples::description() const {
   std::stringstream desc;
@@ -23,14 +25,26 @@ std::string JitReadTuples::description() const {
 void JitReadTuples::before_query(const Table& in_table, JitRuntimeContext& context) const {
   // Create a runtime tuple of the appropriate size
   context.tuple.resize(_num_tuple_values);
+  if (_row_count_expression) {
+    const auto num_rows_expression_result =
+        ExpressionEvaluator{}.evaluate_expression_to_result<int64_t>(*_row_count_expression);
+    context.limit_rows = num_rows_expression_result->value(0);
+  }
 
   // Copy all input literals to the runtime tuple
   for (const auto& input_literal : _input_literals) {
     auto data_type = input_literal.tuple_value.data_type();
-    resolve_data_type(data_type, [&](auto type) {
-      using DataType = typename decltype(type)::type;
-      context.tuple.set<DataType>(input_literal.tuple_value.tuple_index(), boost::get<DataType>(input_literal.value));
-    });
+    // If data_type is null, there is nothing to do as is_null() check on null check will always return true
+    if (data_type != DataType::Null) {
+      resolve_data_type(data_type, [&](auto type) {
+        using DataType = typename decltype(type)::type;
+        context.tuple.set<DataType>(input_literal.tuple_value.tuple_index(), boost::get<DataType>(input_literal.value));
+        // Non-jit operators store bool values as int values
+        if constexpr (std::is_same_v<DataType, Bool>) {
+          context.tuple.set<bool>(input_literal.tuple_value.tuple_index(), boost::get<DataType>(input_literal.value));
+        }
+      });
+    }
   }
 }
 
@@ -41,7 +55,7 @@ void JitReadTuples::before_chunk(const Table& in_table, const Chunk& in_chunk, J
   if (_has_validate) {
     if (in_chunk.has_mvcc_columns()) {
       auto mvcc_columns = in_chunk.mvcc_columns();
-      context.columns = &(*mvcc_columns);
+      context.mvcc_columns = &(*mvcc_columns);
     } else {
       DebugAssert(in_chunk.references_exactly_one_table(),
                   "Input to Validate contains a Chunk referencing more than one table.");
@@ -80,6 +94,8 @@ void JitReadTuples::execute(JitRuntimeContext& context) const {
     }
   }
 }
+
+std::shared_ptr<AbstractExpression> JitReadTuples::row_count_expression() const { return _row_count_expression; }
 
 JitTupleValue JitReadTuples::add_input_column(const DataType data_type, const bool is_nullable,
                                               const ColumnID column_id) {

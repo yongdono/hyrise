@@ -1,6 +1,6 @@
 #include <cstdlib>
 #include <iostream>
-
+#if HYRISE_JIT_SUPPORT
 #include "concurrency/transaction_manager.hpp"
 #include "global.hpp"
 #include "operators/delete.hpp"
@@ -20,8 +20,10 @@
 #include "utils/load_table.hpp"
 
 using namespace opossum;  // NOLINT
+#endif
 
 int main() {
+#if HYRISE_JIT_SUPPORT
   auto table_a = opossum::load_table("src/test/tables/int_float.tbl", 2);
   opossum::StorageManager::get().add_table("table_a", table_a);
 
@@ -42,7 +44,7 @@ int main() {
   get_table->execute();
 
   auto table_scan =
-      std::make_shared<opossum::TableScan>(get_table, opossum::ColumnID{0}, opossum::PredicateCondition::LessThan, 200);
+      std::make_shared<opossum::TableScan>(get_table, opossum::ColumnID{0}, PredicateCondition::LessThan, 200);
   // table_scan->set_transaction_context(context);
   table_scan->execute();
   auto delete_op = std::make_shared<opossum::Delete>("tmp", table_scan);
@@ -51,8 +53,8 @@ int main() {
   context->commit();
 
   context = opossum::TransactionManager::get().new_transaction_context();
-  table_scan = std::make_shared<opossum::TableScan>(get_table, opossum::ColumnID{0},
-                                                    opossum::PredicateCondition::GreaterThan, 10000);
+  table_scan =
+      std::make_shared<opossum::TableScan>(get_table, opossum::ColumnID{0}, PredicateCondition::GreaterThan, 10000);
   // table_scan->set_transaction_context(context);
   table_scan->execute();
   delete_op = std::make_shared<opossum::Delete>("tmp", table_scan);
@@ -73,8 +75,8 @@ int main() {
   get_table->set_transaction_context(context);
   get_table->execute(); */
 
-  auto filter = std::make_shared<opossum::TableScan>(get_table, opossum::ColumnID{0},
-                                                     opossum::PredicateCondition::GreaterThanEquals, 0);
+  auto filter =
+      std::make_shared<opossum::TableScan>(get_table, opossum::ColumnID{0}, PredicateCondition::GreaterThanEquals, 0);
   filter->execute();
 
   // auto validate = std::make_shared<opossum::Validate>(get_table);
@@ -84,12 +86,12 @@ int main() {
   auto read_tuple = std::make_shared<opossum::JitReadTuples>(true);
   opossum::JitTupleValue tuple_val = read_tuple->add_input_column(opossum::DataType::Int, false, opossum::ColumnID(0));
   jit_operator->add_jit_operator(read_tuple);
-  jit_operator->add_jit_operator(std::make_shared<opossum::JitValidate<true>>());
+  jit_operator->add_jit_operator(std::make_shared<opossum::JitValidate<TableType::References>>());
 
   auto id = read_tuple->add_temporary_value();
 
   auto expression = std::make_shared<opossum::JitExpression>(std::make_shared<opossum::JitExpression>(tuple_val),
-                                                             opossum::ExpressionType::Addition,
+                                                             opossum::JitExpressionType::Addition,
                                                              std::make_shared<opossum::JitExpression>(tuple_val), id);
 
   auto compute = std::make_shared<opossum::JitCompute>(expression);
@@ -109,5 +111,6 @@ int main() {
   jit_operator->execute();
   print->execute();
   context->commit();
+#endif
   return 0;
 }
