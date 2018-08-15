@@ -343,7 +343,15 @@ bool JitAwareLQPTranslator::_node_is_jittable(const std::shared_ptr<AbstractLQPN
     return true;
   }
 
-  return node->type == LQPNodeType::Projection || node->type == LQPNodeType::Union;
+  if (auto projection_node = std::dynamic_pointer_cast<ProjectionNode>(node)) {
+    // Jit operators do not support exists
+    for (const auto& expression : projection_node->expressions) {
+      if (expression->type == ExpressionType::Exists) return false;
+    }
+    return true;
+  }
+
+  return node->type == LQPNodeType::Union;
 }
 
 void JitAwareLQPTranslator::_visit(const std::shared_ptr<AbstractLQPNode>& node,
