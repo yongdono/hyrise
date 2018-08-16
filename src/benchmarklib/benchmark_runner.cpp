@@ -103,7 +103,7 @@ void BenchmarkRunner::_benchmark_permuted_query_sets() {
   std::random_device random_device;
   std::mt19937 random_generator(random_device());
 
-  BenchmarkState state{_config.max_num_query_runs, _config.max_duration};
+  BenchmarkState state{_config.min_num_query_runs, _config.max_num_query_runs, _config.min_duration, _config.max_duration};
   while (state.keep_running()) {
     std::shuffle(mutable_named_queries.begin(), mutable_named_queries.end(), random_generator);
 
@@ -127,7 +127,7 @@ void BenchmarkRunner::_benchmark_individual_queries() {
     const auto& name = named_query.first;
     _config.out << "- Benchmarking Query " << name << std::endl;
 
-    BenchmarkState state{_config.max_num_query_runs, _config.max_duration};
+    BenchmarkState state{_config.min_num_query_runs, _config.max_num_query_runs, _config.min_duration, _config.max_duration};
     while (state.keep_running()) {
       _execute_query(named_query);
     }
@@ -332,8 +332,10 @@ cxxopts::Options BenchmarkRunner::get_basic_cli_options(const std::string& bench
   cli_options.add_options()
     ("help", "print this help message")
     ("v,verbose", "Print log messages", cxxopts::value<bool>()->default_value("false"))
+    ("min_runs", "Minimum number of runs of a single query(set)", cxxopts::value<size_t>()->default_value("1")) // NOLINT
     ("r,runs", "Maximum number of runs of a single query(set)", cxxopts::value<size_t>()->default_value("1000")) // NOLINT
     ("c,chunk_size", "ChunkSize, default is 2^32-1", cxxopts::value<ChunkOffset>()->default_value(std::to_string(Chunk::MAX_SIZE))) // NOLINT
+    ("min_time", "Minimum seconds that a query(set) is run", cxxopts::value<size_t>()->default_value("0")) // NOLINT
     ("t,time", "Maximum seconds that a query(set) is run", cxxopts::value<size_t>()->default_value("5")) // NOLINT
     ("o,output", "File to output results to, don't specify for stdout", cxxopts::value<std::string>()->default_value("")) // NOLINT
     ("m,mode", "IndividualQueries or PermutedQuerySets, default is IndividualQueries", cxxopts::value<std::string>()->default_value("IndividualQueries")) // NOLINT
@@ -362,6 +364,8 @@ nlohmann::json BenchmarkRunner::create_context(const BenchmarkConfig& config) {
       {"benchmark_mode",
        config.benchmark_mode == BenchmarkMode::IndividualQueries ? "IndividualQueries" : "PermutedQuerySets"},
       {"max_runs", config.max_num_query_runs},
+      {"min_runs", config.min_num_query_runs},
+      {"min_duration (s)", std::chrono::duration_cast<std::chrono::seconds>(config.min_duration).count()},
       {"max_duration (s)", std::chrono::duration_cast<std::chrono::seconds>(config.max_duration).count()},
       {"using_mvcc", config.use_mvcc == UseMvcc::Yes},
       {"using_visualization", config.enable_visualization},
