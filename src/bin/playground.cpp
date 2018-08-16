@@ -4,6 +4,7 @@
 #include <fstream>
 #include <iostream>
 #include <locale>
+#include <random>
 #include <tuple>
 
 #include "constant_mappings.hpp"
@@ -16,6 +17,7 @@
 #include "statistics/chunk_statistics/histograms/equal_height_histogram.hpp"
 #include "statistics/chunk_statistics/histograms/equal_num_elements_histogram.hpp"
 #include "statistics/chunk_statistics/histograms/equal_width_histogram.hpp"
+#include "storage/create_iterable_from_column.hpp"
 #include "storage/table.hpp"
 #include "utils/filesystem.hpp"
 #include "utils/load_table.hpp"
@@ -38,81 +40,81 @@ std::ostream& operator<<(std::ostream& stream, const std::chrono::time_point<Clo
 #endif
 }
 
-// lineitem
-const std::vector<std::tuple<ColumnID, PredicateCondition, AllTypeVariant>> filters = {
-    /**
-     * TPC-H 1
-     */
-    // L_SHIPDATE <= '1998-12-01' - interval '[DELTA]' day (3)
-    {ColumnID{10}, PredicateCondition::LessThanEquals, "1998-11-28"},
-    /**
-     * TPC-H 4
-     */
-    // L_COMMITDATE < L_RECEIPTDATE
-    {ColumnID{11}, PredicateCondition::LessThan, ColumnID{12}},
-    /**
-     * TPC-H 6
-     */
-    // L_SHIPDATE >= '1994-01-01' AND L_SHIPDATE < dateadd(yy, 1, cast('1994-01-01' as datetime))
-    {ColumnID{10}, PredicateCondition::GreaterThanEquals, "1994-01-01"},
-    {ColumnID{10}, PredicateCondition::LessThan, "1995-01-01"},
-    // L_DISCOUNT BETWEEN .06 - 0.01 AND .06 + 0.01
-    {ColumnID{6}, PredicateCondition::GreaterThanEquals, .05f},
-    {ColumnID{6}, PredicateCondition::LessThanEquals, .07f},
-    // L_QUANTITY < 24
-    {ColumnID{4}, PredicateCondition::LessThan, 24},
-    /**
-     * TPC-H 7
-     */
-    // L_SHIPDATE BETWEEN '1995-01-01' AND '1996-12-31'
-    {ColumnID{10}, PredicateCondition::GreaterThanEquals, "1995-01-01"},
-    {ColumnID{10}, PredicateCondition::LessThanEquals, "1996-12-31"},
-    /**
-     * TPC-H 10
-     */
-    // L_RETURNFLAG = 'R'
-    {ColumnID{8}, PredicateCondition::Equals, "R"},
-    /**
-     * TPC-H 12
-     */
-    // TODO(tim): enable once TableScan supports IN predicate
-    // L_SHIPMODE in ('[SHIPMODE1]', '[SHIPMODE2]')
-    // {ColumnID{14}, PredicateCondition::In, {"MAIL", "SHIP"}},
-    // L_SHIPDATE < L_COMMITTDATE
-    {ColumnID{10}, PredicateCondition::LessThan, ColumnID{11}},
-    // L_RECEIPTDATE >= date '[DATE]' AND L_RECEIPTDATE < date '[DATE]' + interval '1' year
-    {ColumnID{12}, PredicateCondition::GreaterThanEquals, "1995-06-01"},
-    {ColumnID{12}, PredicateCondition::LessThan, "1996-06-01"},
-    /**
-     * TPC-H 14
-     */
-    // L_SHIPDATE >= date '[DATE]' AND L_SHIPDATE < date '[DATE]' + interval '1' month
-    {ColumnID{10}, PredicateCondition::GreaterThanEquals, "1995-06-01"},
-    {ColumnID{10}, PredicateCondition::LessThan, "1995-07-01"},
-    /**
-     * TPC-H 15
-     */
-    // L_SHIPDATE >= date '[DATE]' AND L_SHIPDATE < date '[DATE]' + interval '3' month
-    {ColumnID{10}, PredicateCondition::GreaterThanEquals, "1995-06-01"},
-    {ColumnID{10}, PredicateCondition::LessThan, "1995-09-01"},
-    /**
-     * TPC-H 19
-     */
-    // TODO(tim): enable once TableScan supports IN predicate
-    // L_SHIPMODE in ('AIR', 'AIR REG')
-    // {ColumnID{14}, PredicateCondition::In, {"AIR", "AIR REG"}},
-    // L_SHIPINSTRUCT = 'DELIVER IN PERSON'
-    {ColumnID{13}, PredicateCondition::Equals, "DELIVER IN PERSON"},
-    // L_QUANTITY >= [QUANTITY1] AND L_QUANTITY <= [QUANTITY1] + 10
-    {ColumnID{4}, PredicateCondition::GreaterThanEquals, 1},
-    {ColumnID{4}, PredicateCondition::LessThanEquals, 11},
-    // L_QUANTITY >= [QUANTITY1] AND L_QUANTITY <= [QUANTITY1] + 10
-    {ColumnID{4}, PredicateCondition::GreaterThanEquals, 15},
-    {ColumnID{4}, PredicateCondition::LessThanEquals, 25},
-    // L_QUANTITY >= [QUANTITY1] AND L_QUANTITY <= [QUANTITY1] + 10
-    {ColumnID{4}, PredicateCondition::GreaterThanEquals, 30},
-    {ColumnID{4}, PredicateCondition::LessThanEquals, 40},
-};
+// // lineitem
+// const std::vector<std::tuple<ColumnID, PredicateCondition, AllTypeVariant>> filters = {
+//     /**
+//      * TPC-H 1
+//      */
+//     // L_SHIPDATE <= '1998-12-01' - interval '[DELTA]' day (3)
+//     {ColumnID{10}, PredicateCondition::LessThanEquals, "1998-11-28"},
+//     /**
+//      * TPC-H 4
+//      */
+//     // L_COMMITDATE < L_RECEIPTDATE
+//     {ColumnID{11}, PredicateCondition::LessThan, ColumnID{12}},
+//     /**
+//      * TPC-H 6
+//      */
+//     // L_SHIPDATE >= '1994-01-01' AND L_SHIPDATE < dateadd(yy, 1, cast('1994-01-01' as datetime))
+//     {ColumnID{10}, PredicateCondition::GreaterThanEquals, "1994-01-01"},
+//     {ColumnID{10}, PredicateCondition::LessThan, "1995-01-01"},
+//     // L_DISCOUNT BETWEEN .06 - 0.01 AND .06 + 0.01
+//     {ColumnID{6}, PredicateCondition::GreaterThanEquals, .05f},
+//     {ColumnID{6}, PredicateCondition::LessThanEquals, .07f},
+//     // L_QUANTITY < 24
+//     {ColumnID{4}, PredicateCondition::LessThan, 24},
+//     /**
+//      * TPC-H 7
+//      */
+//     // L_SHIPDATE BETWEEN '1995-01-01' AND '1996-12-31'
+//     {ColumnID{10}, PredicateCondition::GreaterThanEquals, "1995-01-01"},
+//     {ColumnID{10}, PredicateCondition::LessThanEquals, "1996-12-31"},
+//     /**
+//      * TPC-H 10
+//      */
+//     // L_RETURNFLAG = 'R'
+//     {ColumnID{8}, PredicateCondition::Equals, "R"},
+//     /**
+//      * TPC-H 12
+//      */
+//     // TODO(tim): enable once TableScan supports IN predicate
+//     // L_SHIPMODE in ('[SHIPMODE1]', '[SHIPMODE2]')
+//     // {ColumnID{14}, PredicateCondition::In, {"MAIL", "SHIP"}},
+//     // L_SHIPDATE < L_COMMITTDATE
+//     {ColumnID{10}, PredicateCondition::LessThan, ColumnID{11}},
+//     // L_RECEIPTDATE >= date '[DATE]' AND L_RECEIPTDATE < date '[DATE]' + interval '1' year
+//     {ColumnID{12}, PredicateCondition::GreaterThanEquals, "1995-06-01"},
+//     {ColumnID{12}, PredicateCondition::LessThan, "1996-06-01"},
+//     /**
+//      * TPC-H 14
+//      */
+//     // L_SHIPDATE >= date '[DATE]' AND L_SHIPDATE < date '[DATE]' + interval '1' month
+//     {ColumnID{10}, PredicateCondition::GreaterThanEquals, "1995-06-01"},
+//     {ColumnID{10}, PredicateCondition::LessThan, "1995-07-01"},
+//     /**
+//      * TPC-H 15
+//      */
+//     // L_SHIPDATE >= date '[DATE]' AND L_SHIPDATE < date '[DATE]' + interval '3' month
+//     {ColumnID{10}, PredicateCondition::GreaterThanEquals, "1995-06-01"},
+//     {ColumnID{10}, PredicateCondition::LessThan, "1995-09-01"},
+//     /**
+//      * TPC-H 19
+//      */
+//     // TODO(tim): enable once TableScan supports IN predicate
+//     // L_SHIPMODE in ('AIR', 'AIR REG')
+//     // {ColumnID{14}, PredicateCondition::In, {"AIR", "AIR REG"}},
+//     // L_SHIPINSTRUCT = 'DELIVER IN PERSON'
+//     {ColumnID{13}, PredicateCondition::Equals, "DELIVER IN PERSON"},
+//     // L_QUANTITY >= [QUANTITY1] AND L_QUANTITY <= [QUANTITY1] + 10
+//     {ColumnID{4}, PredicateCondition::GreaterThanEquals, 1},
+//     {ColumnID{4}, PredicateCondition::LessThanEquals, 11},
+//     // L_QUANTITY >= [QUANTITY1] AND L_QUANTITY <= [QUANTITY1] + 10
+//     {ColumnID{4}, PredicateCondition::GreaterThanEquals, 15},
+//     {ColumnID{4}, PredicateCondition::LessThanEquals, 25},
+//     // L_QUANTITY >= [QUANTITY1] AND L_QUANTITY <= [QUANTITY1] + 10
+//     {ColumnID{4}, PredicateCondition::GreaterThanEquals, 30},
+//     {ColumnID{4}, PredicateCondition::LessThanEquals, 40},
+// };
 
 // // orders
 // const std::vector<std::tuple<ColumnID, PredicateCondition, AllTypeVariant>> filters = {
@@ -187,22 +189,58 @@ const std::vector<std::tuple<ColumnID, PredicateCondition, AllTypeVariant>> filt
 //         {ColumnID{3}, PredicateCondition::LessThan, 60'000.0},
 // };
 
-int64_t get_predicate_count(const std::shared_ptr<Table>& table, const ColumnID column_id,
-                            const PredicateCondition predicate_condition, const AllTypeVariant& value) {
+template <typename T>
+std::vector<std::tuple<ColumnID, PredicateCondition, AllTypeVariant>> generate_filters(
+    const ColumnID column_id, const PredicateCondition predicate_type, const T min, const T max,
+    const uint32_t num_filters) {
+  std::vector<std::tuple<ColumnID, PredicateCondition, AllTypeVariant>> filters;
+
+  const auto step = (max - min) / num_filters;
+  for (auto v = min; v <= max; v += step) {
+    filters.emplace_back(std::tuple<ColumnID, PredicateCondition, AllTypeVariant>{column_id, predicate_type, v});
+  }
+
+  return filters;
+}
+
+std::vector<std::tuple<ColumnID, PredicateCondition, AllTypeVariant>> generate_filters(
+    const ColumnID column_id, const PredicateCondition predicate_type, std::mt19937 gen,
+    std::uniform_real_distribution<> dis, const uint32_t num_filters) {
+  std::vector<std::tuple<ColumnID, PredicateCondition, AllTypeVariant>> filters;
+
+  for (auto i = 0u; i < num_filters; i++) {
+    const auto v = dis(gen);
+    filters.emplace_back(std::tuple<ColumnID, PredicateCondition, AllTypeVariant>{column_id, predicate_type, v});
+  }
+
+  return filters;
+}
+
+std::vector<std::tuple<ColumnID, PredicateCondition, AllTypeVariant>> generate_filters(
+    const ColumnID column_id, const PredicateCondition predicate_type, std::mt19937 gen,
+    std::uniform_int_distribution<> dis, const uint32_t num_filters) {
+  std::vector<std::tuple<ColumnID, PredicateCondition, AllTypeVariant>> filters;
+
+  for (auto i = 0u; i < num_filters; i++) {
+    const auto v = dis(gen);
+    filters.emplace_back(std::tuple<ColumnID, PredicateCondition, AllTypeVariant>{column_id, predicate_type, v});
+  }
+
+  return filters;
+}
+
+uint64_t get_predicate_count(const std::shared_ptr<Table>& table, const ColumnID column_id,
+                             const PredicateCondition predicate_condition, const AllTypeVariant& value) {
   auto table_wrapper = std::make_shared<TableWrapper>(table);
   table_wrapper->execute();
 
   auto table_scan = std::make_shared<TableScan>(table_wrapper, column_id, predicate_condition, value);
   table_scan->execute();
 
-  const auto aggregate_args = std::vector<AggregateColumnDefinition>{{std::nullopt, AggregateFunction::Count}};
-  auto aggregate = std::make_shared<Aggregate>(table_scan, aggregate_args, std::vector<ColumnID>{});
-  aggregate->execute();
-
   // const auto print = std::make_shared<Print>(aggregate);
   // print->execute();
 
-  return aggregate->get_output()->get_value<int64_t>(ColumnID{0u}, 0u);
+  return table_scan->get_output()->row_count();
 }
 
 uint64_t get_distinct_count(const std::shared_ptr<Table>& table, const ColumnID column_id) {
@@ -234,11 +272,33 @@ std::unordered_map<ColumnID, std::vector<std::pair<PredicateCondition, AllTypeVa
   return filters_by_column;
 };
 
+std::unordered_map<ColumnID, int64_t> get_distinct_count_by_column(
+    const std::shared_ptr<Table>& table,
+    const std::unordered_map<ColumnID, std::vector<std::pair<PredicateCondition, AllTypeVariant>>>& filters) {
+  std::unordered_map<ColumnID, int64_t> row_count_by_filter;
+
+  std::cout << std::chrono::system_clock::now() << " Getting distinct counts for " << filters.size() << " columns...";
+  const auto start = std::chrono::high_resolution_clock::now();
+
+  for (const auto& p : filters) {
+    row_count_by_filter[p.first] = get_distinct_count(table, p.first);
+  }
+
+  const auto end = std::chrono::high_resolution_clock::now();
+  std::cout << "done (" << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << "µs)."
+            << std::endl;
+
+  return row_count_by_filter;
+};
+
 std::unordered_map<ColumnID, std::unordered_map<PredicateCondition, std::unordered_map<AllTypeVariant, int64_t>>>
 get_row_count_by_filter(const std::shared_ptr<Table>& table,
                         const std::vector<std::tuple<ColumnID, PredicateCondition, AllTypeVariant>>& filters) {
   std::unordered_map<ColumnID, std::unordered_map<PredicateCondition, std::unordered_map<AllTypeVariant, int64_t>>>
       row_count_by_filter;
+
+  std::cout << std::chrono::system_clock::now() << " Getting predicate counts for " << filters.size() << " filters...";
+  const auto start = std::chrono::high_resolution_clock::now();
 
   for (const auto& filter : filters) {
     const auto column_id = std::get<0>(filter);
@@ -247,6 +307,71 @@ get_row_count_by_filter(const std::shared_ptr<Table>& table,
     row_count_by_filter[column_id][predicate_condition][value] =
         get_predicate_count(table, column_id, predicate_condition, value);
   }
+
+  const auto end = std::chrono::high_resolution_clock::now();
+  std::cout << "done (" << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << "µs)."
+            << std::endl;
+
+  return row_count_by_filter;
+};
+
+template <typename T>
+std::vector<std::pair<T, uint64_t>> sort_value_counts(const std::unordered_map<T, uint64_t>& value_counts) {
+  std::vector<std::pair<T, uint64_t>> result(value_counts.cbegin(), value_counts.cend());
+
+  std::sort(result.begin(), result.end(),
+            [](const std::pair<T, uint64_t>& lhs, const std::pair<T, uint64_t>& rhs) { return lhs.first < rhs.first; });
+
+  return result;
+}
+
+template <typename T>
+std::vector<std::pair<T, uint64_t>> calculate_value_counts(const std::shared_ptr<const BaseColumn>& column) {
+  std::unordered_map<T, uint64_t> value_counts;
+
+  resolve_column_type<T>(*column, [&](auto& typed_column) {
+    auto iterable = create_iterable_from_column<T>(typed_column);
+    iterable.for_each([&](const auto& value) {
+      if (!value.is_null()) {
+        value_counts[value.value()]++;
+      }
+    });
+  });
+
+  return sort_value_counts(value_counts);
+}
+
+std::unordered_map<ColumnID, std::unordered_map<PredicateCondition, std::unordered_map<AllTypeVariant, int64_t>>>
+get_row_count_for_smaller_than_filters(
+    const std::shared_ptr<Table>& table, const ColumnID column_id,
+    const std::vector<std::tuple<ColumnID, PredicateCondition, AllTypeVariant>>& filters) {
+  std::unordered_map<ColumnID, std::unordered_map<PredicateCondition, std::unordered_map<AllTypeVariant, int64_t>>>
+      row_count_by_filter;
+
+  std::cout << std::chrono::system_clock::now() << " Getting predicate counts for " << filters.size() << " filters...";
+  const auto start = std::chrono::high_resolution_clock::now();
+
+  Assert(table->chunk_count() == 1u, "Table has more than one chunk.");
+
+  resolve_data_type(table->column_data_types()[column_id], [&](auto type) {
+    using T = typename decltype(type)::type;
+
+    const auto value_counts = calculate_value_counts<T>(table->get_chunk(ChunkID{0})->get_column(column_id));
+
+    for (const auto& filter : filters) {
+      const auto value = std::get<2>(filter);
+      const auto t_value = type_cast<T>(value);
+      const auto it = std::lower_bound(value_counts.cbegin(), value_counts.cend(), t_value,
+                                       [](const std::pair<T, uint64_t>& lhs, const T& rhs) { return lhs.first < rhs; });
+      const auto row_count = std::accumulate(value_counts.cbegin(), it, uint64_t{0},
+                                             [](uint64_t a, const std::pair<T, uint64_t>& b) { return a + b.second; });
+      row_count_by_filter[column_id][PredicateCondition::LessThan][value] = row_count;
+    }
+  });
+
+  const auto end = std::chrono::high_resolution_clock::now();
+  std::cout << "done (" << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << "µs)."
+            << std::endl;
 
   return row_count_by_filter;
 };
@@ -264,8 +389,9 @@ int main() {
   auto start = std::chrono::high_resolution_clock::now();
 
   // const auto table = load_table("../src/test/tables/random_string_data.tbl");
-  // const auto table = load_table("../src/test/tables/tpch-jan/orders.tbl");
-  const auto table = load_table("../src/test/tables/jcch/sf-0.01/lineitem_header.tbl");
+  const auto table = load_table("../src/test/tables/tpch-jan/orders.tbl");
+  // const auto table = load_table("../src/test/tables/tpch-jan/orders_1000.tbl");
+  // const auto table = load_table("../src/test/tables/jcch/sf-0.01/lineitem_header.tbl");
   // const auto table = load_table("../src/test/tables/jcch/sf-0.1/lineitem_header.tbl");
   // const auto table = load_table("../src/test/tables/jcch/sf-1/lineitem_header.tbl");
 
@@ -274,7 +400,9 @@ int main() {
             << std::endl;
 
   const auto num_bucket_combinations = {
-      1u, 2u, 5u, 10u, 25u, 50u, 100u, 150u, 200u, 250u, 300u, 400u, 500u, 750u, 1000u,
+      // 1u, 2u, 5u, 10u, 25u, 50u, 100u, 150u, 200u, 250u, 300u, 400u, 500u, 750u, 1000u,
+      1u, 10u, 25u, 100u, 250u, 1000u,
+      // 10u, 50u, 250u,
   };
 
   auto results_log = std::ofstream("../estimation_results.log", std::ios_base::out | std::ios_base::trunc);
@@ -282,11 +410,18 @@ int main() {
                  "height_hist_count,equal_num_elements_hist_count,equal_width_hist_count\n";
 
   auto histogram_log = std::ofstream("../histogram_buckets.log", std::ios_base::out | std::ios_base::trunc);
-  histogram_log << "histogram_type,column_id,actual_num_buckets,requested_num_buckets,bucket_id,bucket_min,bucket_max,"
-                   "bucket_min_repr,bucket_max_repr,bucket_count,bucket_count_distinct\n";
+  histogram_log
+      << "histogram_type,column_name,actual_num_buckets,requested_num_buckets,bucket_id,bucket_min,bucket_max,"
+         "bucket_min_repr,bucket_max_repr,bucket_count,bucket_count_distinct\n";
 
+  // std::random_device rd;
+  // std::mt19937 gen(rd());
+  // std::uniform_real_distribution<> dis(0.f, 70'000.f);
+  // const auto filters = generate_filters(ColumnID{3}, PredicateCondition::LessThan, gen, dis, 700000);
+  const auto filters = generate_filters(ColumnID{3}, PredicateCondition::LessThan, 1'000.f, 700'500.f, 6'995'000);
   const auto filters_by_column = get_filters_by_column(filters);
-  const auto row_count_by_filter = get_row_count_by_filter(table, filters);
+  const auto row_count_by_filter = get_row_count_for_smaller_than_filters(table, ColumnID{3}, filters);
+  const auto distinct_count_by_column = get_distinct_count_by_column(table, filters_by_column);
 
   const auto total_count = table->row_count();
 
@@ -296,9 +431,9 @@ int main() {
       const auto column_name = table->column_name(column_id);
       std::cout << column_name << std::endl;
 
-      const auto column_data_type = table->column_data_types()[column_id];
-      const auto distinct_count = get_distinct_count(table, column_id);
+      const auto distinct_count = distinct_count_by_column.at(column_id);
 
+      const auto column_data_type = table->column_data_types()[column_id];
       resolve_data_type(column_data_type, [&](auto type) {
         using T = typename decltype(type)::type;
 
@@ -335,46 +470,46 @@ int main() {
         std::cout << "done (" << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << "µs)."
                   << std::endl;
 
-        histogram_log << equal_height_hist->buckets_to_csv(false, column_id, num_buckets);
-        histogram_log << equal_num_elements_hist->buckets_to_csv(false, column_id, num_buckets);
-        histogram_log << equal_width_hist->buckets_to_csv(false, column_id, num_buckets);
+        histogram_log << equal_height_hist->buckets_to_csv(false, column_name, num_buckets);
+        histogram_log << equal_num_elements_hist->buckets_to_csv(false, column_name, num_buckets);
+        histogram_log << equal_width_hist->buckets_to_csv(false, column_name, num_buckets);
         histogram_log.flush();
 
         for (const auto& pair : it.second) {
           const auto predicate_condition = pair.first;
           const auto value = pair.second;
 
-          std::cout << " " << predicate_condition_to_string.left.at(predicate_condition) << " " << value << std::endl;
+          // std::cout << " " << predicate_condition_to_string.left.at(predicate_condition) << " " << value << std::endl;
 
           const auto actual_count = row_count_by_filter.at(column_id).at(predicate_condition).at(value);
 
-          std::cout << std::chrono::system_clock::now() << " Estimating with EqualHeightHistogram...";
-          start = std::chrono::high_resolution_clock::now();
+          // std::cout << std::chrono::system_clock::now() << " Estimating with EqualHeightHistogram...";
+          // start = std::chrono::high_resolution_clock::now();
 
           const auto equal_height_hist_count = estimate_cardinality<T>(equal_height_hist, predicate_condition, value);
 
-          end = std::chrono::high_resolution_clock::now();
-          std::cout << "done (" << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << "µs)."
-                    << std::endl;
-
-          std::cout << std::chrono::system_clock::now() << " Estimating with EqualNumElementsHistogram...";
-          start = std::chrono::high_resolution_clock::now();
+          // end = std::chrono::high_resolution_clock::now();
+          // std::cout << "done (" << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << "µs)."
+          //           << std::endl;
+          //
+          // std::cout << std::chrono::system_clock::now() << " Estimating with EqualNumElementsHistogram...";
+          // start = std::chrono::high_resolution_clock::now();
 
           const auto equal_num_elements_hist_count =
               estimate_cardinality<T>(equal_num_elements_hist, predicate_condition, value);
 
-          end = std::chrono::high_resolution_clock::now();
-          std::cout << "done (" << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << "µs)."
-                    << std::endl;
-
-          std::cout << std::chrono::system_clock::now() << " Estimating with EqualWidthHistogram...";
-          start = std::chrono::high_resolution_clock::now();
+          // end = std::chrono::high_resolution_clock::now();
+          // std::cout << "done (" << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << "µs)."
+          //           << std::endl;
+          //
+          // std::cout << std::chrono::system_clock::now() << " Estimating with EqualWidthHistogram...";
+          // start = std::chrono::high_resolution_clock::now();
 
           const auto equal_width_hist_count = estimate_cardinality<T>(equal_width_hist, predicate_condition, value);
 
-          end = std::chrono::high_resolution_clock::now();
-          std::cout << "done (" << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << "µs)."
-                    << std::endl;
+          // end = std::chrono::high_resolution_clock::now();
+          // std::cout << "done (" << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << "µs)."
+          //           << std::endl;
 
           results_log << std::to_string(total_count) << "," << std::to_string(distinct_count) << ","
                       << std::to_string(num_buckets) << "," << column_name << ","
