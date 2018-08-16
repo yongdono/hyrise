@@ -37,7 +37,7 @@ std::optional<ColumnID> JoinPlanJoinNode::find_column_id(const LQPColumnReferenc
   }
 
   return column_id_in_left_child
-             ? column_id_in_left_child
+             ? std::optional<ColumnID>(*column_id_in_left_child)
              : static_cast<ColumnID>(*column_id_in_right_child + _left_child->output_column_count());
 }
 

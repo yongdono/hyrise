@@ -109,7 +109,7 @@ CostModelLinearConfig CostModelLinear::create_release_build_config() {
   };
 
   config.other_operator_models[OperatorType::Product] = {
-  {CostFeature::OutputRowCount, 0.0136870174701f}
+  {CostFeature::OutputRowCount, 4.0}
   };
 
   config.other_operator_models[OperatorType::UnionPositions] = {
