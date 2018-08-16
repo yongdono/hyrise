@@ -22,7 +22,8 @@ class JitOperatorWrapper : public AbstractReadOnlyOperator {
  public:
   explicit JitOperatorWrapper(const std::shared_ptr<const AbstractOperator>& left,
                               const JitExecutionMode execution_mode = JitExecutionMode::Compile,
-                              const std::list<std::shared_ptr<AbstractJittable>>& jit_operators = {});
+                              const std::list<std::shared_ptr<AbstractJittable>>& jit_operators = {},
+                              const std::function<void(const JitReadTuples*, JitRuntimeContext&)>& execute_func = nullptr);
 
   const std::string name() const final;
   const std::string description(DescriptionMode description_mode) const final;
@@ -46,10 +47,12 @@ class JitOperatorWrapper : public AbstractReadOnlyOperator {
   const std::shared_ptr<JitReadTuples> _source() const;
   const std::shared_ptr<AbstractJittableSink> _sink() const;
   void insert_loads(const bool lazy);
+  void _choose_execute_func();
 
   const JitExecutionMode _execution_mode;
   JitCodeSpecializer _module;
   std::list<std::shared_ptr<AbstractJittable>> _jit_operators;
+  std::function<void(const JitReadTuples*, JitRuntimeContext&)> _execute_func;
 };
 
 }  // namespace opossum

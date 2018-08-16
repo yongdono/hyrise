@@ -11,10 +11,12 @@ namespace opossum {
 
 JitOperatorWrapper::JitOperatorWrapper(const std::shared_ptr<const AbstractOperator>& left,
                                        const JitExecutionMode execution_mode,
-                                       const std::list<std::shared_ptr<AbstractJittable>>& jit_operators)
+                                       const std::list<std::shared_ptr<AbstractJittable>>& jit_operators,
+                                       const std::function<void(const JitReadTuples*, JitRuntimeContext&)>& execute_func)
     : AbstractReadOnlyOperator{OperatorType::JitOperatorWrapper, left},
       _execution_mode{execution_mode},
-      _jit_operators{jit_operators} {}
+      _jit_operators{jit_operators},
+      _execute_func{execute_func} {}
 
 const std::string JitOperatorWrapper::name() const { return "JitOperatorWrapper"; }
 
@@ -111,34 +113,12 @@ std::shared_ptr<const Table> JitOperatorWrapper::_on_execute() {
   _source()->before_query(in_table, context);
   _sink()->before_query(*out_table, context);
 
-  // Connect operators to a chain
-  for (auto it = _jit_operators.begin(), next = ++_jit_operators.begin();
-       it != _jit_operators.end() && next != _jit_operators.end(); ++it, ++next) {
-    (*it)->set_next_operator(*(next));
-  }
-
-  // std::cout << description(DescriptionMode::MultiLine) << std::endl;
-
-  std::function<void(const JitReadTuples*, JitRuntimeContext&)> execute_func;
-  // We want to perform two specialization passes if the operator chain contains a JitAggregate operator, since the
-  // JitAggregate operator contains multiple loops that need unrolling.
-  auto two_specialization_passes = static_cast<bool>(std::dynamic_pointer_cast<JitAggregate>(_sink()));
-  switch (_execution_mode) {  // _execution_mode
-    case JitExecutionMode::Compile:
-      // this corresponds to "opossum::JitReadTuples::execute(opossum::JitRuntimeContext&) const"
-      execute_func = _module.specialize_and_compile_function<void(const JitReadTuples*, JitRuntimeContext&)>(
-          "_ZNK7opossum13JitReadTuples7executeERNS_17JitRuntimeContextE",
-          std::make_shared<JitConstantRuntimePointer>(_source().get()), two_specialization_passes);
-      break;
-    case JitExecutionMode::Interpret:
-      execute_func = &JitReadTuples::execute;
-      break;
-  }
+  _choose_execute_func();
 
   for (opossum::ChunkID chunk_id{0}; chunk_id < in_table.chunk_count(); ++chunk_id) {
     const auto& in_chunk = *in_table.get_chunk(chunk_id);
     _source()->before_chunk(in_table, in_chunk, context);
-    execute_func(_source().get(), context);
+    _execute_func(_source().get(), context);
     _sink()->after_chunk(*out_table, context);
     // break, if limit is reached
     if (context.chunk_offset == std::numeric_limits<ChunkOffset>::max()) break;
@@ -149,10 +129,39 @@ std::shared_ptr<const Table> JitOperatorWrapper::_on_execute() {
   return out_table;
 }
 
+void JitOperatorWrapper::_choose_execute_func() {
+  if (_execute_func) return;
+
+  // Connect operators to a chain
+  for (auto it = _jit_operators.begin(), next = ++_jit_operators.begin();
+       it != _jit_operators.end() && next != _jit_operators.end(); ++it, ++next) {
+    (*it)->set_next_operator(*(next));
+  }
+
+  // std::cout << description(DescriptionMode::MultiLine) << std::endl;
+
+  // We want to perform two specialization passes if the operator chain contains a JitAggregate operator, since the
+  // JitAggregate operator contains multiple loops that need unrolling.
+  auto two_specialization_passes = static_cast<bool>(std::dynamic_pointer_cast<JitAggregate>(_sink()));
+  switch (_execution_mode) {  // _execution_mode
+    case JitExecutionMode::Compile:
+      // this corresponds to "opossum::JitReadTuples::execute(opossum::JitRuntimeContext&) const"
+      _execute_func = _module.specialize_and_compile_function<void(const JitReadTuples*, JitRuntimeContext&)>(
+          "_ZNK7opossum13JitReadTuples7executeERNS_17JitRuntimeContextE",
+                  std::make_shared<JitConstantRuntimePointer>(_source().get()), two_specialization_passes);
+      break;
+    case JitExecutionMode::Interpret:
+      _execute_func = &JitReadTuples::execute;
+      break;
+  }
+}
+
 std::shared_ptr<AbstractOperator> JitOperatorWrapper::_on_deep_copy(
     const std::shared_ptr<AbstractOperator>& copied_input_left,
     const std::shared_ptr<AbstractOperator>& copied_input_right) const {
-  return std::make_shared<JitOperatorWrapper>(copied_input_left, _execution_mode, _jit_operators);
+  if (Global::get().deep_copy_exists) const_cast<JitOperatorWrapper*>(this)->_choose_execute_func();
+  return std::make_shared<JitOperatorWrapper>(copied_input_left, _execution_mode, _jit_operators,
+          Global::get().deep_copy_exists ? _execute_func : nullptr);
 }
 
 void JitOperatorWrapper::_on_set_parameters(const std::unordered_map<ParameterID, AllTypeVariant>& parameters) {}

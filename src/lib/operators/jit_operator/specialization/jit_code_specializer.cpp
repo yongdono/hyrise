@@ -171,7 +171,7 @@ void JitCodeSpecializer::_inline_function_calls(SpecializationContext& context) 
       }
     }
 
-    constexpr bool print = true;
+    constexpr bool print = false;
 
     auto& function = *call_site.getCalledFunction();
     auto function_name = function.getName().str();
