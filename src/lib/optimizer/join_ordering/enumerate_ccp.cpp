@@ -47,8 +47,6 @@ std::vector<std::pair<boost::dynamic_bitset<>, boost::dynamic_bitset<>>> Enumera
     }
   }
 
-  std::cout << "Total CSG count: " << csg_count << std::endl;
-
 #if IS_DEBUG
   // Assert that the algorithm didn't create duplicates and that all created ccps contain only previously enumerated
   // subsets

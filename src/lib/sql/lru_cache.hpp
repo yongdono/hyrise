@@ -3,6 +3,7 @@
 #include <list>
 #include <unordered_map>
 #include <utility>
+#include <optional>
 
 #include "abstract_cache.hpp"
 
@@ -18,7 +19,7 @@ class LRUCache : public AbstractCache<Key, Value> {
   explicit LRUCache(size_t capacity) : AbstractCache<Key, Value>(capacity) {}
 
   // Sets the value to be cached at the given key.
-  void set(const Key& key, const Value& value, double cost = 1.0, double size = 1.0) {
+  std::optional<KeyValuePair> set(const Key& key, const Value& value, double cost = 1.0, double size = 1.0) {
     _list.push_front(KeyValuePair(key, std::move(value)));
 
     // Override old element at that key, if it exists.
@@ -31,8 +32,9 @@ class LRUCache : public AbstractCache<Key, Value> {
 
     // Delete the last one, if capacity is exceeded.
     if (_map.size() > this->_capacity) {
-      _evict();
+      return _evict();
     }
+    return std::nullopt;
   }
 
   // Retrieves the value cached at the key.
@@ -62,19 +64,20 @@ class LRUCache : public AbstractCache<Key, Value> {
     this->_capacity = capacity;
   }
 
- protected:
   // Doubly-linked list to hold all elements.
   std::list<KeyValuePair> _list;
 
   // Map to point towards element in the list.
   std::unordered_map<Key, typename std::list<KeyValuePair>::iterator> _map;
 
-  void _evict() {
+  KeyValuePair _evict() {
     auto last = _list.end();
     last--;
 
     _map.erase(last->first);
+    const auto pair = _list.back();
     _list.pop_back();
+    return pair;
   }
 };
 

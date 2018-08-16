@@ -5,9 +5,11 @@
 #include "statistics/base_cardinality_cache.hpp"
 #include "logical_query_plan/stored_table_node.hpp"
 #include "utils/load_table.hpp"
-#include "sql/cardinality_cache_uncapped.hpp"
+#include "statistics/cardinality_cache_uncapped.hpp"
+#include "statistics/cardinality_cache_lru.hpp"
 
 using namespace std::string_literals;
+using namespace std::literals::chrono_literals;
 
 namespace opossum {
 
@@ -72,20 +74,56 @@ TEST_F(CardinalityEstimationCacheTest, Json) {
   cache->set_timeout(BaseJoinGraph{{int_float2, int_float}, {p1_and_p2_or_p3, int_float_a_eq_int_float_b}}, std::chrono::seconds{25});
 
   const auto json = cache->to_json();
-  const auto cache_b = BaseCardinalityCache::from_json(json);
 
-  /** */
+  CardinalityCacheUncapped cache_b;
+  cache_b.from_json(json);
 
-
-  EXPECT_EQ(cache_b->get(BaseJoinGraph{{int_float}, {int_float_a_eq_int_float_b}}), 13);
-  EXPECT_EQ(cache_b->get(BaseJoinGraph{{int_float, int_float2}, {int_float_a_gt_int_float2_b, int_float_a_eq_int_float_b}}), 12);
-  EXPECT_EQ(cache_b->get(BaseJoinGraph{{int_float2, int_float}, {int_float_a_eq_int_float_b, int_float_a_eq_five, int_float_a_gt_int_float2_b}}), 11);
-  EXPECT_EQ(cache_b->get(BaseJoinGraph{{int_float2, int_float}, {p1_and_p2_or_p3}}), 19);
-  EXPECT_EQ(cache_b->get(BaseJoinGraph{{int_float2, int_float}, {p1_and_p2_or_p3, int_float_b_eq_hello}}), 15);
-  EXPECT_EQ(cache_b->get_timeout(BaseJoinGraph{{int_float2, int_float}, {p1_and_p2_or_p3, int_float_b_eq_hello}}), std::nullopt);
-  EXPECT_EQ(cache_b->get(BaseJoinGraph{{int_float2, int_float}, {p1_and_p2_or_p3, int_float_a_eq_int_float_b}}), std::nullopt);
-  EXPECT_EQ(cache_b->get_timeout(BaseJoinGraph{{int_float2, int_float}, {p1_and_p2_or_p3, int_float_a_eq_int_float_b}}), std::chrono::seconds{25});
+  EXPECT_EQ(cache_b.get(BaseJoinGraph{{int_float}, {int_float_a_eq_int_float_b}}), 13);
+  EXPECT_EQ(cache_b.get(BaseJoinGraph{{int_float, int_float2}, {int_float_a_gt_int_float2_b, int_float_a_eq_int_float_b}}), 12);
+  EXPECT_EQ(cache_b.get(BaseJoinGraph{{int_float2, int_float}, {int_float_a_eq_int_float_b, int_float_a_eq_five, int_float_a_gt_int_float2_b}}), 11);
+  EXPECT_EQ(cache_b.get(BaseJoinGraph{{int_float2, int_float}, {p1_and_p2_or_p3}}), 19);
+  EXPECT_EQ(cache_b.get(BaseJoinGraph{{int_float2, int_float}, {p1_and_p2_or_p3, int_float_b_eq_hello}}), 15);
+  EXPECT_EQ(cache_b.get_timeout(BaseJoinGraph{{int_float2, int_float}, {p1_and_p2_or_p3, int_float_b_eq_hello}}), std::nullopt);
+  EXPECT_EQ(cache_b.get(BaseJoinGraph{{int_float2, int_float}, {p1_and_p2_or_p3, int_float_a_eq_int_float_b}}), std::nullopt);
+  EXPECT_EQ(cache_b.get_timeout(BaseJoinGraph{{int_float2, int_float}, {p1_and_p2_or_p3, int_float_a_eq_int_float_b}}), std::chrono::seconds{25});
 }
 
+TEST_F(CardinalityEstimationCacheTest, LRU) {
+  CardinalityCacheLRU cache{3};
+
+  const auto join_graph_a = BaseJoinGraph{{int_float}, {int_float_a_eq_int_float_b}};
+  const auto join_graph_b = BaseJoinGraph{{int_float2, int_float}, {int_float_a_eq_int_float_b, int_float_a_gt_int_float2_b}};
+  const auto join_graph_c = BaseJoinGraph{{int_float2, int_float}, {int_float_a_eq_five, int_float_a_eq_int_float_b, int_float_a_gt_int_float2_b}};
+  const auto join_graph_d = BaseJoinGraph{{int_float2, int_float}, {p1_and_p2_or_p3}};
+
+  EXPECT_EQ(cache.get(join_graph_a), std::nullopt);
+  EXPECT_EQ(cache.get(join_graph_b), std::nullopt);
+  EXPECT_EQ(cache.size(), 2u);
+
+  cache.put(join_graph_a, 13);
+  cache.set_timeout(join_graph_a, 100s);
+  cache.put(join_graph_b, 14);
+  cache.set_timeout(join_graph_b, 101s);
+  cache.put(join_graph_c, 15);
+  cache.set_timeout(join_graph_c, 102s);
+  cache.put(join_graph_d, 16);
+  cache.set_timeout(join_graph_d, 103s);
+
+  EXPECT_EQ(cache.get(join_graph_a), std::nullopt);
+  EXPECT_EQ(cache.get_timeout(join_graph_a), 100s);
+  EXPECT_EQ(cache.get(join_graph_b), 14);
+  EXPECT_EQ(cache.get_timeout(join_graph_b), 101s);
+  EXPECT_EQ(cache.get(join_graph_c), 15);
+  EXPECT_EQ(cache.get_timeout(join_graph_c), 102s);
+  EXPECT_EQ(cache.get(join_graph_d), 16);
+  EXPECT_EQ(cache.get_timeout(join_graph_d), 103s);
+
+  cache.put(join_graph_a, 20);
+  EXPECT_EQ(cache.get(join_graph_a), 20);
+  EXPECT_EQ(cache.get_timeout(join_graph_a), 100s);
+  EXPECT_EQ(cache.get(join_graph_b), std::nullopt);
+  EXPECT_EQ(cache.get_timeout(join_graph_b), 101s);
+  EXPECT_EQ(cache.size(), 4u);
+}
 
 }  // namespace opossum

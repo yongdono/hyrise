@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#include <optional>
 
 #include "abstract_cache.hpp"
 #include "boost/heap/fibonacci_heap.hpp"
@@ -17,6 +18,8 @@ namespace opossum {
 template <size_t K, typename Key, typename Value>
 class LRUKCache : public AbstractCache<Key, Value> {
  public:
+  using AbstractCache<Key, Value>::KeyValuePair;
+
   // Entries within the LRU-K cache.
   // They keep a reference history of the K last accesses.
   class LRUKCacheEntry {
@@ -59,7 +62,7 @@ class LRUKCache : public AbstractCache<Key, Value> {
 
   explicit LRUKCache(size_t capacity) : AbstractCache<Key, Value>(capacity), _access_counter(0) {}
 
-  void set(const Key& key, const Value& value, double cost = 1.0, double size = 1.0) {
+  std::optional<KeyValuePair> set(const Key& key, const Value& value, double cost = 1.0, double size = 1.0) {
     ++_access_counter;
 
     auto it = _map.find(key);
@@ -71,7 +74,7 @@ class LRUKCache : public AbstractCache<Key, Value> {
       entry.value = value;
       entry.add_history_entry(_access_counter);
       _queue.update(handle);
-      return;
+      return std::nullopt;
     }
 
     // If the cache is full, erase the item at the top of the heap
@@ -84,6 +87,8 @@ class LRUKCache : public AbstractCache<Key, Value> {
     entry_t entry{key, value, {_access_counter}};
     handle_t handle = _queue.push(entry);
     _map[key] = handle;
+
+    return std::nullopt;
   }
 
   Value& get(const Key& key) {
@@ -126,10 +131,12 @@ class LRUKCache : public AbstractCache<Key, Value> {
   // Running counter to keep track of the reference history.
   size_t _access_counter;
 
-  void _evict() {
+  KeyValuePair _evict() {
     auto top = _queue.top();
+    const auto pair = KeyValuePair{top.key, top.value};
     _map.erase(top.key);
     _queue.pop();
+    return pair;
   }
 };
 

@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#include <optional>
 
 #include "abstract_cache.hpp"
 
@@ -22,12 +23,12 @@ class RandomCache : public AbstractCache<Key, Value> {
   }
 
   // Sets the value to be cached at the given key.
-  void set(const Key& key, const Value& value, double cost = 1.0, double size = 1.0) {
+  std::optional<KeyValuePair> set(const Key& key, const Value& value, double cost = 1.0, double size = 1.0) {
     // Override old element at that key, if it exists.
     auto it = _map.find(key);
     if (it != _map.end()) {
       _list[it->second].second = value;
-      return;
+      return std::nullopt;
     }
 
     // If capacity is exceeded, pick a random element and replace it.
@@ -35,14 +36,17 @@ class RandomCache : public AbstractCache<Key, Value> {
       size_t index = _rand(_gen);
       _map.erase(_list[index].first);
 
+      const auto pair = _list[index];
       _list[index] = KeyValuePair(key, value);
       _map[key] = index;
-      return;
+      return pair;
     }
 
     // Otherwise simply add to the end of the vector.
     _list.push_back(KeyValuePair(key, value));
     _map[key] = _list.size() - 1;
+
+    return std::nullopt;
   }
 
   // Retrieves the value cached at the key.
@@ -69,7 +73,6 @@ class RandomCache : public AbstractCache<Key, Value> {
     _rand = std::uniform_int_distribution<>(0, capacity - 1);
   }
 
- protected:
   // List to hold all elements.
   std::vector<KeyValuePair> _list;
 
@@ -81,9 +84,11 @@ class RandomCache : public AbstractCache<Key, Value> {
   std::mt19937 _gen;
   std::uniform_int_distribution<> _rand;
 
-  void _evict() {
+  KeyValuePair _evict() {
+    const auto pair = _list[0];
     _map.erase(_list[0].first);
     _list.erase(_list.cbegin());
+    return pair;
   }
 };
 

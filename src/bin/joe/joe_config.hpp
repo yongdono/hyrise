@@ -15,6 +15,7 @@ namespace opossum {
 
 enum class CardinalityEstimationMode { Statistics, CacheOnly, Execution };
 enum class CardinalityEstimationCacheAccess { None, ReadOnly, ReadAndWrite };
+enum class CardinalityCacheEviction { Uncapped, LRU, LAG, Random };
 
 struct JoeConfig final {
   /**
@@ -56,6 +57,8 @@ struct JoeConfig final {
   bool lqp_blacklist_enabled{false};
   std::string evaluation_name;
   std::optional<std::string> cost_sample_dir{""};
+  std::string cardinality_cache_eviction_str;
+  std::string cardinality_cache_capacity_str;
 
   /**
    * Objects intitialised from CLI options
@@ -67,6 +70,8 @@ struct JoeConfig final {
   std::shared_ptr<AbstractCardinalityEstimator> main_cardinality_estimator;
   CardinalityEstimationCacheAccess cardinality_estimation_cache_access{CardinalityEstimationCacheAccess::None};
   std::shared_ptr<LQPBlacklist> lqp_blacklist;
+  CardinalityCacheEviction cardinality_cache_eviction;
+  size_t cardinality_cache_capacity;
 
   /**
    * Misc

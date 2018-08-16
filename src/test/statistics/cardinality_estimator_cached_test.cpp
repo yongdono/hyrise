@@ -7,6 +7,7 @@
 #include "optimizer/join_ordering/join_plan_predicate.hpp"
 #include "statistics/cardinality_estimator_cached.hpp"
 #include "statistics/base_cardinality_cache.hpp"
+#include "statistics/cardinality_cache_uncapped.hpp"
 
 using namespace std::string_literals;  // NOLINT
 

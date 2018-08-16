@@ -10,6 +10,8 @@
 #include <boost/uuid/uuid_generators.hpp>
 
 #include "statistics/cardinality_cache_uncapped.hpp"
+#include "statistics/cardinality_cache_random.hpp"
+#include "statistics/cardinality_cache_lru.hpp"
 
 using boost::lexical_cast;
 using boost::uuids::uuid;
@@ -56,6 +58,8 @@ void JoeConfig::add_options(cxxopts::Options& cli_options_description) {
   ("force-plan-zero", "Independently of shuffling, always executed the plan the optimizer labeled as best", cxxopts::value(force_plan_zero)->default_value("false"))  // NOLINT
   ("cost-sample-dir", "Directory to store cost samples in", cxxopts::value(*cost_sample_dir)->default_value(*cost_sample_dir))  // NOLINT
   ("lqp-blacklist", "Blacklist LQPs that timed out", cxxopts::value(lqp_blacklist_enabled)->default_value("false"))  // NOLINT
+  ("cardinality-cache-eviction", "CardinalityCache eviction strategy (random, lru, lag, uncapped)", cxxopts::value(cardinality_cache_eviction_str)->default_value("uncapped"))  // NOLINT
+  ("cardinality-cache-capacity", "CardinalityCache capacity", cxxopts::value(cardinality_cache_capacity_str)->default_value("inf"))  // NOLINT
   ("queries", "Specify queries to run, default is all of the workload that are supported", cxxopts::value<std::vector<std::string>>()); // NOLINT
   ;
   // clang-format on
@@ -302,6 +306,27 @@ void JoeConfig::parse(const cxxopts::ParseResult& cli_parse_result) {
     out() << "-- Not blacklisting timed out plans" << std::endl;
   }
 
+  if (cache_cardinalities) {
+    cardinality_cache_eviction = std::unordered_map<std::string, CardinalityCacheEviction>{
+    {"uncapped", CardinalityCacheEviction::Uncapped},
+    {"random",   CardinalityCacheEviction::Random},
+    {"lru",      CardinalityCacheEviction::LRU},
+    {"lag",      CardinalityCacheEviction::LAG}
+    }.at(cardinality_cache_eviction_str);
+
+    out() << "-- CardinalityCache eviction: " << cardinality_cache_eviction_str << std::endl;
+
+    if (cardinality_cache_capacity_str == "inf") {
+      cardinality_cache_capacity = std::numeric_limits<size_t>::max();
+    } else {
+      cardinality_cache_capacity = std::stoll(cardinality_cache_capacity_str);
+    }
+
+    out() << "-- CardinalityCache capacity: " << cardinality_cache_capacity << std::endl;
+  }
+
+  Assert(cardinality_cache_eviction == CardinalityCacheEviction::Uncapped ||
+         cardinality_estimation_cache_access != CardinalityEstimationCacheAccess::ReadAndWrite, "Cannot evict from R/W persistent cache");
   Assert(cardinality_estimation_mode != CardinalityEstimationMode::CacheOnly || !isolate_queries, "Isolating queries in cache only mode is not intended");
   Assert(lqp_blacklist_enabled || !plan_timeout_seconds, "Can't blacklist LQPs without timeout");
 }
@@ -314,7 +339,7 @@ void JoeConfig::setup() {
   out() << "-- Writing results to '" << evaluation_dir << "'" << std::endl;
   tmp_dir_path = evaluation_dir + "/tmp/";
   tmp_dot_file_path = tmp_dir_path + boost::lexical_cast<std::string>(boost::uuids::random_generator{}()) + ".dot";
-  std::experimental::filesystem::remove_all(evaluation_dir);
+  //std::experimental::filesystem::remove_all(evaluation_dir);
   std::experimental::filesystem::create_directories(evaluation_dir);
   std::experimental::filesystem::create_directories(tmp_dir_path);
   std::experimental::filesystem::create_directory(evaluation_dir + "/viz");
@@ -332,9 +357,26 @@ void JoeConfig::setup() {
   out() << std::endl;
 
   /**
+   * Setup cardinality cache
+   */
+  switch (cardinality_cache_eviction) {
+    case CardinalityCacheEviction::Uncapped:
+      cardinality_estimation_cache = std::make_shared<CardinalityCacheUncapped>();
+      break;
+    case CardinalityCacheEviction::Random:
+      cardinality_estimation_cache = std::make_shared<CardinalityCacheRandom>(cardinality_cache_capacity);
+      break;
+    case CardinalityCacheEviction::LAG:
+      Fail("");
+    case CardinalityCacheEviction::LRU:
+      cardinality_estimation_cache = std::make_shared<CardinalityCacheLRU>(cardinality_cache_capacity);
+      break;
+  }
+
+
+  /**
    * Setup CardinalityEstimator
    */
-  cardinality_estimation_cache = std::make_shared<CardinalityCacheUncapped>();
   if (cardinality_estimation_cache_access != CardinalityEstimationCacheAccess::None &&
       std::experimental::filesystem::exists(persistent_cardinality_estimation_cache_path)) {
     out() << "-- Loading BaseCardinalityCache from file '" << persistent_cardinality_estimation_cache_path << "'..." << std::endl;
@@ -343,7 +385,6 @@ void JoeConfig::setup() {
   } else {
     out() << "-- Not using the persistent CardinalityCache" << std::endl;
   }
-
 
   if (cardinality_estimation_mode == CardinalityEstimationMode::Statistics) {
     const auto cardinality_estimator_statistics = std::make_shared<CardinalityEstimatorColumnStatistics>();

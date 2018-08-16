@@ -20,7 +20,7 @@
 namespace opossum {
 
 std::optional<Cardinality> BaseCardinalityCache::get(const BaseJoinGraph& join_graph) {
-  const auto entry = get_entry(join_graph);
+  auto entry = get_entry(join_graph);
 
   if (_log) (*_log) << "BaseCardinalityCache [" << (entry->request_count == 0 ? "I" : "S") << "]";
 
@@ -49,7 +49,20 @@ std::optional<Cardinality> BaseCardinalityCache::get(const BaseJoinGraph& join_g
 }
 
 void BaseCardinalityCache::put(const BaseJoinGraph& join_graph, const Cardinality cardinality) {
-  const auto entry = get_entry(join_graph);
+  const auto normalized_join_graph = _normalize(join_graph);
+  auto entry = get_engaged_entry(normalized_join_graph);
+
+  if (!entry) {
+    const auto iter = _disengaged_cache.find(normalized_join_graph);
+    if (iter != _disengaged_cache.end()) {
+      entry = iter->second;
+      _disengaged_cache.erase(iter);
+    } else {
+      entry = std::make_shared<Entry>();
+    }
+
+    set_engaged_entry(normalized_join_graph, entry);
+  }
 
   if (_log && !entry->cardinality) {
     (*_log) << "BaseCardinalityCache [" << (entry->request_count == 0 ? "I" : "S") << "][PUT ]: " << join_graph.description() << ": " << cardinality << std::endl;
@@ -66,6 +79,20 @@ void BaseCardinalityCache::set_timeout(const BaseJoinGraph& join_graph, const st
   get_entry(join_graph)->timeout = timeout;
 }
 
+std::shared_ptr<BaseCardinalityCache::Entry> BaseCardinalityCache::get_entry(const BaseJoinGraph &join_graph) {
+  const auto normalized_join_graph = _normalize(join_graph);
+  auto entry = get_engaged_entry(join_graph);
+  if (entry) return entry;
+
+  const auto iter = _disengaged_cache.find(normalized_join_graph);
+  if (iter != _disengaged_cache.end()) return iter->second;
+
+  entry = std::make_shared<Entry>();
+  _disengage_entry(_normalize(join_graph), entry);
+
+  return entry;
+}
+
 size_t BaseCardinalityCache::cache_hit_count() const {
   return _hit_count;
 }
@@ -78,7 +105,7 @@ size_t BaseCardinalityCache::distinct_hit_count() const {
   auto count = size_t{0};
 
   visit_entries([&](const auto& key, const auto& value) {
-    if (value->second.cardinality && value->second.request_count > 0) ++count;
+    if (value->cardinality && value->request_count > 0) ++count;
   });
 
   return count;
@@ -88,7 +115,7 @@ size_t BaseCardinalityCache::distinct_miss_count() const {
   auto count = size_t{0};
 
   visit_entries([&](const auto& key, const auto& value) {
-    if (!value->second.cardinality && value->second.request_count > 0) ++count;
+    if (!value->cardinality && value->request_count > 0) ++count;
   });
 
   return count;
@@ -101,10 +128,11 @@ void BaseCardinalityCache::reset_distinct_hit_miss_counts() {
 }
 
 void BaseCardinalityCache::clear() {
-  on_clear();
+  clear_engaged_entries();
   _hit_count = 0;
   _miss_count = 0;
   _log.reset();
+  _disengaged_cache.clear();
 }
 
 void BaseCardinalityCache::set_log(const std::shared_ptr<std::ostream>& log) {
@@ -115,14 +143,14 @@ void BaseCardinalityCache::print(std::ostream& stream) const {
   stream << "-------------------- ENGAGED ENTRIES ------------------------" << std::endl;
   visit_entries([&](const auto& key, const auto& value) {
     if (value->cardinality) {
-      stream << key->description() << ": " << *value->cardinality << std::endl;
+      stream << key.description() << ": " << *value->cardinality << std::endl;
     }
   });
   stream << std::endl;
   stream << "------------------- DISENGAGED ENTRIES ------------------------" << std::endl;
   visit_entries([&](const auto& key, const auto& value) {
     if (!value->cardinality) {
-      stream << key->description() << ": " << "-" << std::endl;
+      stream << key.description() << ": " << "-" << std::endl;
     }
   });
 }
@@ -161,7 +189,7 @@ void BaseCardinalityCache::load(std::istream& stream) {
 void BaseCardinalityCache::from_json(const nlohmann::json& json) {
   for (const auto& pair : json) {
     const auto key = BaseJoinGraph::from_json(pair["key"]);
-    auto entry = get_entry(key);
+    auto entry = get_engaged_entry(key);
 
     if (pair.count("timeout")) entry->timeout = std::chrono::seconds{pair["timeout"].get<int>()};
     if (pair.count("value")) entry->cardinality = pair["value"].get<Cardinality>();
@@ -192,11 +220,11 @@ void BaseCardinalityCache::update(const std::string& path) const {
     CardinalityCacheUncapped persistent_cache;
     persistent_cache.load(istream);
     visit_entries([&](const auto& key, const auto& value) {
-      persistent_cache->get_entry(key) = value;
+      persistent_cache.get_engaged_entry(key) = value;
     });
 
     ostream.open(path);
-    ostream << persistent_cache->to_json();
+    ostream << persistent_cache.to_json();
 
     ostream.flush(); // Make sure write-to-disk happened before unlocking
   }
@@ -291,6 +319,16 @@ size_t BaseCardinalityCache::memory_consumption_alt() const {
   });
 
   return memory;
+}
+
+void BaseCardinalityCache::_disengage_entry(const BaseJoinGraph &normalized_join_graph, const std::shared_ptr<Entry>& entry) {
+  entry->cardinality = std::nullopt;
+  Assert(_disengaged_cache.count(normalized_join_graph) == 0, "Entry already disengaged");
+  _disengaged_cache.emplace(normalized_join_graph, entry);
+}
+
+size_t BaseCardinalityCache::size() const {
+  return _disengaged_cache.size() + engaged_size();
 }
 
 }  // namespace opossum

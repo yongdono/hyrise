@@ -126,6 +126,6 @@ int main(int argc, char ** argv) {
     joe.run();
 
     //
-    config->cardinality_estimation_cache->clear();
+    if (config->isolate_queries) config->cardinality_estimation_cache->clear();
   }
 }

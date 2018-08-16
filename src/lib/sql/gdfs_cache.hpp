@@ -14,6 +14,8 @@ namespace opossum {
 template <typename Key, typename Value>
 class GDFSCache : public AbstractCache<Key, Value> {
  public:
+  using typename AbstractCache<Key, Value>::KeyValuePair;
+
   // Entries within the GDFS cache.
   struct GDFSCacheEntry {
     Key key;
@@ -31,7 +33,7 @@ class GDFSCache : public AbstractCache<Key, Value> {
 
   explicit GDFSCache(size_t capacity) : AbstractCache<Key, Value>(capacity), _inflation(0.0) {}
 
-  void set(const Key& key, const Value& value, double cost = 1.0, double size = 1.0) {
+  std::optional<KeyValuePair> set(const Key& key, const Value& value, double cost = 1.0, double size = 1.0) {
     auto it = _map.find(key);
     if (it != _map.end()) {
       // Update priority.
@@ -44,7 +46,7 @@ class GDFSCache : public AbstractCache<Key, Value> {
       entry.priority = _inflation + entry.frequency / entry.size;
       _queue.update(handle);
 
-      return;
+      return std::nullopt;
     }
 
     // If the cache is full, erase the item at the top of the heap
@@ -61,6 +63,8 @@ class GDFSCache : public AbstractCache<Key, Value> {
     entry.priority = _inflation + entry.frequency / entry.size;
     Handle handle = _queue.push(entry);
     _map[key] = handle;
+
+    return std::nullopt;
   }
 
   Value& get(const Key& key) {
@@ -108,12 +112,15 @@ class GDFSCache : public AbstractCache<Key, Value> {
   // Inflation value that will be updated whenever an item is evicted.
   double _inflation;
 
-  void _evict() {
+  KeyValuePair _evict() {
     auto top = _queue.top();
+    const auto pair = KeyValuePair{top.key, top.value};
 
     _inflation = top.priority;
     _map.erase(top.key);
     _queue.pop();
+
+    return pair;
   }
 };
 

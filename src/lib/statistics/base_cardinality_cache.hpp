@@ -11,10 +11,6 @@
 
 namespace opossum {
 
-enum class CacheEvictionStrategy {
-  Uncapped, Random, LRU, LAG /* Least accuracy gain */
-};
-
 class BaseCardinalityCache {
  public:
   // Cardinality that is assumed if a join graph timed out
@@ -38,13 +34,12 @@ class BaseCardinalityCache {
   std::optional<std::chrono::seconds> get_timeout(const BaseJoinGraph& join_graph);
   void set_timeout(const BaseJoinGraph& join_graph, const std::optional<std::chrono::seconds>& timeout);
 
-  virtual std::shared_ptr<Entry> get_entry(const BaseJoinGraph& join_graph) = 0;
-  virtual
+  std::shared_ptr<Entry> get_entry(const BaseJoinGraph &join_graph);
+  std::shared_ptr<Entry> get_or_create_disengaged_entry(const BaseJoinGraph &join_graph);
+  std::shared_ptr<Entry> get_or_create_engaged_entry(const BaseJoinGraph &join_graph);
 
   size_t cache_hit_count() const;
   size_t cache_miss_count() const;
-
-  virtual size_t size() const = 0;
 
   size_t distinct_hit_count() const;
   size_t distinct_miss_count() const;
@@ -71,19 +66,36 @@ class BaseCardinalityCache {
   template<typename Functor>
   void visit_entries(Functor functor) const {
     struct Visitor : CardinalityCacheVisitor {
+      Functor functor;
+
+      Visitor(const Functor functor): functor(functor) {}
+
       void visit(const BaseJoinGraph& key, const std::shared_ptr<Entry>& value) const override {
         functor(key, value);
       }
     };
-    visit_entries_impl(Visitor{});
+    visit_engaged_entries_impl(Visitor{functor});
+
+    for (const auto& pair : _disengaged_cache) {
+      functor(pair.first, pair.second);
+    }
   }
 
-  virtual void visit_entries_impl(const CardinalityCacheVisitor& visitor) = 0;
-  virtual void on_clear() = 0;
+  virtual std::shared_ptr<Entry> get_engaged_entry(const BaseJoinGraph &join_graph) = 0;
+  virtual void set_engaged_entry(const BaseJoinGraph &join_graph, const std::shared_ptr<Entry>& entry) = 0;
+  virtual void visit_engaged_entries_impl(const CardinalityCacheVisitor &visitor) const = 0;
+  virtual void clear_engaged_entries() = 0;
+  virtual size_t engaged_size() const = 0;
+
+  size_t size() const;
 
  protected:
   static BaseJoinGraph _normalize(const BaseJoinGraph& join_graph);
   static std::shared_ptr<const AbstractJoinPlanPredicate> _normalize(const std::shared_ptr<const AbstractJoinPlanPredicate>& predicate);
+
+  void _disengage_entry(const BaseJoinGraph &join_graph, const std::shared_ptr<Entry>& entry);
+
+  std::unordered_map<BaseJoinGraph, std::shared_ptr<BaseCardinalityCache::Entry>> _disengaged_cache;
 
   std::shared_ptr<std::ostream> _log;
   size_t _hit_count{0};

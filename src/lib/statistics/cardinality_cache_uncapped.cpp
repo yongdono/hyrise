@@ -2,7 +2,8 @@
 
 namespace opossum {
 
-std::shared_ptr<CardinalityCacheUncapped::Entry> CardinalityCacheUncapped::get_entry(const BaseJoinGraph& join_graph) {
+std::shared_ptr<CardinalityCacheUncapped::Entry> CardinalityCacheUncapped::get_engaged_entry(
+const BaseJoinGraph &join_graph) {
   auto normalized_join_graph = _normalize(join_graph);
 
   std::shared_ptr<Entry> entry;
@@ -17,17 +18,21 @@ std::shared_ptr<CardinalityCacheUncapped::Entry> CardinalityCacheUncapped::get_e
   }
 }
 
-void CardinalityCacheUncapped::visit_entries_impl(const CardinalityCacheVisitor& visitor) {
+void CardinalityCacheUncapped::set_engaged_entry(const BaseJoinGraph &join_graph, const std::shared_ptr<Entry>& entry) {
+  _cache[_normalize(join_graph)] = entry;
+}
+
+void CardinalityCacheUncapped::visit_engaged_entries_impl(const CardinalityCacheVisitor &visitor) const {
   for (const auto& pair : _cache) {
     visitor.visit(pair.first, pair.second);
   }
 }
 
-void CardinalityCacheUncapped::on_clear() {
+void CardinalityCacheUncapped::clear_engaged_entries() {
   _cache.clear();
 }
 
-size_t CardinalityCacheUncapped::size() const {
+size_t CardinalityCacheUncapped::engaged_size() const {
   return _cache.size();   
 }
 

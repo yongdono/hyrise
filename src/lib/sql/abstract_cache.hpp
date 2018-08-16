@@ -18,7 +18,7 @@ class AbstractCache {
   // If the new size exceeds the capacity an item will be evicted.
   // Depending on the underlying strategy, the parameters for cost and size may be used.
   // If they are not intended to be used, we specify constant default values here.
-  virtual void set(const Key& key, const Value& value, double cost = 1.0, double size = 1.0) = 0;
+  virtual std::optional<KeyValuePair> set(const Key& key, const Value& value, double cost = 1.0, double size = 1.0) = 0;
 
   // Get the cached value at the given key.
   // Causes undefined behavior if the item is not in the cache.
@@ -41,7 +41,7 @@ class AbstractCache {
 
  protected:
   // Remove an element from the cache according to the cache algorithm's strategy
-  virtual void _evict() = 0;
+  virtual KeyValuePair _evict() = 0;
 
   size_t _capacity;
 };
