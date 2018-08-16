@@ -1,1 +1,1 @@
-cat scripts/supported_job_queries.txt | parallel -j $3 --eta --results $4 $1 $2 {}
+cat scripts/supported_job_queries.txt | parallel -j $2 --eta --results $3 $1 {}

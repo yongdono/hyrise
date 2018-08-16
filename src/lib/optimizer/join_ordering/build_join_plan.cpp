@@ -97,30 +97,30 @@ void add_predicate(const std::shared_ptr<const AbstractJoinPlanPredicate>& predi
 
 }
 
-void order_predicates(std::vector<std::shared_ptr<const AbstractJoinPlanPredicate>>& predicates,
-                      const BaseJoinGraph& join_graph,
-                      const AbstractCardinalityEstimator& cardinality_estimator) {
-  auto predicate_cardinality = std::vector<std::pair<std::shared_ptr<const AbstractJoinPlanPredicate>, float>>{};
+// void order_predicates(std::vector<std::shared_ptr<const AbstractJoinPlanPredicate>>& predicates,
+//                       const BaseJoinGraph& join_graph,
+//                       const AbstractCardinalityEstimator& cardinality_estimator) {
+//   auto predicate_cardinality = std::vector<std::pair<std::shared_ptr<const AbstractJoinPlanPredicate>, float>>{};
 
-  for (const auto& predicate : predicates) {
-    auto join_graph_with_predicate = join_graph;
-    join_graph_with_predicate.predicates.emplace_back(predicate);
+//   for (const auto& predicate : predicates) {
+//     auto join_graph_with_predicate = join_graph;
+//     join_graph_with_predicate.predicates.emplace_back(predicate);
 
-    const auto cardinality = cardinality_estimator.estimate(join_graph_with_predicate.vertices, join_graph_with_predicate.predicates).value_or(1e+12);
+//     const auto cardinality = cardinality_estimator.estimate(join_graph_with_predicate.vertices, join_graph_with_predicate.predicates).value_or(1e+12);
 
-    predicate_cardinality.emplace_back(predicate, cardinality);
-  }
+//     predicate_cardinality.emplace_back(predicate, cardinality);
+//   }
 
-  const auto sort_predicate = [](const auto& left, const auto& right) {
-    return left.second < right.second;
-  };
+//   const auto sort_predicate = [](const auto& left, const auto& right) {
+//     return left.second < right.second;
+//   };
 
-  std::sort(predicate_cardinality.begin(), predicate_cardinality.end(), sort_predicate);
+//   std::sort(predicate_cardinality.begin(), predicate_cardinality.end(), sort_predicate);
 
-  for (auto predicate_idx = size_t{0}; predicate_idx < predicates.size(); ++predicate_idx) {
-    predicates[predicate_idx] = predicate_cardinality[predicate_idx].first;
-  }
-}
+//   for (auto predicate_idx = size_t{0}; predicate_idx < predicates.size(); ++predicate_idx) {
+//     predicates[predicate_idx] = predicate_cardinality[predicate_idx].first;
+//   }
+// }
 
 }  // namespace
 
@@ -139,7 +139,7 @@ JoinPlanNode build_join_plan_join_node(
   auto primary_join_predicate = std::shared_ptr<const JoinPlanAtomicPredicate>{};
   auto secondary_predicates = predicates;
 
-  order_predicates(secondary_predicates, join_plan_node.join_graph, cardinality_estimator);
+  //order_predicates(secondary_predicates, join_plan_node.join_graph, cardinality_estimator);
 
   /**
    * Find primary join predicate - needs to be atomic and have one argument in the right and one in the left sub plan
@@ -234,7 +234,7 @@ JoinPlanNode build_join_plan_vertex_node(
                                         const AbstractCardinalityEstimator &cardinality_estimator) {
   auto join_plan_node = JoinPlanNode{vertex_node, 0.0f, {{vertex_node}, {}}};
 
-  order_predicates(predicates, join_plan_node.join_graph, cardinality_estimator);
+  //order_predicates(predicates, join_plan_node.join_graph, cardinality_estimator);
 
   for (const auto& predicate : predicates) {
     add_predicate(predicate, join_plan_node, cost_model, cardinality_estimator);
