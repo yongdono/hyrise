@@ -9,10 +9,10 @@
 
 namespace opossum {
 
-JitOperatorWrapper::JitOperatorWrapper(const std::shared_ptr<const AbstractOperator>& left,
-                                       const JitExecutionMode execution_mode,
-                                       const std::list<std::shared_ptr<AbstractJittable>>& jit_operators,
-                                       const std::function<void(const JitReadTuples*, JitRuntimeContext&)>& execute_func)
+JitOperatorWrapper::JitOperatorWrapper(
+    const std::shared_ptr<const AbstractOperator>& left, const JitExecutionMode execution_mode,
+    const std::list<std::shared_ptr<AbstractJittable>>& jit_operators,
+    const std::function<void(const JitReadTuples*, JitRuntimeContext&)>& execute_func)
     : AbstractReadOnlyOperator{OperatorType::JitOperatorWrapper, left},
       _execution_mode{execution_mode},
       _jit_operators{jit_operators},
@@ -148,7 +148,7 @@ void JitOperatorWrapper::_choose_execute_func() {
       // this corresponds to "opossum::JitReadTuples::execute(opossum::JitRuntimeContext&) const"
       _execute_func = _module.specialize_and_compile_function<void(const JitReadTuples*, JitRuntimeContext&)>(
           "_ZNK7opossum13JitReadTuples7executeERNS_17JitRuntimeContextE",
-                  std::make_shared<JitConstantRuntimePointer>(_source().get()), two_specialization_passes);
+          std::make_shared<JitConstantRuntimePointer>(_source().get()), two_specialization_passes);
       break;
     case JitExecutionMode::Interpret:
       _execute_func = &JitReadTuples::execute;
@@ -161,7 +161,7 @@ std::shared_ptr<AbstractOperator> JitOperatorWrapper::_on_deep_copy(
     const std::shared_ptr<AbstractOperator>& copied_input_right) const {
   if (Global::get().deep_copy_exists) const_cast<JitOperatorWrapper*>(this)->_choose_execute_func();
   return std::make_shared<JitOperatorWrapper>(copied_input_left, _execution_mode, _jit_operators,
-          Global::get().deep_copy_exists ? _execute_func : nullptr);
+                                              Global::get().deep_copy_exists ? _execute_func : nullptr);
 }
 
 void JitOperatorWrapper::_on_set_parameters(const std::unordered_map<ParameterID, AllTypeVariant>& parameters) {}

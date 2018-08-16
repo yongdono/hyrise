@@ -24,6 +24,7 @@
 #include "expression/pqp_select_expression.hpp"
 #include "expression/value_expression.hpp"
 #include "expression_functors.hpp"
+#include "global.hpp"
 #include "like_matcher.hpp"
 #include "operators/abstract_operator.hpp"
 #include "resolve_type.hpp"
@@ -32,7 +33,6 @@
 #include "storage/materialize.hpp"
 #include "storage/value_column.hpp"
 #include "utils/assert.hpp"
-#include "global.hpp"
 
 using namespace std::string_literals;            // NOLINT
 using namespace opossum::expression_functional;  // NOLINT
@@ -680,7 +680,6 @@ std::shared_ptr<ExpressionResult<Result>> ExpressionEvaluator::_evaluate_select_
 
 std::vector<std::shared_ptr<const Table>> ExpressionEvaluator::_evaluate_select_expression_to_tables(
     const PQPSelectExpression& expression) {
-
   Global::get().deep_copy_exists = true;
 
   // If the SelectExpression is uncorrelated, evaluating it once is sufficient

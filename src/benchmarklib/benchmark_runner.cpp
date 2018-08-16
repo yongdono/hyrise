@@ -103,7 +103,8 @@ void BenchmarkRunner::_benchmark_permuted_query_sets() {
   std::random_device random_device;
   std::mt19937 random_generator(random_device());
 
-  BenchmarkState state{_config.min_num_query_runs, _config.max_num_query_runs, _config.min_duration, _config.max_duration};
+  BenchmarkState state{_config.min_num_query_runs, _config.max_num_query_runs, _config.min_duration,
+                       _config.max_duration};
   while (state.keep_running()) {
     std::shuffle(mutable_named_queries.begin(), mutable_named_queries.end(), random_generator);
 
@@ -127,7 +128,8 @@ void BenchmarkRunner::_benchmark_individual_queries() {
     const auto& name = named_query.first;
     _config.out << "- Benchmarking Query " << name << std::endl;
 
-    BenchmarkState state{_config.min_num_query_runs, _config.max_num_query_runs, _config.min_duration, _config.max_duration};
+    BenchmarkState state{_config.min_num_query_runs, _config.max_num_query_runs, _config.min_duration,
+                         _config.max_duration};
     while (state.keep_running()) {
       _execute_query(named_query);
     }

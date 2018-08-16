@@ -51,7 +51,8 @@ using BenchmarkResults = std::unordered_map<std::string, QueryBenchmarkResult>;
 struct BenchmarkState {
   enum class State { NotStarted, Running, Over };
 
-  BenchmarkState(const size_t min_num_iterations, const size_t max_num_iterations, const Duration min_duration, const Duration max_duration);
+  BenchmarkState(const size_t min_num_iterations, const size_t max_num_iterations, const Duration min_duration,
+                 const Duration max_duration);
 
   bool keep_running();
 
@@ -99,7 +100,8 @@ class BenchmarkTableEncoder {
 // View BenchmarkConfig::description to see format of the JSON-version
 struct BenchmarkConfig {
   BenchmarkConfig(const BenchmarkMode benchmark_mode, const bool verbose, const ChunkOffset chunk_size,
-                  const EncodingConfig& encoding_config, const size_t min_num_query_runs, const size_t max_num_query_runs, const Duration& min_duration, const Duration& max_duration,
+                  const EncodingConfig& encoding_config, const size_t min_num_query_runs,
+                  const size_t max_num_query_runs, const Duration& min_duration, const Duration& max_duration,
                   const UseMvcc use_mvcc, const std::optional<std::string>& output_file_path,
                   const bool enable_scheduler, const bool enable_visualization, std::ostream& out);
 

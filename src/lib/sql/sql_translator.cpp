@@ -29,6 +29,7 @@
 #include "expression/lqp_select_expression.hpp"
 #include "expression/unary_minus_expression.hpp"
 #include "expression/value_expression.hpp"
+#include "global.hpp"
 #include "logical_query_plan/abstract_lqp_node.hpp"
 #include "logical_query_plan/aggregate_node.hpp"
 #include "logical_query_plan/alias_node.hpp"
@@ -51,7 +52,6 @@
 #include "storage/lqp_view.hpp"
 #include "storage/storage_manager.hpp"
 #include "storage/table.hpp"
-#include "global.hpp"
 
 #include "SQLParser.h"
 
