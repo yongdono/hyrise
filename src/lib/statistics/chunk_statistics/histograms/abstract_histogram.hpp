@@ -27,8 +27,9 @@ class AbstractHistogram : public AbstractFilter {
 
   virtual HistogramType histogram_type() const = 0;
   std::string description() const;
-  std::string buckets_to_csv(const bool print_header = true, const std::optional<ColumnID> column_id = std::nullopt,
-                             const std::optional<uint64_t> requested_num_buckets = std::nullopt) const;
+  std::string buckets_to_csv(const bool print_header = true,
+                             const std::optional<std::string>& column_name = std::nullopt,
+                             const std::optional<uint64_t>& requested_num_buckets = std::nullopt) const;
   const std::string& supported_characters() const;
 
   void generate(const ColumnID column_id, const size_t max_num_buckets);

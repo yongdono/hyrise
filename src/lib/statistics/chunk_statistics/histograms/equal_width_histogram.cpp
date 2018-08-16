@@ -71,6 +71,13 @@ EqualWidthBucketStats<T> EqualWidthHistogram<T>::_get_bucket_stats(
         current_end_value++;
         next_begin_value++;
       }
+    } else if constexpr (std::is_floating_point_v<T>) {
+      // This is intended to compensate for the fact that floating point arithmetic is not exact.
+      // Adding up floating point numbers adds an error over time, and the more buckets there are, the larger it gets.
+      // So this is how we make sure that the last bucket contains the rest of the values.
+      if (current_bucket_id == num_buckets - 1) {
+        current_end_value = max;
+      }
     }
 
     // TODO(tim): think about replacing with binary search (same for other hists)
@@ -82,7 +89,7 @@ EqualWidthBucketStats<T> EqualWidthHistogram<T>::_get_bucket_stats(
     const auto next_begin_index = std::distance(value_counts.cbegin(), next_begin_it);
     counts.emplace_back(std::accumulate(value_counts.cbegin() + current_begin_index,
                                         value_counts.cbegin() + next_begin_index, uint64_t{0},
-                                        [](uint64_t a, std::pair<T, uint64_t> b) { return a + b.second; }));
+                                        [](uint64_t a, const std::pair<T, uint64_t>& b) { return a + b.second; }));
     distinct_counts.emplace_back(next_begin_index - current_begin_index);
 
     current_begin_value = next_begin_value;

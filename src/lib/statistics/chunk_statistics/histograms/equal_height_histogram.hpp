@@ -12,7 +12,6 @@ struct EqualHeightBucketStats {
   std::vector<T> maxs;
   std::vector<uint64_t> distinct_counts;
   T min;
-  uint64_t count_per_bucket;
   uint64_t total_count;
 };
 
@@ -23,10 +22,10 @@ class EqualHeightHistogram : public AbstractHistogram<T> {
  public:
   using AbstractHistogram<T>::AbstractHistogram;
   EqualHeightHistogram(const std::vector<T>& maxs, const std::vector<uint64_t>& distinct_counts, const T min,
-                       const uint64_t _count_per_bucket, const uint64_t total_count);
+                       const uint64_t total_count);
   EqualHeightHistogram(const std::vector<std::string>& maxs, const std::vector<uint64_t>& distinct_counts,
-                       const std::string& min, const uint64_t _count_per_bucket, const uint64_t total_count,
-                       const std::string& supported_characters, const uint64_t string_prefix_length);
+                       const std::string& min, const uint64_t total_count, const std::string& supported_characters,
+                       const uint64_t string_prefix_length);
 
   static std::shared_ptr<EqualHeightHistogram<T>> from_column(const std::shared_ptr<const BaseColumn>& column,
                                                               const size_t max_num_buckets);
@@ -62,8 +61,6 @@ class EqualHeightHistogram : public AbstractHistogram<T> {
   std::vector<T> _maxs;
   std::vector<uint64_t> _distinct_counts;
   T _min;
-  uint64_t _count_per_bucket;
-  // Exact total count can otherwise not necessarily be reconstructed.
   uint64_t _total_count;
 };
 

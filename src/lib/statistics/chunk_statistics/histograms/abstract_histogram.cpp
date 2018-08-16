@@ -91,15 +91,15 @@ std::string AbstractHistogram<T>::description() const {
 }
 
 template <typename T>
-std::string AbstractHistogram<T>::buckets_to_csv(const bool print_header, const std::optional<ColumnID> column_id,
-                                                 const std::optional<uint64_t> requested_num_buckets) const {
+std::string AbstractHistogram<T>::buckets_to_csv(const bool print_header, const std::optional<std::string>& column_name,
+                                                 const std::optional<uint64_t>& requested_num_buckets) const {
   std::stringstream stream;
 
   if (print_header) {
     stream << "histogram_type";
 
-    if (column_id) {
-      stream << ",column_id";
+    if (column_name) {
+      stream << ",column_name";
     }
 
     stream << ",actual_num_buckets";
@@ -115,8 +115,8 @@ std::string AbstractHistogram<T>::buckets_to_csv(const bool print_header, const 
   for (auto bucket = 0u; bucket < num_buckets(); bucket++) {
     stream << histogram_type_to_string.at(histogram_type());
 
-    if (column_id) {
-      stream << "," << *column_id;
+    if (column_name) {
+      stream << "," << *column_name;
     }
 
     stream << "," << num_buckets();
@@ -212,7 +212,7 @@ std::vector<std::pair<T, uint64_t>> AbstractHistogram<T>::_sort_value_counts(
   std::vector<std::pair<T, uint64_t>> result(value_counts.cbegin(), value_counts.cend());
 
   std::sort(result.begin(), result.end(),
-            [](std::pair<T, uint64_t> lhs, std::pair<T, uint64_t> rhs) { return lhs.first < rhs.first; });
+            [](const std::pair<T, uint64_t>& lhs, const std::pair<T, uint64_t>& rhs) { return lhs.first < rhs.first; });
 
   return result;
 }
