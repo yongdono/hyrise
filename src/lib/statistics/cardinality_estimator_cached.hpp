@@ -6,7 +6,7 @@
 
 namespace opossum {
 
-class CardinalityEstimationCache;
+class BaseCardinalityCache;
 
 enum class CardinalityEstimationCacheMode {
   ReadAndUpdate, ReadOnly
@@ -14,7 +14,7 @@ enum class CardinalityEstimationCacheMode {
 
 class CardinalityEstimatorCached : public AbstractCardinalityEstimator {
  public:
-  CardinalityEstimatorCached(const std::shared_ptr<CardinalityEstimationCache>& cache,
+  CardinalityEstimatorCached(const std::shared_ptr<BaseCardinalityCache>& cache,
                              const CardinalityEstimationCacheMode cache_mode,
                              const std::shared_ptr<AbstractCardinalityEstimator>& fallback_estimator);
 
@@ -22,7 +22,7 @@ class CardinalityEstimatorCached : public AbstractCardinalityEstimator {
                        const std::vector<std::shared_ptr<const AbstractJoinPlanPredicate>>& predicates) const override;
 
  private:
-  std::shared_ptr<CardinalityEstimationCache> _cache;
+  std::shared_ptr<BaseCardinalityCache> _cache;
   CardinalityEstimationCacheMode _cache_mode;
   std::shared_ptr<AbstractCardinalityEstimator> _fallback_estimator;
 };

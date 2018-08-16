@@ -293,8 +293,16 @@ set(
     statistics/statistics_import_export.hpp
     statistics/abstract_column_statistics.cpp
     statistics/abstract_column_statistics.hpp
-    statistics/cardinality_estimation_cache.cpp
-    statistics/cardinality_estimation_cache.hpp
+    statistics/base_cardinality_cache.cpp
+    statistics/base_cardinality_cache.hpp
+    statistics/cardinality_cache_lag.cpp
+    statistics/cardinality_cache_lag.hpp
+    statistics/cardinality_cache_lru.cpp
+    statistics/cardinality_cache_lru.hpp
+    statistics/cardinality_cache_random.cpp
+    statistics/cardinality_cache_random.hpp
+    statistics/cardinality_cache_uncapped.cpp
+    statistics/cardinality_cache_uncapped.hpp
     statistics/cardinality_estimator_cached.cpp
     statistics/cardinality_estimator_cached.hpp
     statistics/cardinality_estimator_column_statistics.cpp

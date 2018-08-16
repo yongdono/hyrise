@@ -2,9 +2,10 @@
 
 #include "storage/storage_manager.hpp"
 #include "optimizer/join_ordering/join_plan_predicate.hpp"
-#include "statistics/cardinality_estimation_cache.hpp"
+#include "statistics/base_cardinality_cache.hpp"
 #include "logical_query_plan/stored_table_node.hpp"
 #include "utils/load_table.hpp"
+#include "sql/cardinality_cache_uncapped.hpp"
 
 using namespace std::string_literals;
 
@@ -45,7 +46,7 @@ class CardinalityEstimationCacheTest : public ::testing::Test {
       )
     );
 
-    cache = std::make_shared<CardinalityEstimationCache>();
+    cache = std::make_shared<CardinalityCacheUncapped>();
   }
 
   void TearDown() override {
@@ -59,7 +60,7 @@ class CardinalityEstimationCacheTest : public ::testing::Test {
   std::shared_ptr<const AbstractJoinPlanPredicate> int_float_a_eq_five;
   std::shared_ptr<const AbstractJoinPlanPredicate> int_float_b_eq_hello;
   std::shared_ptr<const AbstractJoinPlanPredicate> p1_and_p2_or_p3;
-  std::shared_ptr<CardinalityEstimationCache> cache;
+  std::shared_ptr<BaseCardinalityCache> cache;
 };
 
 TEST_F(CardinalityEstimationCacheTest, Json) {
@@ -71,7 +72,7 @@ TEST_F(CardinalityEstimationCacheTest, Json) {
   cache->set_timeout(BaseJoinGraph{{int_float2, int_float}, {p1_and_p2_or_p3, int_float_a_eq_int_float_b}}, std::chrono::seconds{25});
 
   const auto json = cache->to_json();
-  const auto cache_b = CardinalityEstimationCache::from_json(json);
+  const auto cache_b = BaseCardinalityCache::from_json(json);
 
   /** */
 

@@ -30,6 +30,8 @@ std::vector<std::pair<boost::dynamic_bitset<>, boost::dynamic_bitset<>>> Enumera
     _vertex_neighbourhoods[vertex_idx] = _neighbourhood(vertex_set, exclusion_set);
   }
 
+  auto csg_count = size_t{0};
+
   for (size_t reverse_vertex_idx = 0; reverse_vertex_idx < _num_vertices; ++reverse_vertex_idx) {
     const auto forward_vertex_idx = _num_vertices - reverse_vertex_idx - 1;
 
@@ -39,10 +41,13 @@ std::vector<std::pair<boost::dynamic_bitset<>, boost::dynamic_bitset<>>> Enumera
 
     std::vector<boost::dynamic_bitset<>> csgs;
     _enumerate_csg_recursive(csgs, start_vertex_set, _exclusion_set(forward_vertex_idx));
+    csg_count += csgs.size() + 1;
     for (const auto& csg : csgs) {
       _enumerate_cmp(csg);
     }
   }
+
+  std::cout << "Total CSG count: " << csg_count << std::endl;
 
 #if IS_DEBUG
   // Assert that the algorithm didn't create duplicates and that all created ccps contain only previously enumerated
@@ -108,7 +113,7 @@ void EnumerateCcp::_enumerate_cmp(const boost::dynamic_bitset<>& vertex_set) {
 
     _csg_cmp_pairs.emplace_back(std::make_pair(vertex_set, cmp_vertex_set));
 
-    const auto extended_exclusion_set = exclusion_set | _exclusion_set(*iter);
+    const auto extended_exclusion_set = exclusion_set | (_exclusion_set(*iter) & neighbourhood);
 
     std::vector<boost::dynamic_bitset<>> csgs;
     _enumerate_csg_recursive(csgs, cmp_vertex_set, extended_exclusion_set);

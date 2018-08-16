@@ -224,7 +224,7 @@ void JoePlan::init_cardinality_cache_entries(const std::vector<std::shared_ptr<A
 
     BaseJoinGraph base_join_graph{join_graph_builder.vertices(), join_graph_builder.predicates()};
 
-    cardinality_estimation_cache->put(base_join_graph, CardinalityEstimationCache::TIMEOUT_CARDINALITY);
+    cardinality_estimation_cache->put(base_join_graph, BaseCardinalityCache::TIMEOUT_CARDINALITY);
   }
 }
 

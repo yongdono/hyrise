@@ -40,7 +40,7 @@
 #include "scheduler/current_scheduler.hpp"
 #include "statistics/cardinality_estimator_execution.hpp"
 #include "statistics/cardinality_estimator_column_statistics.hpp"
-#include "statistics/cardinality_estimation_cache.hpp"
+#include "statistics/base_cardinality_cache.hpp"
 #include "statistics/cardinality_estimator_cached.hpp"
 #include "statistics/statistics_import_export.hpp"
 #include "sql/sql_pipeline_statement.hpp"

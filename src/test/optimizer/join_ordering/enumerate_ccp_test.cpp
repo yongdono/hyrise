@@ -120,4 +120,16 @@ TEST(EnumerateCcpTest, Clique) {
   EXPECT_TRUE(equals(pairs[24], std::make_pair(0b1101ul, 0b0010ul)));
 }
 
+TEST(EnumerateCcpTest, ArbitraryVertexNumbering) {
+  std::vector<std::pair<size_t, size_t>> edges{{0, 2}, {2, 1}};
+
+  const auto pairs = EnumerateCcp{3, edges}();
+  ASSERT_EQ(pairs.size(), 4u);
+
+  EXPECT_TRUE(equals(pairs[0], std::make_pair(0b010ul, 0b100ul)));
+  EXPECT_TRUE(equals(pairs[1], std::make_pair(0b001ul, 0b100ul)));
+  EXPECT_TRUE(equals(pairs[2], std::make_pair(0b001ul, 0b110ul)));
+  EXPECT_TRUE(equals(pairs[3], std::make_pair(0b101ul, 0b010ul)));
+}
+
 }  // namespace opossum

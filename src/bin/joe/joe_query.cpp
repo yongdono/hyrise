@@ -32,9 +32,9 @@ void JoeQuery::run() {
 
   const auto config = joe.config;
 
-  // Enable CardinalityEstimationCache logging
+  // Enable BaseCardinalityCache logging
   if (config->cardinality_estimation_cache_log) {
-    config->cardinality_estimation_cache->set_log(std::make_shared<std::ofstream>(prefix() + "CardinalityEstimationCache-" + sample.name + ".log"));
+    config->cardinality_estimation_cache->set_log(std::make_shared<std::ofstream>(prefix() + "BaseCardinalityCache-" + sample.name + ".log"));
   }
 
   execution_begin = std::chrono::steady_clock::now();
