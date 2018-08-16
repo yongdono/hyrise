@@ -53,8 +53,13 @@ void SingleColumnTableScanImpl::handle_column(const BaseValueColumn& base_column
 
     left_column_iterable.with_iterators(mapped_chunk_offsets.get(), [&](auto left_it, auto left_end) {
       with_comparator(_predicate_condition, [&](auto comparator) {
-        _unary_scan_with_value(comparator, left_it, left_end, type_cast<ColumnDataType>(_right_value), chunk_id,
-                               matches_out);
+        if (left_column.is_nullable()) {
+          _unary_scan_with_value<true>(comparator, left_it, left_end, type_cast<ColumnDataType>(_right_value), chunk_id,
+                                       matches_out);
+        } else {
+          _unary_scan_with_value<false>(comparator, left_it, left_end, type_cast<ColumnDataType>(_right_value),
+                                        chunk_id, matches_out);
+        }
       });
     });
   });
@@ -77,7 +82,9 @@ void SingleColumnTableScanImpl::handle_column(const BaseEncodedColumn& base_colu
 
       left_column_iterable.with_iterators(mapped_chunk_offsets.get(), [&](auto left_it, auto left_end) {
         with_comparator(_predicate_condition, [&](auto comparator) {
-          _unary_scan_with_value(comparator, left_it, left_end, type_cast<Type>(_right_value), chunk_id, matches_out);
+          // We have no information about the nullability of regular encoded columns
+          _unary_scan_with_value<true>(comparator, left_it, left_end, type_cast<Type>(_right_value), chunk_id,
+                                       matches_out);
         });
       });
     });
@@ -137,7 +144,15 @@ void SingleColumnTableScanImpl::handle_column(const BaseDictionaryColumn& base_c
 
   left_iterable.with_iterators(mapped_chunk_offsets.get(), [&](auto left_it, auto left_end) {
     this->_with_operator_for_dict_column_scan(_predicate_condition, [&](auto comparator) {
-      this->_unary_scan_with_value(comparator, left_it, left_end, search_value_id, chunk_id, matches_out);
+      if (_predicate_condition == PredicateCondition::GreaterThan ||
+          _predicate_condition == PredicateCondition::GreaterThanEquals) {
+        // For GreaterThan(Equals), INVALID_VALUE_ID would compare greater than the search_value_id, even though the
+        // value is NULL. Thus, we need to check for is_null as well.
+        this->_unary_scan_with_value<true>(comparator, left_it, left_end, search_value_id, chunk_id, matches_out);
+      } else {
+        // No need for NULL checks here, because INVALID_VALUE_ID is always greater.
+        this->_unary_scan_with_value<false>(comparator, left_it, left_end, search_value_id, chunk_id, matches_out);
+      }
     });
   });
 }

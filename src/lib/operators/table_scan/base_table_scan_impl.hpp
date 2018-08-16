@@ -33,7 +33,7 @@ class BaseTableScanImpl {
 
   // Version with a constant value on the right side. Sometimes we prefer this over _unary_scan because we can use
   // with_comparator.
-  template <typename BinaryFunctor, typename LeftIterator, typename RightValue>
+  template <bool LeftIsNullable, typename BinaryFunctor, typename LeftIterator, typename RightValue>
   void __attribute__((noinline))
   _unary_scan_with_value(const BinaryFunctor& func, LeftIterator left_it, LeftIterator left_end, RightValue right_value,
                          const ChunkID chunk_id, PosList& matches_out) {
@@ -53,7 +53,11 @@ class BaseTableScanImpl {
         // This is where the "check" happens. If the value is not null and the condition is met, the insert_index is
         // moved forward. Otherwise, it remains where it is and the value that was written before will be overwritten.
         // Since this is not a condition, we don't introduce a branch.
-        insert_index += (!left.is_null() & func(left.value(), right_value));
+        if constexpr (LeftIsNullable) {
+          insert_index += (!left.is_null() & func(left.value(), right_value));
+        } else {
+          insert_index += func(left.value(), right_value);
+        }
       }
 
       for (auto i = 0; i < insert_index; ++i) {
@@ -66,7 +70,7 @@ class BaseTableScanImpl {
     // Do the remainder
     for (; left_it != left_end; ++left_it) {
       const auto left = *left_it;
-      if (!left.is_null() & func(left.value(), right_value)) {
+      if ((!LeftIsNullable || !left.is_null()) & func(left.value(), right_value)) {
         matches_out.emplace_back(RowID{chunk_id, left.chunk_offset()});
       }
     }
