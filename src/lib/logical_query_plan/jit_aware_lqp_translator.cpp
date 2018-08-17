@@ -310,7 +310,6 @@ std::shared_ptr<const JitExpression> JitAwareLQPTranslator::_try_translate_expre
 
 bool JitAwareLQPTranslator::_node_is_jittable(const std::shared_ptr<AbstractLQPNode>& node,
                                               const bool allow_aggregate_node, const bool allow_limit_node) const {
-                                                  bool jit_predicate = true;
   bool jit_predicate = true;
   if (JitEvaluationHelper::get().experiment().count("jit_predicate")) {
     jit_predicate = JitEvaluationHelper::get().experiment()["jit_predicate"];

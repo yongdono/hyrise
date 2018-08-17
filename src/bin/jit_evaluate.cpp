@@ -21,6 +21,8 @@
 
 const size_t cache_line = 64;
 
+using namespace opossum;
+
 template <typename Vector>
 void remove_vector_from_cache(Vector& vector) {
   for (auto& value : vector) {
@@ -68,13 +70,15 @@ void remove_table_from_cache(opossum::Table& table) {
 }
 
 void lqp() {
-  const std::string query_id = opossum::JitEvaluationHelper::get().experiment()["query_id"];
-  const bool optimize = opossum::JitEvaluationHelper::get().experiment()["optimize"];
-  const std::string lqp_file = opossum::JitEvaluationHelper::get().experiment()["lqp_file"];
+  auto& experiment = opossum::JitEvaluationHelper::get().experiment();
+  const std::string query_id = experiment["query_id"];
+  const bool optimize = experiment["optimize"];
+  const std::string lqp_file = experiment["lqp_file"];
+  bool mvcc = experiment["mvcc"];
 
   const std::string query_string = opossum::JitEvaluationHelper::get().queries()[query_id]["query"];
 
-  opossum::SQLPipeline pipeline = opossum::SQLPipelineBuilder(query_string).disable_mvcc().create_pipeline();
+  opossum::SQLPipeline pipeline = opossum::SQLPipelineBuilder(query_string).with_mvcc(UseMvcc(mvcc)).create_pipeline();
   const auto plans = optimize ? pipeline.get_optimized_logical_plans() : pipeline.get_unoptimized_logical_plans();
 
   opossum::LQPVisualizer visualizer;
@@ -82,12 +86,14 @@ void lqp() {
 }
 
 void pqp() {
-  const std::string query_id = opossum::JitEvaluationHelper::get().experiment()["query_id"];
-  const std::string pqp_file = opossum::JitEvaluationHelper::get().experiment()["pqp_file"];
+  auto& experiment = opossum::JitEvaluationHelper::get().experiment();
+  const std::string query_id = experiment["query_id"];
+  const std::string pqp_file = experiment["pqp_file"];
+  bool mvcc = experiment["mvcc"];
 
   const std::string query_string = opossum::JitEvaluationHelper::get().queries()[query_id]["query"];
 
-  opossum::SQLPipeline pipeline = opossum::SQLPipelineBuilder(query_string).disable_mvcc().create_pipeline();
+  opossum::SQLPipeline pipeline = opossum::SQLPipelineBuilder(query_string).with_mvcc(UseMvcc(mvcc)).create_pipeline();
   opossum::SQLQueryPlan query_plan(opossum::CleanupTemporaries::Yes);
   const auto plans = pipeline.get_query_plans();
   for (const auto& plan : plans) {
@@ -99,9 +105,11 @@ void pqp() {
 }
 
 void run() {
-  const std::string query_id = opossum::JitEvaluationHelper::get().experiment()["query_id"];
+  auto& experiment = opossum::JitEvaluationHelper::get().experiment();
+  const std::string query_id = experiment["query_id"];
   const auto query = opossum::JitEvaluationHelper::get().queries()[query_id];
   std::string query_string = query["query"];
+  bool mvcc = experiment["mvcc"];
 
   const auto table_names = query["tables"];
   for (const auto& table_name : table_names) {
@@ -110,7 +118,7 @@ void run() {
   }
 
   // Make sure all table statistics are generated and ready.
-  opossum::SQLPipelineBuilder(query_string).disable_mvcc().create_pipeline().get_optimized_logical_plans();
+  opossum::SQLPipelineBuilder(query_string).with_mvcc(UseMvcc(mvcc)).create_pipeline().get_optimized_logical_plans();
   auto& result = opossum::JitEvaluationHelper::get().result();
 
   result = nlohmann::json::object();
@@ -123,10 +131,9 @@ void run() {
     opossum::JitEvaluationHelper::get().result()["replaced_values"] = 0;
   }
 
-  opossum::SQLPipeline pipeline = opossum::SQLPipelineBuilder(query_string).disable_mvcc().create_pipeline();
+  opossum::SQLPipeline pipeline = opossum::SQLPipelineBuilder(query_string).with_mvcc(UseMvcc(mvcc)).create_pipeline();
   const auto table = pipeline.get_result_table();
 
-  auto& experiment = opossum::JitEvaluationHelper::get().experiment();
   if (experiment.count("print") && experiment["print"]) {
     opossum::Print::print(table, 0, std::cerr);
   }
@@ -188,28 +195,28 @@ int main(int argc, char* argv[]) {
   std::cerr << "  supports " << PAPI_num_counters() << " event counters" << std::endl;
   std::cout << "{" << std::endl << "\"results\":[" << std::endl;
 
-  size_t current_experiment = 0;
   const size_t num_experiments = config["experiments"].size();
-  for (const auto& experiment : config["experiments"]) {
-    current_experiment++;
-    opossum::JitEvaluationHelper::get().experiment() = experiment;
-    nlohmann::json output{{"globals", config["globals"]}, {"experiment", experiment}, {"results", nlohmann::json::array()}};
-
-    if (opossum::JitEvaluationHelper::get().experiment().at("engine") == "opossum") {
+  for (size_t current_experiment = 0; current_experiment < num_experiments; ++current_experiment) {
+    auto& experiment = config["experiments"][current_experiment];
+    if (!experiment.count("mvcc")) experiment["mvcc"] = false;
+    if (experiment.at("engine") == "opossum") {
       opossum::Global::get().jit = false;
-    } else if (opossum::JitEvaluationHelper::get().experiment().at("engine") == "jit") {
+    } else if (experiment.at("engine") == "jit") {
+      if (!experiment.count("lazy_load")) experiment["lazy_load"] = true;
+      if (!experiment.count("jit_validate")) experiment["jit_validate"] = true;
       opossum::Global::get().jit = true;
-      opossum::Global::get().lazy_load = true;
-      opossum::Global::get().jit_validate = false;
+      opossum::Global::get().lazy_load = experiment["lazy_load"];
+      opossum::Global::get().jit_validate = experiment["jit_validate"];
     } else {
       opossum::Fail("unknown query engine parameter");
     }
-
+    opossum::JitEvaluationHelper::get().experiment() = experiment;
+    nlohmann::json output{{"globals", config["globals"]}, {"experiment", experiment}, {"results", nlohmann::json::array()}};
     const uint32_t num_repetitions = experiment.count("repetitions") ? experiment["repetitions"].get<uint32_t>() : 1;
     uint32_t current_repetition = 0;
     for (uint32_t i = 0; i < num_repetitions; ++i) {
       current_repetition++;
-      std::cerr << "Running experiment " << current_experiment << "/" << num_experiments << " repetition " << current_repetition << "/" << num_repetitions << std::endl;
+      std::cerr << "Running experiment " << (current_experiment+1) << "/" << num_experiments << " repetition " << current_repetition << "/" << num_repetitions << std::endl;
 
       opossum::JitEvaluationHelper::get().result() = nlohmann::json::object();
       if (experiment["task"] == "lqp") {
@@ -224,7 +231,7 @@ int main(int argc, char* argv[]) {
       output["results"].push_back(opossum::JitEvaluationHelper::get().result());
     }
     std::cout << output;
-    bool not_last = current_experiment < num_experiments;
+    bool not_last = current_experiment + 1 < num_experiments;
     if (not_last) std::cout << ",";
     std::cout << std::endl;
   }

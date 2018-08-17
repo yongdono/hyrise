@@ -53,8 +53,7 @@ void AbstractOperator::execute() {
       throw std::logic_error("PAPI_stop_counters: PAPI error " + std::to_string(PAPI_stop_counters(papi_values, num_counters)));
   }
 
-  auto walltime_ns = performance_timer.lap().count();
-  nlohmann::json op = {{"name", name()}, {"prepare", true}, {"walltime", walltime_ns / 1000.0}};
+  nlohmann::json op = {{"name", name()}, {"prepare", true}, {"walltime", performance_timer.lap().count()}};
   for (uint32_t i = 0; i < num_counters; ++i) {
     op[papi_events[i].get<std::string>()] = papi_values[i];
     papi_values[i] = 0;
@@ -96,7 +95,7 @@ void AbstractOperator::execute() {
 
   _base_performance_data.walltime = performance_timer.lap();
 
-  nlohmann::json op2 = {{"name", name()}, {"prepare", false}, {"walltime", _base_performance_data.walltime.count() / 1000.0}};
+  nlohmann::json op2 = {{"name", name()}, {"prepare", false}, {"walltime", _base_performance_data.walltime.count()}};
   for (uint32_t i = 0; i < num_counters; ++i) {
     op2[papi_events[i].get<std::string>()] = papi_values[i];
   }
