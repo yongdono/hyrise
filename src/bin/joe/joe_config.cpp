@@ -12,6 +12,7 @@
 #include "statistics/cardinality_cache_uncapped.hpp"
 #include "statistics/cardinality_cache_random.hpp"
 #include "statistics/cardinality_cache_lru.hpp"
+#include "statistics/cardinality_cache_lag.hpp"
 
 using boost::lexical_cast;
 using boost::uuids::uuid;
@@ -367,7 +368,8 @@ void JoeConfig::setup() {
       engaged_cache = std::make_shared<CardinalityCacheRandom>(cardinality_cache_capacity);
       break;
     case CardinalityCacheEviction::LAG:
-      Fail("");
+      engaged_cache = std::make_shared<CardinalityCacheLAG>(cardinality_cache_capacity);
+      break;
     case CardinalityCacheEviction::LRU:
       engaged_cache = std::make_shared<CardinalityCacheLRU>(cardinality_cache_capacity);
       break;
