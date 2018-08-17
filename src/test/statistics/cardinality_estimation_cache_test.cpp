@@ -126,4 +126,8 @@ TEST_F(CardinalityEstimationCacheTest, LRU) {
   EXPECT_EQ(cache.size(), 4u);
 }
 
+TEST_F(CardinalityEstimationCacheTest, LAG) {
+
+}
+
 }  // namespace opossum

@@ -16,6 +16,7 @@
 #include "logical_query_plan/stored_table_node.hpp"
 #include "optimizer/join_ordering/join_plan_predicate.hpp"
 #include "cardinality_cache_uncapped.hpp"
+#include "utils/assert.hpp"
 
 namespace opossum {
 
@@ -48,7 +49,7 @@ std::optional<Cardinality> BaseCardinalityCache::get(const BaseJoinGraph& join_g
   return result;
 }
 
-void BaseCardinalityCache::put(const BaseJoinGraph& join_graph, const Cardinality cardinality) {
+void BaseCardinalityCache::put(const BaseJoinGraph& join_graph, const Cardinality cardinality, const Cardinality cardinality_estimation) {
   const auto normalized_join_graph = _normalize(join_graph);
   auto entry = get_engaged_entry(normalized_join_graph);
 
@@ -61,6 +62,9 @@ void BaseCardinalityCache::put(const BaseJoinGraph& join_graph, const Cardinalit
       entry = std::make_shared<Entry>();
     }
 
+    entry->cardinality = cardinality;
+    entry->estimated_cardinality = cardinality_estimation;
+
     set_engaged_entry(normalized_join_graph, entry);
   }
 
@@ -68,7 +72,7 @@ void BaseCardinalityCache::put(const BaseJoinGraph& join_graph, const Cardinalit
     (*_log) << "BaseCardinalityCache [" << (entry->request_count == 0 ? "I" : "S") << "][PUT ]: " << join_graph.description() << ": " << cardinality << std::endl;
   }
 
-  entry->cardinality = cardinality;
+  Assert(entry->cardinality == cardinality, "Cardinality mismatch");
 }
 
 std::optional<std::chrono::seconds> BaseCardinalityCache::get_timeout(const BaseJoinGraph& join_graph) {

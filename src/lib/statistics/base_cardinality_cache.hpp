@@ -19,6 +19,7 @@ class BaseCardinalityCache {
   struct Entry {
     std::optional<std::chrono::seconds> timeout;
     std::optional<Cardinality> cardinality;
+    std::optional<Cardinality> estimated_cardinality;
     size_t request_count{0};
   };
 
@@ -29,14 +30,12 @@ class BaseCardinalityCache {
   virtual ~BaseCardinalityCache() = default;
 
   std::optional<Cardinality> get(const BaseJoinGraph& join_graph) ;
-  void put(const BaseJoinGraph& join_graph, const Cardinality cardinality);
+  void put(const BaseJoinGraph& join_graph, const Cardinality cardinality, const Cardinality cardinality_estimation);
 
   std::optional<std::chrono::seconds> get_timeout(const BaseJoinGraph& join_graph);
   void set_timeout(const BaseJoinGraph& join_graph, const std::optional<std::chrono::seconds>& timeout);
 
   std::shared_ptr<Entry> get_entry(const BaseJoinGraph &join_graph);
-  std::shared_ptr<Entry> get_or_create_disengaged_entry(const BaseJoinGraph &join_graph);
-  std::shared_ptr<Entry> get_or_create_engaged_entry(const BaseJoinGraph &join_graph);
 
   size_t cache_hit_count() const;
   size_t cache_miss_count() const;

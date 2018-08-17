@@ -250,7 +250,8 @@ void JoePlan::cache_cardinalities(const std::vector<std::shared_ptr<AbstractOper
     auto join_graph_builder = JoinGraphBuilder{};
     join_graph_builder.traverse(lqp);
 
-    cardinality_estimation_cache->put({join_graph_builder.vertices(), join_graph_builder.predicates()}, op->get_output()->row_count());
+    cardinality_estimation_cache->put({join_graph_builder.vertices(), join_graph_builder.predicates()},
+    op->get_output()->row_count(), op->lqp_node()->get_statistics()->row_count());
   }
 }
 
