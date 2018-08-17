@@ -44,7 +44,7 @@ const std::shared_ptr<AbstractJittableSink> JitOperatorWrapper::_sink() const {
 
 void JitOperatorWrapper::insert_loads(const bool lazy) {
   if (!lazy) {
-    auto itr = ++_jit_operators.begin();
+    auto itr = ++_jit_operators.cbegin();
     for (size_t index = 0; index < _source()->input_columns().size(); ++index) {
       itr = _jit_operators.insert(itr, std::make_shared<JitReadValue>(_source()->input_columns()[index], index));
     }
