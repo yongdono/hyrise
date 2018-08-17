@@ -12,8 +12,7 @@ std::string JitWriteTuples::description() const {
   std::stringstream desc;
   desc << "[WriteTuple] ";
   for (const auto& output_column : _output_columns) {
-    desc << data_type_to_string.left.at(output_column.tuple_value.data_type()) << " " << output_column.column_name
-         << " = x" << output_column.tuple_value.tuple_index() << ", ";
+    desc << output_column.column_name << " = x" << output_column.tuple_value.tuple_index() << ", ";
   }
   return desc.str();
 }
