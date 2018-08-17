@@ -17,4 +17,10 @@ void JitFilter::_consume(JitRuntimeContext& context) const {
   }
 }
 
+std::map<size_t, bool> JitFilter::accessed_column_ids() const {
+  std::map<size_t, bool> column_ids;
+  column_ids.emplace(_condition.tuple_index(), false);
+  return column_ids;
+}
+
 }  // namespace opossum

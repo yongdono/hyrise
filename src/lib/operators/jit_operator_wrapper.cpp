@@ -96,9 +96,6 @@ std::shared_ptr<const Table> JitOperatorWrapper::_on_execute() {
 
   // const_cast<JitExecutionMode&>(_execution_mode) = JitExecutionMode::Interpret;
 
-  // std::cout << "Before make loads lazy:" << std::endl << description(DescriptionMode::MultiLine) << std::endl;
-  insert_loads(Global::get().lazy_load);
-  // std::cout << "Specialising: " << (_execution_mode == JitExecutionMode::Compile ? "true" : "false") << std::endl;
   // std::cout << description(DescriptionMode::MultiLine) << std::endl;
 
   const auto& in_table = *input_left()->get_output();
@@ -132,6 +129,10 @@ std::shared_ptr<const Table> JitOperatorWrapper::_on_execute() {
 void JitOperatorWrapper::_choose_execute_func() {
   if (_execute_func) return;
 
+  // std::cout << "Before make loads lazy:" << std::endl << description(DescriptionMode::MultiLine) << std::endl;
+  insert_loads(Global::get().lazy_load);
+  // std::cout << "Specialising: " << (_execution_mode == JitExecutionMode::Compile ? "true" : "false") << std::endl;
+
   // Connect operators to a chain
   for (auto it = _jit_operators.begin(), next = ++_jit_operators.begin();
        it != _jit_operators.end() && next != _jit_operators.end(); ++it, ++next) {
@@ -164,7 +165,10 @@ std::shared_ptr<AbstractOperator> JitOperatorWrapper::_on_deep_copy(
                                               Global::get().deep_copy_exists ? _execute_func : nullptr);
 }
 
-void JitOperatorWrapper::_on_set_parameters(const std::unordered_map<ParameterID, AllTypeVariant>& parameters) {}
+void JitOperatorWrapper::_on_set_parameters(const std::unordered_map<ParameterID, AllTypeVariant>& parameters) {
+  _source()->set_parameters(parameters);
+}
+
 void JitOperatorWrapper::_on_set_transaction_context(const std::weak_ptr<TransactionContext>& transaction_context) {
   if (const auto row_count_expression = _source()->row_count_expression())
     expression_set_transaction_context(row_count_expression, transaction_context);

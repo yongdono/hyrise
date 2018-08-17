@@ -13,6 +13,7 @@
 #include "expression/arithmetic_expression.hpp"
 #include "expression/logical_expression.hpp"
 #include "expression/lqp_column_expression.hpp"
+#include "expression/parameter_expression.hpp"
 #include "expression/value_expression.hpp"
 #include "global.hpp"
 #include "logical_query_plan/aggregate_node.hpp"
@@ -258,6 +259,18 @@ std::shared_ptr<const JitExpression> JitAwareLQPTranslator::_try_translate_expre
       const auto tuple_value = jit_source.add_literal_value(value_expression->value);
       return std::make_shared<JitExpression>(tuple_value);
     }
+    case ExpressionType::Parameter: {
+      const auto* parameter_expression = dynamic_cast<const ParameterExpression*>(&expression);
+      if (parameter_expression->parameter_expression_type == ParameterExpressionType::External) {
+        const auto tuple_value = jit_source.add_parameter_value(
+            parameter_expression->data_type(), parameter_expression->is_nullable(), parameter_expression->parameter_id);
+        return std::make_shared<JitExpression>(tuple_value);
+      } else {
+        DebugAssert(parameter_expression->value(), "Value must be set");
+        const auto tuple_value = jit_source.add_literal_value(*parameter_expression->value());
+        return std::make_shared<JitExpression>(tuple_value);
+      }
+    }
 
     case ExpressionType::LQPColumn:
       // Column SHOULD have been resolved by `find_column_id()` call above the switch
@@ -336,7 +349,11 @@ bool JitAwareLQPTranslator::_node_is_jittable(const std::shared_ptr<AbstractLQPN
   if (auto predicate_node = std::dynamic_pointer_cast<PredicateNode>(node)) {
     // jit does not support place holders (arguments.size() > 0)
     for (const auto& argument : predicate_node->predicate->arguments) {
-      if (argument->type == ExpressionType::Parameter) return false;
+      if (const auto parameter = std::dynamic_pointer_cast<const ParameterExpression>(argument)) {
+        // ParameterExpressionType::ValuePlaceholder used in prepared statements not supported as it does not provide
+        // type information
+        return parameter->parameter_expression_type == ParameterExpressionType::External || parameter->value();
+      }
     }
     return predicate_node->scan_type == ScanType::TableScan;
   }
@@ -350,9 +367,19 @@ bool JitAwareLQPTranslator::_node_is_jittable(const std::shared_ptr<AbstractLQPN
   }
 
   if (auto projection_node = std::dynamic_pointer_cast<ProjectionNode>(node)) {
-    // Jit operators do not support exists
+    // Jit operators only support the following five expressions
     for (const auto& expression : projection_node->expressions) {
-      if (expression->type == ExpressionType::Exists) return false;
+      switch (expression->type) {
+        case ExpressionType::Value:
+        case ExpressionType::LQPColumn:
+        case ExpressionType::Predicate:
+        case ExpressionType::Arithmetic:
+        case ExpressionType::Logical:
+        case ExpressionType::Parameter:
+          break;
+        default:
+          return false;
+      }
     }
     return true;
   }
