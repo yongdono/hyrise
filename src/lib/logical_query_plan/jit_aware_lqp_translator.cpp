@@ -141,6 +141,15 @@ std::shared_ptr<JitOperatorWrapper> JitAwareLQPTranslator::_try_translate_sub_pl
   const auto read_tuples = std::make_shared<JitReadTuples>(use_validate, row_count_expression);
   jit_operator->add_jit_operator(read_tuples);
 
+  // ToDo(Fabian) Validate should be placed according to lqp
+  if (use_validate) {
+    if (input_table_type(input_node) == TableType::Data) {
+      jit_operator->add_jit_operator(std::make_shared<JitValidate<TableType::Data>>());
+    } else {
+      jit_operator->add_jit_operator(std::make_shared<JitValidate<TableType::References>>());
+    }
+  }
+
   // "filter_node". The root node of the subplan computed by a JitFilter.
   auto filter_node = node;
   while (filter_node != input_node && filter_node->type != LQPNodeType::Predicate &&
@@ -165,14 +174,6 @@ std::shared_ptr<JitOperatorWrapper> JitAwareLQPTranslator::_try_translate_sub_pl
     }
     // and then filter on the resulting boolean.
     jit_operator->add_jit_operator(std::make_shared<JitFilter>(jit_boolean_expression->result()));
-  }
-
-  if (use_validate) {
-    if (input_table_type(input_node) == TableType::Data) {
-      jit_operator->add_jit_operator(std::make_shared<JitValidate<TableType::Data>>());
-    } else {
-      jit_operator->add_jit_operator(std::make_shared<JitValidate<TableType::References>>());
-    }
   }
 
   if (last_node->type == LQPNodeType::Aggregate) {
