@@ -75,7 +75,10 @@ std::shared_ptr<AbstractOperator> Aggregate::_on_deep_copy(
 
 void Aggregate::_on_set_parameters(const std::unordered_map<ParameterID, AllTypeVariant>& parameters) {}
 
-void Aggregate::_on_cleanup() { _contexts_per_column.clear(); }
+void Aggregate::_on_cleanup() {
+  // clear() is in O(1), so let's just replace it with a new one
+  _contexts_per_column = decltype(_contexts_per_column){};
+}
 
 /*
 Visitor context for the partitioning/grouping visitor
