@@ -48,9 +48,9 @@ void JoeConfig::add_options(cxxopts::Options& cli_options_description) {
   ("cardinality-estimation", "Mode for cardinality estimation. Values: cache-only, statistics, executed", cxxopts::value(cardinality_estimation_str)->default_value("statistics"))  // NOLINT
   ("cardinality-estimator-statistics-penalty", "Penaltize cardinalities derived from statistics", cxxopts::value<float>(cardinality_estimator_statistics_penalty)->default_value("1.0"))
   ("cardinality-estimator-execution-timeout", "If the CardinalityEstimatorExecution is used, this specifies its timeout. 0 to disable", cxxopts::value(*cardinality_estimator_execution_timeout)->default_value("120"))
-  ("cardinality-estimation-cache-log", "Create logfiles for accesses to the BaseCardinalityCache", cxxopts::value(cardinality_estimation_cache_log)->default_value("true"))  // NOLINT
+  ("cardinality-estimation-cache-log", "Create logfiles for accesses to the CardinalityCache", cxxopts::value(cardinality_estimation_cache_log)->default_value("true"))  // NOLINT
   ("cardinality-estimation-cache-dump", "Store the state of the cardinality estimation Cache", cxxopts::value(cardinality_estimation_cache_dump)->default_value("true"))  // NOLINT
-  ("persistent-cardinality-estimation-cache-access", "Storing of info in the BaseCardinalityCache in execution mode", cxxopts::value(persistent_cardinality_estimation_cache_access_str)->default_value(persistent_cardinality_estimation_cache_access_str))  // NOLINT
+  ("persistent-cardinality-estimation-cache-access", "Storing of info in the CardinalityCache in execution mode", cxxopts::value(persistent_cardinality_estimation_cache_access_str)->default_value(persistent_cardinality_estimation_cache_access_str))  // NOLINT
   ("persistent-cardinality-estimation-cache-path", "Path to the persistent cardinality estimation cache", cxxopts::value(persistent_cardinality_estimation_cache_path)->default_value(persistent_cardinality_estimation_cache_path))  // NOLINT
   ("cache-cardinalities", "Cache cardinalities during execution", cxxopts::value(cache_cardinalities)->default_value("true"))  // NOLINT
   ("join-graph-log", "For each query, create a logfile with the join graph", cxxopts::value(join_graph_log)->default_value("true"))  // NOLINT
@@ -225,24 +225,24 @@ void JoeConfig::parse(const cxxopts::ParseResult& cli_parse_result) {
 
   Assert(cardinality_estimation_mode != CardinalityEstimationMode::CacheOnly ||
          cardinality_estimation_cache_access != CardinalityEstimationCacheAccess::None,
-         "Need access to persistent BaseCardinalityCache in cache-only mode");
+         "Need access to persistent CardinalityCache in cache-only mode");
 
   Assert(cardinality_estimation_cache_access != CardinalityEstimationCacheAccess::ReadAndWrite ||
          cardinality_estimation_mode == CardinalityEstimationMode::Execution,
-         "Writing to persistent BaseCardinalityCache only enabled in Executed mode, for safety");
+         "Writing to persistent CardinalityCache only enabled in Executed mode, for safety");
 
   // Process "cardinality_estimation_cache_log" parameter
   if (cardinality_estimation_cache_log) {
-    out() << "-- BaseCardinalityCache logging enabled" << std::endl;
+    out() << "-- CardinalityCache logging enabled" << std::endl;
   } else {
-    out() << "-- BaseCardinalityCache logging disabled" << std::endl;
+    out() << "-- CardinalityCache logging disabled" << std::endl;
   }
 
   // Process "cardinality_estimation_cache_dump" parameter
   if (cardinality_estimation_cache_dump) {
-    out() << "-- BaseCardinalityCache dumping enabled" << std::endl;
+    out() << "-- CardinalityCache dumping enabled" << std::endl;
   } else {
-    out() << "-- BaseCardinalityCache dumping disabled" << std::endl;
+    out() << "-- CardinalityCache dumping disabled" << std::endl;
   }
 
   // Process "cardinality_estimator_statistics_penalty" parameter
@@ -358,19 +358,21 @@ void JoeConfig::setup() {
   /**
    * Setup cardinality cache
    */
+  auto engaged_cache = std::shared_ptr<AbstractEngagedCardinalityCache>{};
   switch (cardinality_cache_eviction) {
     case CardinalityCacheEviction::Uncapped:
-      cardinality_estimation_cache = std::make_shared<CardinalityCacheUncapped>();
+      engaged_cache = std::make_shared<CardinalityCacheUncapped>();
       break;
     case CardinalityCacheEviction::Random:
-      cardinality_estimation_cache = std::make_shared<CardinalityCacheRandom>(cardinality_cache_capacity);
+      engaged_cache = std::make_shared<CardinalityCacheRandom>(cardinality_cache_capacity);
       break;
     case CardinalityCacheEviction::LAG:
       Fail("");
     case CardinalityCacheEviction::LRU:
-      cardinality_estimation_cache = std::make_shared<CardinalityCacheLRU>(cardinality_cache_capacity);
+      engaged_cache = std::make_shared<CardinalityCacheLRU>(cardinality_cache_capacity);
       break;
   }
+  cardinality_estimation_cache = std::make_shared<CardinalityCache>(engaged_cache);
 
 
   /**
@@ -378,7 +380,7 @@ void JoeConfig::setup() {
    */
   if (cardinality_estimation_cache_access != CardinalityEstimationCacheAccess::None &&
       std::experimental::filesystem::exists(persistent_cardinality_estimation_cache_path)) {
-    out() << "-- Loading BaseCardinalityCache from file '" << persistent_cardinality_estimation_cache_path << "'..." << std::endl;
+    out() << "-- Loading CardinalityCache from file '" << persistent_cardinality_estimation_cache_path << "'..." << std::endl;
     cardinality_estimation_cache->load(persistent_cardinality_estimation_cache_path);
     out() << "-- Done!" << std::endl;
   } else {

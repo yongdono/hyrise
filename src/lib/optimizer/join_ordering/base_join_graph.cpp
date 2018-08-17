@@ -113,6 +113,49 @@ bool BaseJoinGraph::operator==(const BaseJoinGraph& rhs) const {
   return std::hash<BaseJoinGraph>{}(*this) == std::hash<BaseJoinGraph>{}(rhs);
 }
 
+std::shared_ptr<const AbstractJoinPlanPredicate> BaseJoinGraph::normalize(const std::shared_ptr<const AbstractJoinPlanPredicate>& predicate) {
+  if (predicate->type() == JoinPlanPredicateType::Atomic) {
+    const auto atomic_predicate = std::static_pointer_cast<const JoinPlanAtomicPredicate>(predicate);
+    if (is_lqp_column_reference(atomic_predicate->right_operand)) {
+      const auto right_operand_column_reference = boost::get<LQPColumnReference>(atomic_predicate->right_operand);
+
+      if (std::hash<LQPColumnReference>{}(right_operand_column_reference) < std::hash<LQPColumnReference>{}(atomic_predicate->left_operand)) {
+        if (atomic_predicate->predicate_condition != PredicateCondition::Like) {
+          const auto flipped_predicate_condition = flip_predicate_condition(atomic_predicate->predicate_condition);
+          return std::make_shared<JoinPlanAtomicPredicate>(right_operand_column_reference, flipped_predicate_condition, atomic_predicate->left_operand);
+        }
+      }
+    }
+  } else {
+    const auto logical_predicate = std::static_pointer_cast<const JoinPlanLogicalPredicate>(predicate);
+
+    auto normalized_left = normalize(logical_predicate->left_operand);
+    auto normalized_right = normalize(logical_predicate->right_operand);
+
+    if (normalized_right->hash() < normalized_left->hash()) {
+      std::swap(normalized_left, normalized_right);
+    }
+
+    return std::make_shared<JoinPlanLogicalPredicate>(normalized_left,
+                                                      logical_predicate->logical_operator,
+                                                      normalized_right);
+
+  }
+
+  return predicate;
+}
+
+
+BaseJoinGraph BaseJoinGraph::normalized() const {
+  auto normalized_join_graph = *this;
+
+  for (auto& predicate : normalized_join_graph.predicates) {
+    predicate = normalize(predicate);
+  }
+
+  return normalized_join_graph;
+}
+
 }
 
 namespace std {

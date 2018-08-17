@@ -6,7 +6,7 @@
 #include "logical_query_plan/mock_node.hpp"
 #include "optimizer/join_ordering/join_plan_predicate.hpp"
 #include "statistics/cardinality_estimator_cached.hpp"
-#include "statistics/base_cardinality_cache.hpp"
+#include "statistics/cardinality_cache.hpp"
 #include "statistics/cardinality_cache_uncapped.hpp"
 
 using namespace std::string_literals;  // NOLINT
@@ -36,9 +36,9 @@ class CardinalityEstimatorCachedTest : public ::testing::Test {
     a0_gt_b0 = std::make_shared<JoinPlanAtomicPredicate>(a0, PredicateCondition::GreaterThan, b0);
     b0_lt_a0 = std::make_shared<JoinPlanAtomicPredicate>(b0, PredicateCondition::LessThan, a0);
 
-    cardinality_estimation_cache = std::make_shared<CardinalityCacheUncapped>();
+    cardinality_cache = std::make_shared<CardinalityCache>(std::make_shared<CardinalityCacheUncapped>());
     const auto fallback_cardinality_estimator = std::make_shared<CardinalityEstimatorDummy>();
-    cardinality_estimator = std::make_shared<CardinalityEstimatorCached>(cardinality_estimation_cache,
+    cardinality_estimator = std::make_shared<CardinalityEstimatorCached>(cardinality_cache,
     CardinalityEstimationCacheMode::ReadOnly, fallback_cardinality_estimator);
   }
 
@@ -46,7 +46,7 @@ class CardinalityEstimatorCachedTest : public ::testing::Test {
   LQPColumnReference a0, a1, b0;
   std::shared_ptr<AbstractJoinPlanPredicate> b0_eq_a0, a0_eq_b0, b0_lt_a0, a0_gt_b0;
 
-  std::shared_ptr<BaseCardinalityCache> cardinality_estimation_cache;
+  std::shared_ptr<CardinalityCache> cardinality_cache;
   std::shared_ptr<CardinalityEstimatorCached> cardinality_estimator;
 };
 
@@ -54,42 +54,42 @@ TEST_F(CardinalityEstimatorCachedTest, Cache) {
   /**
    * put()
    */
-  cardinality_estimation_cache->put({{vertex_a}, {}}, 5);
-  EXPECT_EQ(cardinality_estimation_cache->size(), 1u);
+  cardinality_cache->set_cardinality({{vertex_a}, {}}, 5);
+  EXPECT_EQ(cardinality_cache->size(), 1u);
 
-  cardinality_estimation_cache->put({{vertex_b}, {}}, 33);
-  EXPECT_EQ(cardinality_estimation_cache->size(), 2u);
+  cardinality_cache->set_cardinality({{vertex_b}, {}}, 33);
+  EXPECT_EQ(cardinality_cache->size(), 2u);
 
-  cardinality_estimation_cache->put({{vertex_a, vertex_b}, {}}, 165);
-  EXPECT_EQ(cardinality_estimation_cache->size(), 3u);
+  cardinality_cache->set_cardinality({{vertex_a, vertex_b}, {}}, 165);
+  EXPECT_EQ(cardinality_cache->size(), 3u);
 
-  cardinality_estimation_cache->put({{vertex_a, vertex_b}, {a0_eq_b0}}, 22);
-  EXPECT_EQ(cardinality_estimation_cache->size(), 4u);
+  cardinality_cache->set_cardinality({{vertex_a, vertex_b}, {a0_eq_b0}}, 22);
+  EXPECT_EQ(cardinality_cache->size(), 4u);
 
-  cardinality_estimation_cache->put({{vertex_a, vertex_b}, {a0_gt_b0}}, 100);
-  EXPECT_EQ(cardinality_estimation_cache->size(), 5u);
+  cardinality_cache->set_cardinality({{vertex_a, vertex_b}, {a0_gt_b0}}, 100);
+  EXPECT_EQ(cardinality_cache->size(), 5u);
 
   /**
    * get() - including shuffled argument order
    */
-  EXPECT_EQ(cardinality_estimation_cache->get({{vertex_a, vertex_b}, {}}), 165u);
-  EXPECT_EQ(cardinality_estimation_cache->get({{vertex_b, vertex_a}, {}}), 165u);
-  EXPECT_EQ(cardinality_estimation_cache->get({{vertex_a}, {}}), 5u);
-  EXPECT_EQ(cardinality_estimation_cache->get({{vertex_b}, {}}), 33u);
-  EXPECT_EQ(cardinality_estimation_cache->get({{vertex_a, vertex_b}, {a0_gt_b0}}), 100u);
-  EXPECT_EQ(cardinality_estimation_cache->get({{vertex_b, vertex_a}, {a0_gt_b0}}), 100u);
-  EXPECT_EQ(cardinality_estimation_cache->get({{vertex_a, vertex_b}, {a0_eq_b0}}), 22u);
-  EXPECT_EQ(cardinality_estimation_cache->get({{vertex_b, vertex_a}, {a0_eq_b0}}), 22u);
+  EXPECT_EQ(cardinality_cache->get_cardinality({{vertex_a, vertex_b}, {}}), 165u);
+  EXPECT_EQ(cardinality_cache->get_cardinality({{vertex_b, vertex_a}, {}}), 165u);
+  EXPECT_EQ(cardinality_cache->get_cardinality({{vertex_a}, {}}), 5u);
+  EXPECT_EQ(cardinality_cache->get_cardinality({{vertex_b}, {}}), 33u);
+  EXPECT_EQ(cardinality_cache->get_cardinality({{vertex_a, vertex_b}, {a0_gt_b0}}), 100u);
+  EXPECT_EQ(cardinality_cache->get_cardinality({{vertex_b, vertex_a}, {a0_gt_b0}}), 100u);
+  EXPECT_EQ(cardinality_cache->get_cardinality({{vertex_a, vertex_b}, {a0_eq_b0}}), 22u);
+  EXPECT_EQ(cardinality_cache->get_cardinality({{vertex_b, vertex_a}, {a0_eq_b0}}), 22u);
 
-  EXPECT_EQ(cardinality_estimation_cache->get({{},{}}), std::nullopt);
-  EXPECT_EQ(cardinality_estimation_cache->get({{vertex_a},{a0_gt_b0}}), std::nullopt);
-  EXPECT_EQ(cardinality_estimation_cache->get({{vertex_a},{a0_gt_b0}}), std::nullopt);
+  EXPECT_EQ(cardinality_cache->get_cardinality({{},{}}), std::nullopt);
+  EXPECT_EQ(cardinality_cache->get_cardinality({{vertex_a},{a0_gt_b0}}), std::nullopt);
+  EXPECT_EQ(cardinality_cache->get_cardinality({{vertex_a},{a0_gt_b0}}), std::nullopt);
 
   /**
    * get() - with shuffled predicates (e.g. a > 5 --> 5 < a)
    */
-  EXPECT_EQ(cardinality_estimation_cache->get({{vertex_a, vertex_b}, {b0_lt_a0}}), 100u);
-  EXPECT_EQ(cardinality_estimation_cache->get({{vertex_a, vertex_b}, {b0_eq_a0}}), 22u);
+  EXPECT_EQ(cardinality_cache->get_cardinality({{vertex_a, vertex_b}, {b0_lt_a0}}), 100u);
+  EXPECT_EQ(cardinality_cache->get_cardinality({{vertex_a, vertex_b}, {b0_eq_a0}}), 22u);
 }
 
 TEST_F(CardinalityEstimatorCachedTest, EmptyCache) {
@@ -97,7 +97,7 @@ TEST_F(CardinalityEstimatorCachedTest, EmptyCache) {
   EXPECT_EQ(cardinality_estimator->estimate({vertex_a}, {}).value(), 42);
   EXPECT_EQ(cardinality_estimator->estimate({vertex_a, vertex_b}, {a0_eq_b0}).value(), 42);
 
-  cardinality_estimation_cache->put({{vertex_a}, {}}, 5);
+  cardinality_cache->set_cardinality({{vertex_a}, {}}, 5);
   EXPECT_EQ(cardinality_estimator->estimate({vertex_a}, {}).value(), 5);
   EXPECT_EQ(cardinality_estimator->estimate({vertex_a, vertex_b}, {a0_eq_b0}).value(), 42);
 }

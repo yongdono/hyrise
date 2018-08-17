@@ -284,6 +284,8 @@ set(
     statistics/chunk_statistics/min_max_filter.hpp
     statistics/chunk_statistics/range_filter.hpp
     statistics/chunk_statistics/range_filter.hpp
+    statistics/abstract_engaged_cardinality_cache.cpp
+    statistics/abstract_engaged_cardinality_cache.hpp
     statistics/abstract_cardinality_estimator.hpp
     statistics/table_statistics.cpp
     statistics/table_statistics.hpp
@@ -293,10 +295,11 @@ set(
     statistics/statistics_import_export.hpp
     statistics/abstract_column_statistics.cpp
     statistics/abstract_column_statistics.hpp
-    statistics/base_cardinality_cache.cpp
-    statistics/base_cardinality_cache.hpp
+    statistics/cardinality_cache.cpp
+    statistics/cardinality_cache.hpp
     #statistics/cardinality_cache_lag.cpp
     #statistics/cardinality_cache_lag.hpp
+    statistics/cardinality_cache_entry.hpp
     statistics/cardinality_cache_lru.cpp
     statistics/cardinality_cache_lru.hpp
     statistics/cardinality_cache_random.cpp

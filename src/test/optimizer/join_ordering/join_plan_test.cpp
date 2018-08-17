@@ -84,16 +84,16 @@ TEST_F(JoinPlanTest, VertexNode) {
 
   /** Single vertex - two predicates */
   const auto vertex_node_2 = build_join_plan_vertex_node(cost_model, vertex_r, {a_lt_4, a_gt_8}, cardinality_estimator);
-  EXPECT_EQ(vertex_node_2.plan_cost, 24);
+  EXPECT_EQ(vertex_node_2.plan_cost, 26);
   EXPECT_EQ(vertex_node_2.join_graph.vertices, expected_vertices);
   EXPECT_EQ(vertex_node_2.join_graph.predicates.size(), 2u);
-  EXPECT_EQ(vertex_node_2.join_graph.predicates.at(0), a_gt_8);
-  EXPECT_EQ(vertex_node_2.join_graph.predicates.at(1), a_lt_4);
+  EXPECT_EQ(vertex_node_2.join_graph.predicates.at(1), a_gt_8);
+  EXPECT_EQ(vertex_node_2.join_graph.predicates.at(0), a_lt_4);
 
   // clang-format off
   auto expected_lqp_2 =
-  PredicateNode::make(vertex_r->output_column_references().at(0), PredicateCondition::LessThan, 4,
-    PredicateNode::make(vertex_r->output_column_references().at(0), PredicateCondition::GreaterThan, 8,
+  PredicateNode::make(vertex_r->output_column_references().at(0), PredicateCondition::GreaterThan, 8,
+    PredicateNode::make(vertex_r->output_column_references().at(0), PredicateCondition::LessThan, 4,
       vertex_r
     ));
   // clang-format on
@@ -147,7 +147,7 @@ TEST_F(JoinPlanTest, SecondaryJoinPredicate) {
   const auto join_node_1 = build_join_plan_join_node(cost_model, vertex_node_0, vertex_node_1, {a_eq_d, b_eq_d}, cardinality_estimator);
 
   EXPECT_EQ(join_node_0.plan_cost, 23);
-  EXPECT_EQ(join_node_1.plan_cost, 26);
+  EXPECT_EQ(join_node_1.plan_cost, 29);
 }
 
 TEST_F(JoinPlanTest, JoinNode) {

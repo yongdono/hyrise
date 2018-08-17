@@ -65,7 +65,7 @@ struct JoeConfig final {
    */
   std::shared_ptr<AbstractCostModel> cost_model;
   std::shared_ptr<AbstractJoinOrderingWorkload> workload;
-  std::shared_ptr<BaseCardinalityCache> cardinality_estimation_cache;
+  std::shared_ptr<CardinalityCache> cardinality_estimation_cache;
   std::shared_ptr<AbstractCardinalityEstimator> fallback_cardinality_estimator;
   std::shared_ptr<AbstractCardinalityEstimator> main_cardinality_estimator;
   CardinalityEstimationCacheAccess cardinality_estimation_cache_access{CardinalityEstimationCacheAccess::None};

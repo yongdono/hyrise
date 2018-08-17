@@ -5,11 +5,11 @@ namespace opossum {
 CardinalityCacheLAG::CardinalityCacheLAG(const size_t capacity):
 _cache(capacity) {}
 
-std::shared_ptr<CardinalityCacheLAG::Entry> CardinalityCacheLAG::get_engaged_entry(const BaseJoinGraph &join_graph) {
+std::shared_ptr<CardinalityCacheEntry> CardinalityCacheLAG::get_engaged_entry(const BaseJoinGraph &join_graph) {
 
 }
 
-void CardinalityCacheLAG::set_engaged_entry(const BaseJoinGraph &join_graph, const std::shared_ptr<Entry>& entry) {
+void CardinalityCacheLAG::set_engaged_entry(const BaseJoinGraph &join_graph, const std::shared_ptr<CardinalityCacheEntry>& entry) {
   const auto disengaged = _cache.set(_normalize(join_graph), entry);
   if (disengaged) {
     _disengage_entry(disengaged->first, disengaged->second);

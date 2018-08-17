@@ -3,12 +3,12 @@
 #include <chrono>
 #include <iostream>
 
-#include "base_cardinality_cache.hpp"
+#include "cardinality_cache.hpp"
 #include "cardinality_estimator_execution.hpp"
 
 namespace opossum {
 
-CardinalityEstimatorCached::CardinalityEstimatorCached(const std::shared_ptr<BaseCardinalityCache>& cache,
+CardinalityEstimatorCached::CardinalityEstimatorCached(const std::shared_ptr<CardinalityCache>& cache,
                            const CardinalityEstimationCacheMode cache_mode,
                            const std::shared_ptr<AbstractCardinalityEstimator>& fallback_estimator):
   _cache(cache), _cache_mode(cache_mode), _fallback_estimator(fallback_estimator)
@@ -18,7 +18,7 @@ std::optional<Cardinality> CardinalityEstimatorCached::estimate(const std::vecto
                      const std::vector<std::shared_ptr<const AbstractJoinPlanPredicate>>& predicates) const {
   BaseJoinGraph join_graph{relations, predicates};
 
-  const auto cached_cardinality = _cache->get(join_graph);
+  const auto cached_cardinality = _cache->get_cardinality(join_graph);
 
   if (cached_cardinality) return *cached_cardinality;
 
@@ -42,7 +42,7 @@ std::optional<Cardinality> CardinalityEstimatorCached::estimate(const std::vecto
   } else {
     const auto timeout = _cache->get_timeout(join_graph);
     if (timeout) {
-      std::cout << "CardinalityEstimatorCached: Entry " << join_graph.description() << " has timeout of " << timeout->count() << " - and no fallback estimator specified" << std::endl;
+      std::cout << "CardinalityEstimatorCached: CardinalityCacheEntry " << join_graph.description() << " has timeout of " << timeout->count() << " - and no fallback estimator specified" << std::endl;
     } else {
       std::cout << "CardinalityEstimatorCached: Cardinality for " << join_graph.description() << " not in cache - and no fallback estimator specified" << std::endl;
     }
@@ -50,7 +50,7 @@ std::optional<Cardinality> CardinalityEstimatorCached::estimate(const std::vecto
 
   if (fallback_cardinality) {
     if (_cache_mode == CardinalityEstimationCacheMode::ReadAndUpdate) {
-      _cache->put({relations, predicates}, fallback_cardinality.value(), 0);
+      _cache->set_cardinality({relations, predicates}, fallback_cardinality.value(), 0);
     }
   } else if (auto estimator_execution = std::dynamic_pointer_cast<CardinalityEstimatorExecution>(_fallback_estimator);
              estimator_execution) {

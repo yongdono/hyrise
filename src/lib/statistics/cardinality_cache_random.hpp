@@ -1,25 +1,25 @@
 #pragma once
 
-#include "base_cardinality_cache.hpp"
+#include "cardinality_cache.hpp"
 
 #include "sql/random_cache.hpp"
 
+#include "abstract_engaged_cardinality_cache.hpp"
+
 namespace opossum {
 
-class CardinalityCacheRandom : public BaseCardinalityCache {
+class CardinalityCacheRandom : public AbstractEngagedCardinalityCache {
  public:
-  using BaseCardinalityCache::Entry;
-
   explicit CardinalityCacheRandom(const size_t capacity);
 
-  std::shared_ptr<Entry> get_engaged_entry(const BaseJoinGraph &join_graph) override;
-  void set_engaged_entry(const BaseJoinGraph &join_graph, const std::shared_ptr<Entry>& entry) override;
-  void visit_engaged_entries_impl(const CardinalityCacheVisitor &visitor) const override;
-  void clear_engaged_entries() override;
-  size_t engaged_size() const override;
+  std::shared_ptr<CardinalityCacheEntry> get(const BaseJoinGraph &join_graph) override;
+  std::optional<KeyValuePair> set(const BaseJoinGraph &join_graph, const std::shared_ptr<CardinalityCacheEntry>& entry) override;
+  void visit(const CardinalityCacheVisitor &visitor) const override;
+  void clear() override;
+  size_t size() const override;
 
  private:
-  RandomCache<BaseJoinGraph, std::shared_ptr<Entry>> _cache;
+  RandomCache<BaseJoinGraph, std::shared_ptr<CardinalityCacheEntry>> _cache;
 };
 
 

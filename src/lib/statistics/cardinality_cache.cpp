@@ -1,4 +1,4 @@
-#include "base_cardinality_cache.hpp"
+#include "cardinality_cache.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -20,10 +20,13 @@
 
 namespace opossum {
 
-std::optional<Cardinality> BaseCardinalityCache::get(const BaseJoinGraph& join_graph) {
-  auto entry = get_entry(join_graph);
+CardinalityCache::CardinalityCache(const std::shared_ptr<AbstractEngagedCardinalityCache>& engaged_cache):
+  _engaged_cache(engaged_cache) {}
 
-  if (_log) (*_log) << "BaseCardinalityCache [" << (entry->request_count == 0 ? "I" : "S") << "]";
+std::optional<Cardinality> CardinalityCache::get_cardinality(const BaseJoinGraph& join_graph) {
+  auto entry = _get_entry(join_graph);
+
+  if (_log) (*_log) << "CardinalityCache [" << (entry->request_count == 0 ? "I" : "S") << "]";
 
   ++entry->request_count;
 
@@ -49,63 +52,70 @@ std::optional<Cardinality> BaseCardinalityCache::get(const BaseJoinGraph& join_g
   return result;
 }
 
-void BaseCardinalityCache::put(const BaseJoinGraph& join_graph, const Cardinality cardinality, const Cardinality cardinality_estimation) {
-  const auto normalized_join_graph = _normalize(join_graph);
-  auto entry = get_engaged_entry(normalized_join_graph);
+void CardinalityCache::set_cardinality(const BaseJoinGraph& join_graph, const Cardinality cardinality, const Cardinality cardinality_estimation) {
+  auto entry = _engaged_cache->get(join_graph);
 
-  if (!entry) {
+  if (entry) {
+    Assert(entry->cardinality && entry->cardinality == cardinality, "Can't change cardinality");
+  } else {
+    const auto normalized_join_graph = join_graph.normalized();
     const auto iter = _disengaged_cache.find(normalized_join_graph);
     if (iter != _disengaged_cache.end()) {
       entry = iter->second;
       _disengaged_cache.erase(iter);
     } else {
-      entry = std::make_shared<Entry>();
+      entry = std::make_shared<CardinalityCacheEntry>();
     }
 
     entry->cardinality = cardinality;
     entry->estimated_cardinality = cardinality_estimation;
 
-    set_engaged_entry(normalized_join_graph, entry);
+    const auto disengaged = _engaged_cache->set(normalized_join_graph, entry);
+    if (disengaged) {
+      disengaged->second->cardinality.reset();
+      disengaged->second->estimated_cardinality.reset();
+      const auto emplaced = _disengaged_cache.emplace(disengaged->first, disengaged->second).second;
+      Assert(emplaced, "Entry was already disengaged");
+    }
+
+    if (_log) {
+      (*_log) << "CardinalityCache [" << (entry->request_count == 0 ? "I" : "S") << "][PUT ]: " << join_graph.description() << ": " << cardinality << std::endl;
+    }
   }
-
-  if (_log && !entry->cardinality) {
-    (*_log) << "BaseCardinalityCache [" << (entry->request_count == 0 ? "I" : "S") << "][PUT ]: " << join_graph.description() << ": " << cardinality << std::endl;
-  }
-
-  Assert(entry->cardinality == cardinality, "Cardinality mismatch");
 }
 
-std::optional<std::chrono::seconds> BaseCardinalityCache::get_timeout(const BaseJoinGraph& join_graph) {
-  return get_entry(join_graph)->timeout;
+std::optional<std::chrono::seconds> CardinalityCache::get_timeout(const BaseJoinGraph& join_graph) {
+  return _get_entry(join_graph)->timeout;
 }
 
-void BaseCardinalityCache::set_timeout(const BaseJoinGraph& join_graph, const std::optional<std::chrono::seconds>& timeout) {
-  get_entry(join_graph)->timeout = timeout;
+void CardinalityCache::set_timeout(const BaseJoinGraph& join_graph, const std::optional<std::chrono::seconds>& timeout) {
+  _get_entry(join_graph)->timeout = timeout;
 }
 
-std::shared_ptr<BaseCardinalityCache::Entry> BaseCardinalityCache::get_entry(const BaseJoinGraph &join_graph) {
-  const auto normalized_join_graph = _normalize(join_graph);
-  auto entry = get_engaged_entry(join_graph);
+std::shared_ptr<CardinalityCacheEntry> CardinalityCache::_get_entry(const BaseJoinGraph &join_graph) {
+  auto entry = _engaged_cache->get(join_graph);
   if (entry) return entry;
+
+  const auto normalized_join_graph = join_graph.normalized();
 
   const auto iter = _disengaged_cache.find(normalized_join_graph);
   if (iter != _disengaged_cache.end()) return iter->second;
 
-  entry = std::make_shared<Entry>();
-  _disengage_entry(_normalize(join_graph), entry);
+  entry = std::make_shared<CardinalityCacheEntry>();
+  _disengaged_cache.emplace(normalized_join_graph, entry);
 
   return entry;
 }
 
-size_t BaseCardinalityCache::cache_hit_count() const {
+size_t CardinalityCache::cache_hit_count() const {
   return _hit_count;
 }
 
-size_t BaseCardinalityCache::cache_miss_count() const {
+size_t CardinalityCache::cache_miss_count() const {
   return _miss_count;
 }
 
-size_t BaseCardinalityCache::distinct_hit_count() const {
+size_t CardinalityCache::distinct_hit_count() const {
   auto count = size_t{0};
 
   visit_entries([&](const auto& key, const auto& value) {
@@ -115,7 +125,7 @@ size_t BaseCardinalityCache::distinct_hit_count() const {
   return count;
 }
 
-size_t BaseCardinalityCache::distinct_miss_count() const {
+size_t CardinalityCache::distinct_miss_count() const {
   auto count = size_t{0};
 
   visit_entries([&](const auto& key, const auto& value) {
@@ -125,25 +135,25 @@ size_t BaseCardinalityCache::distinct_miss_count() const {
   return count;
 }
 
-void BaseCardinalityCache::reset_distinct_hit_miss_counts() {
+void CardinalityCache::reset_distinct_hit_miss_counts() {
   visit_entries([&](const auto& key, const auto& value) {
     value->request_count = 0;
   });
 }
 
-void BaseCardinalityCache::clear() {
-  clear_engaged_entries();
+void CardinalityCache::clear() {
+  _engaged_cache->clear();
   _hit_count = 0;
   _miss_count = 0;
   _log.reset();
   _disengaged_cache.clear();
 }
 
-void BaseCardinalityCache::set_log(const std::shared_ptr<std::ostream>& log) {
+void CardinalityCache::set_log(const std::shared_ptr<std::ostream>& log) {
   _log = log;
 }
 
-void BaseCardinalityCache::print(std::ostream& stream) const {
+void CardinalityCache::print(std::ostream& stream) const {
   stream << "-------------------- ENGAGED ENTRIES ------------------------" << std::endl;
   visit_entries([&](const auto& key, const auto& value) {
     if (value->cardinality) {
@@ -159,19 +169,9 @@ void BaseCardinalityCache::print(std::ostream& stream) const {
   });
 }
 
-BaseJoinGraph BaseCardinalityCache::_normalize(const BaseJoinGraph& join_graph) {
-  auto normalized_join_graph = join_graph;
-
-  for (auto& predicate : normalized_join_graph.predicates) {
-    predicate = _normalize(predicate);
-  }
-
-  return normalized_join_graph;
-}
-
-void BaseCardinalityCache::load(const std::string& path) {
+void CardinalityCache::load(const std::string& path) {
   std::ifstream istream{path};
-  Assert(istream.is_open(), "Couldn't open persistent BaseCardinalityCache");
+  Assert(istream.is_open(), "Couldn't open persistent CardinalityCache");
 
   boost::interprocess::file_lock file_lock(path.c_str());
   boost::interprocess::scoped_lock<boost::interprocess::file_lock> lock(file_lock);
@@ -179,7 +179,7 @@ void BaseCardinalityCache::load(const std::string& path) {
   load(istream);
 }
 
-void BaseCardinalityCache::load(std::istream& stream) {
+void CardinalityCache::load(std::istream& stream) {
   stream.seekg(0, std::ios_base::end);
   if (stream.tellg() == 0) return;
   stream.seekg(0, std::ios_base::beg);
@@ -190,22 +190,29 @@ void BaseCardinalityCache::load(std::istream& stream) {
   from_json(json);
 }
 
-void BaseCardinalityCache::from_json(const nlohmann::json& json) {
+void CardinalityCache::from_json(const nlohmann::json& json) {
   for (const auto& pair : json) {
     const auto key = BaseJoinGraph::from_json(pair["key"]);
-    auto entry = get_engaged_entry(key);
+
+    const auto entry = std::make_shared<CardinalityCacheEntry>();
 
     if (pair.count("timeout")) entry->timeout = std::chrono::seconds{pair["timeout"].get<int>()};
     if (pair.count("value")) entry->cardinality = pair["value"].get<Cardinality>();
+
+    if (entry->cardinality) {
+      _engaged_cache->set(key.normalized(), entry);
+    } else {
+      _disengaged_cache.emplace(key.normalized(), entry);
+    }
   }
 }
 
-void BaseCardinalityCache::store(const std::string& path) const {
+void CardinalityCache::store(const std::string& path) const {
   std::ofstream stream{path};
   stream << to_json();
 }
 
-void BaseCardinalityCache::update(const std::string& path) const {
+void CardinalityCache::update(const std::string& path) const {
   std::ifstream istream;
   std::ofstream ostream;
 
@@ -221,10 +228,10 @@ void BaseCardinalityCache::update(const std::string& path) const {
 
     istream.open(path);
 
-    CardinalityCacheUncapped persistent_cache;
+    CardinalityCache persistent_cache(std::make_shared<CardinalityCacheUncapped>());
     persistent_cache.load(istream);
     visit_entries([&](const auto& key, const auto& value) {
-      persistent_cache.get_engaged_entry(key) = value;
+      persistent_cache._get_entry(key) = value;
     });
 
     ostream.open(path);
@@ -234,7 +241,7 @@ void BaseCardinalityCache::update(const std::string& path) const {
   }
 }
 
-nlohmann::json BaseCardinalityCache::to_json() const {
+nlohmann::json CardinalityCache::to_json() const {
   nlohmann::json json;
 
   json = nlohmann::json::array();
@@ -252,39 +259,7 @@ nlohmann::json BaseCardinalityCache::to_json() const {
   return json;
 }
 
-std::shared_ptr<const AbstractJoinPlanPredicate> BaseCardinalityCache::_normalize(const std::shared_ptr<const AbstractJoinPlanPredicate>& predicate) {
-  if (predicate->type() == JoinPlanPredicateType::Atomic) {
-    const auto atomic_predicate = std::static_pointer_cast<const JoinPlanAtomicPredicate>(predicate);
-    if (is_lqp_column_reference(atomic_predicate->right_operand)) {
-      const auto right_operand_column_reference = boost::get<LQPColumnReference>(atomic_predicate->right_operand);
-
-      if (std::hash<LQPColumnReference>{}(right_operand_column_reference) < std::hash<LQPColumnReference>{}(atomic_predicate->left_operand)) {
-        if (atomic_predicate->predicate_condition != PredicateCondition::Like) {
-          const auto flipped_predicate_condition = flip_predicate_condition(atomic_predicate->predicate_condition);
-          return std::make_shared<JoinPlanAtomicPredicate>(right_operand_column_reference, flipped_predicate_condition, atomic_predicate->left_operand);
-        }
-      }
-    }
-  } else {
-    const auto logical_predicate = std::static_pointer_cast<const JoinPlanLogicalPredicate>(predicate);
-
-    auto normalized_left = _normalize(logical_predicate->left_operand);
-    auto normalized_right = _normalize(logical_predicate->right_operand);
-
-    if (normalized_right->hash() < normalized_left->hash()) {
-      std::swap(normalized_left, normalized_right);
-    }
-
-    return std::make_shared<JoinPlanLogicalPredicate>(normalized_left,
-                                                      logical_predicate->logical_operator,
-                                                      normalized_right);
-
-  }
-
-  return predicate;
-}
-
-size_t BaseCardinalityCache::memory_consumption() const {
+size_t CardinalityCache::memory_consumption() const {
   auto memory = size() * 4;  // Entries = float
 
   visit_entries([&](const auto& key, const auto& value) {
@@ -307,7 +282,7 @@ size_t BaseCardinalityCache::memory_consumption() const {
   return memory;
 }
 
-size_t BaseCardinalityCache::memory_consumption_alt() const {
+size_t CardinalityCache::memory_consumption_alt() const {
   auto memory = size() * 4;  // Entries = float
 
   visit_entries([&](const auto& key, const auto& value) {
@@ -325,14 +300,8 @@ size_t BaseCardinalityCache::memory_consumption_alt() const {
   return memory;
 }
 
-void BaseCardinalityCache::_disengage_entry(const BaseJoinGraph &normalized_join_graph, const std::shared_ptr<Entry>& entry) {
-  entry->cardinality = std::nullopt;
-  Assert(_disengaged_cache.count(normalized_join_graph) == 0, "Entry already disengaged");
-  _disengaged_cache.emplace(normalized_join_graph, entry);
-}
-
-size_t BaseCardinalityCache::size() const {
-  return _disengaged_cache.size() + engaged_size();
+size_t CardinalityCache::size() const {
+  return _disengaged_cache.size() + _engaged_cache->size();
 }
 
 }  // namespace opossum

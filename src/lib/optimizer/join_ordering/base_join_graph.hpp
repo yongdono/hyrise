@@ -26,6 +26,9 @@ struct BaseJoinGraph final {
 
   bool operator==(const BaseJoinGraph& rhs) const;
 
+  BaseJoinGraph normalized() const;
+  static std::shared_ptr<const AbstractJoinPlanPredicate> normalize(const std::shared_ptr<const AbstractJoinPlanPredicate>& predicate);
+
   std::vector<std::shared_ptr<AbstractLQPNode>> vertices;
   std::vector<std::shared_ptr<const AbstractJoinPlanPredicate>> predicates;
 };

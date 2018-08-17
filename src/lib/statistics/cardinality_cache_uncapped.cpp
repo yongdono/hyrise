@@ -2,37 +2,30 @@
 
 namespace opossum {
 
-std::shared_ptr<CardinalityCacheUncapped::Entry> CardinalityCacheUncapped::get_engaged_entry(
+std::shared_ptr<CardinalityCacheEntry> CardinalityCacheUncapped::get(
 const BaseJoinGraph &join_graph) {
-  auto normalized_join_graph = _normalize(join_graph);
+  auto iter = _cache.find(join_graph.normalized());
+  if (iter != _cache.end()) return iter->second;
 
-  std::shared_ptr<Entry> entry;
-
-  auto iter = _cache.find(normalized_join_graph);
-  if (iter == _cache.end()) {
-    entry = std::make_shared<Entry>();
-    _cache.emplace(normalized_join_graph, entry);
-    return entry;
-  } else {
-    return iter->second;
-  }
+  return nullptr;
 }
 
-void CardinalityCacheUncapped::set_engaged_entry(const BaseJoinGraph &join_graph, const std::shared_ptr<Entry>& entry) {
-  _cache[_normalize(join_graph)] = entry;
+std::optional<CardinalityCacheUncapped::KeyValuePair> CardinalityCacheUncapped::set(const BaseJoinGraph &join_graph, const std::shared_ptr<CardinalityCacheEntry>& entry) {
+  _cache[join_graph.normalized()] = entry;
+  return std::nullopt;
 }
 
-void CardinalityCacheUncapped::visit_engaged_entries_impl(const CardinalityCacheVisitor &visitor) const {
+void CardinalityCacheUncapped::visit(const CardinalityCacheVisitor &visitor) const {
   for (const auto& pair : _cache) {
     visitor.visit(pair.first, pair.second);
   }
 }
 
-void CardinalityCacheUncapped::clear_engaged_entries() {
+void CardinalityCacheUncapped::clear() {
   _cache.clear();
 }
 
-size_t CardinalityCacheUncapped::engaged_size() const {
+size_t CardinalityCacheUncapped::size() const {
   return _cache.size();   
 }
 

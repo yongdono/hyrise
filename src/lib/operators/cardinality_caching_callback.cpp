@@ -1,13 +1,13 @@
 #include "cardinality_caching_callback.hpp"
 
 #include "optimizer/join_ordering/join_graph_builder.hpp"
-#include "statistics/base_cardinality_cache.hpp"
+#include "statistics/cardinality_cache.hpp"
 #include "abstract_operator.hpp"
 #include "storage/table.hpp"
 
 namespace opossum {
 
-CardinalityCachingCallback::CardinalityCachingCallback(const std::shared_ptr<BaseCardinalityCache>& cardinality_estimation_cache):
+CardinalityCachingCallback::CardinalityCachingCallback(const std::shared_ptr<CardinalityCache>& cardinality_estimation_cache):
   _cardinality_estimation_cache(cardinality_estimation_cache) {}
 
 void CardinalityCachingCallback::operator()(const std::shared_ptr<AbstractOperator>& op) {
@@ -21,7 +21,7 @@ void CardinalityCachingCallback::operator()(const std::shared_ptr<AbstractOperat
   auto join_graph_builder = JoinGraphBuilder{};
   join_graph_builder.traverse(lqp);
 
-  _cardinality_estimation_cache->put({join_graph_builder.vertices(), join_graph_builder.predicates()}, op->get_output()->row_count());
+  _cardinality_estimation_cache->set_cardinality({join_graph_builder.vertices(), join_graph_builder.predicates()}, op->get_output()->row_count());
 }
 
 }  // namespace opossum
