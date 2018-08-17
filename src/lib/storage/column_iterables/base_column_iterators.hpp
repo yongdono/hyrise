@@ -41,12 +41,14 @@ class JitBaseColumnIterator {};
  *   friend class boost::iterator_core_access;  // the following methods need to be accessible by the base class
  *
  *   void increment() { ... }
+ *   void advance(std::ptrdiff_t n) { ... }
  *   bool equal(const Iterator& other) const { return false; }
+ *   std::ptrdiff_t distance_to(const Iterator& other) const { return ...; }
  *   Value dereference() const { return Value{}; }
  * };
  */
 template <typename Derived, typename Value>
-class BaseColumnIterator : public boost::iterator_facade<Derived, Value, boost::forward_traversal_tag, Value>,
+class BaseColumnIterator : public boost::iterator_facade<Derived, Value, boost::random_access_traversal_tag, Value>,
                            public JitBaseColumnIterator {};
 
 /**
@@ -88,8 +90,15 @@ class BasePointAccessColumnIterator : public BaseColumnIterator<Derived, Value> 
   friend class boost::iterator_core_access;  // grants the boost::iterator_facade access to the private interface
 
   void increment() { ++_chunk_offsets_it; }
+
+  void advance(std::ptrdiff_t n) { _chunk_offsets_it += n; }
+
   bool equal(const BasePointAccessColumnIterator& other) const {
     return (_chunk_offsets_it == other._chunk_offsets_it);
+  }
+
+  std::ptrdiff_t distance_to(const BasePointAccessColumnIterator& other) const {
+    return other._chunk_offsets_it - _chunk_offsets_it;
   }
 
  private:

@@ -61,7 +61,15 @@ class ValueColumnIterable : public PointAccessibleColumnIterable<ValueColumnIter
       ++_value_it;
       ++_chunk_offset;
     }
+
+    void advance(std::ptrdiff_t n) {
+      _value_it += n;
+      _chunk_offset += n;
+    }
+
     bool equal(const NonNullIterator& other) const { return _value_it == other._value_it; }
+
+    std::ptrdiff_t distance_to(const NonNullIterator& other) const { return other._value_it - _value_it; }
 
     NonNullColumnIteratorValue<T> dereference() const {
       return NonNullColumnIteratorValue<T>{*_value_it, _chunk_offset};
@@ -93,7 +101,15 @@ class ValueColumnIterable : public PointAccessibleColumnIterable<ValueColumnIter
       ++_chunk_offset;
     }
 
+    void advance(std::ptrdiff_t n) {
+      _value_it += n;
+      _null_value_it += n;
+      _chunk_offset += n;
+    }
+
     bool equal(const Iterator& other) const { return _value_it == other._value_it; }
+
+    std::ptrdiff_t distance_to(const Iterator& other) const { return other._value_it - _value_it; }
 
     ColumnIteratorValue<T> dereference() const {
       return ColumnIteratorValue<T>{*_value_it, *_null_value_it, _chunk_offset};

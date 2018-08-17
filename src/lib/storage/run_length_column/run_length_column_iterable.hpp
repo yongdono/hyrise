@@ -66,7 +66,15 @@ class RunLengthColumnIterable : public PointAccessibleColumnIterable<RunLengthCo
       }
     }
 
+    void advance(std::ptrdiff_t n) {
+      for (std::ptrdiff_t i = 0; i < n; ++i) {
+        increment();
+      }
+    }
+
     bool equal(const Iterator& other) const { return _current_position == other._current_position; }
+
+    std::ptrdiff_t distance_to(const Iterator& other) const { return other._current_position - _current_position; }
 
     ColumnIteratorValue<T> dereference() const {
       return ColumnIteratorValue<T>{*_value_it, *_null_value_it, _current_position};

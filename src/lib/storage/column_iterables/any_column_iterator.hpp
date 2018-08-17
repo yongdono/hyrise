@@ -19,14 +19,17 @@ class AnyColumnIteratorWrapperBase {
   virtual ~AnyColumnIteratorWrapperBase() = default;
 
   virtual void increment() = 0;
+  virtual void advance(std::ptrdiff_t n) = 0;
   virtual bool equal(const AnyColumnIteratorWrapperBase<T>* other) const = 0;
+  virtual std::ptrdiff_t distance_to(const AnyColumnIteratorWrapperBase<T>* other) const = 0;
   virtual ColumnIteratorValue<T> dereference() const = 0;
-
   /**
    * Column iterators need to be copyable so we need a way
    * to copy the iterator within the wrapper.
    */
   virtual std::unique_ptr<AnyColumnIteratorWrapperBase<T>> clone() const = 0;
+
+  std::ptrdiff_t operator-(const AnyColumnIteratorWrapperBase<T>& other) { return other.distance_to(this); }
 };
 
 /**
@@ -42,6 +45,8 @@ class AnyColumnIteratorWrapper : public AnyColumnIteratorWrapperBase<T> {
 
   void increment() final { ++_iterator; }
 
+  void advance(std::ptrdiff_t n) final { _iterator += n; }
+
   /**
    * Although `other` could have a different type, it is practically impossible,
    * since AnyColumnIterator is only used within AnyColumnIterable.
@@ -49,6 +54,11 @@ class AnyColumnIteratorWrapper : public AnyColumnIteratorWrapperBase<T> {
   bool equal(const AnyColumnIteratorWrapperBase<T>* other) const final {
     const auto casted_other = static_cast<const AnyColumnIteratorWrapper<T, Iterator>*>(other);
     return _iterator == casted_other->_iterator;
+  }
+
+  std::ptrdiff_t distance_to(const AnyColumnIteratorWrapperBase<T>* other) const final {
+    const auto casted_other = static_cast<const AnyColumnIteratorWrapper<T, Iterator>*>(other);
+    return casted_other->_iterator - _iterator;
   }
 
   ColumnIteratorValue<T> dereference() const final {
@@ -109,7 +119,13 @@ class AnyColumnIterator : public BaseColumnIterator<AnyColumnIterator<T>, Column
   friend class boost::iterator_core_access;  // grants the boost::iterator_facade access to the private interface
 
   void increment() { _wrapper->increment(); }
+
+  void advance(std::ptrdiff_t n) { _wrapper->advance(n); }
+
   bool equal(const AnyColumnIterator<T>& other) const { return _wrapper->equal(other._wrapper.get()); }
+
+  std::ptrdiff_t distance_to(const AnyColumnIterator& other) const { return *other._wrapper.get() - *_wrapper.get(); }
+
   ColumnIteratorValue<T> dereference() const { return _wrapper->dereference(); }
 
  private:
