@@ -103,8 +103,8 @@ set(
     operators/base_operator_performance_data.hpp
     operators/aggregate.cpp
     operators/aggregate.hpp
-    operators/cardinality_caching_callback.cpp
-    operators/cardinality_caching_callback.hpp
+    #operators/cardinality_caching_callback.cpp
+    #operators/cardinality_caching_callback.hpp
     operators/delete.cpp
     operators/delete.hpp
     operators/difference.cpp
@@ -295,8 +295,8 @@ set(
     statistics/abstract_column_statistics.hpp
     statistics/base_cardinality_cache.cpp
     statistics/base_cardinality_cache.hpp
-    statistics/cardinality_cache_lag.cpp
-    statistics/cardinality_cache_lag.hpp
+    #statistics/cardinality_cache_lag.cpp
+    #statistics/cardinality_cache_lag.hpp
     statistics/cardinality_cache_lru.cpp
     statistics/cardinality_cache_lru.hpp
     statistics/cardinality_cache_random.cpp

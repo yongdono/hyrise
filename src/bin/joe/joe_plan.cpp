@@ -202,32 +202,6 @@ void JoePlan::save_plan_result_table(const SQLQueryPlan& plan) {
   query_iteration.query.save_plan_results = false;
 }
 
-void JoePlan::init_cardinality_cache_entries(const std::vector<std::shared_ptr<AbstractOperator>> &operators) {
-  Timer timer([&](const auto& duration) {
-    sample.cecaching_duration += duration;
-  });
-
-  auto& config = query_iteration.query.joe.config;
-
-  const auto cardinality_estimation_cache = config->cardinality_estimation_cache;
-
-  for (const auto& op : operators) {
-    if (!op->lqp_node()) return;
-    if (!op->get_output()) return;
-
-    const auto lqp = op->lqp_node();
-
-    if (lqp->type() != LQPNodeType::Predicate && lqp->type() != LQPNodeType::Join && lqp->type() != LQPNodeType::StoredTable) return;
-
-    auto join_graph_builder = JoinGraphBuilder{};
-    join_graph_builder.traverse(lqp);
-
-    BaseJoinGraph base_join_graph{join_graph_builder.vertices(), join_graph_builder.predicates()};
-
-    cardinality_estimation_cache->put(base_join_graph, BaseCardinalityCache::TIMEOUT_CARDINALITY);
-  }
-}
-
 void JoePlan::cache_cardinalities(const std::vector<std::shared_ptr<AbstractOperator>> &operators) {
   Timer timer([&](const auto& duration) {
     sample.cecaching_duration += duration;
