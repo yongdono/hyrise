@@ -128,13 +128,33 @@ TEST_F(CardinalityEstimationCacheTest, LRU) {
 }
 
 TEST_F(CardinalityEstimationCacheTest, LAG) {
-//  CardinalityCacheLAG cache{3};
+  CardinalityCache cache{std::make_shared<CardinalityCacheLAG>(3)};
 
-//  const auto join_graph_a = BaseJoinGraph{{int_float}, {int_float_a_eq_int_float_b}};
-//  const auto join_graph_b = BaseJoinGraph{{int_float2, int_float}, {int_float_a_eq_int_float_b, int_float_a_gt_int_float2_b}};
-//  const auto join_graph_c = BaseJoinGraph{{int_float2, int_float}, {int_float_a_eq_five, int_float_a_eq_int_float_b, int_float_a_gt_int_float2_b}};
-//  const auto join_graph_d = BaseJoinGraph{{int_float2, int_float}, {p1_and_p2_or_p3}};
+  const auto join_graph_a = BaseJoinGraph{{int_float}, {int_float_a_eq_int_float_b}};
+  const auto join_graph_b = BaseJoinGraph{{int_float2, int_float}, {int_float_a_eq_int_float_b, int_float_a_gt_int_float2_b}};
+  const auto join_graph_c = BaseJoinGraph{{int_float2, int_float}, {int_float_a_eq_five, int_float_a_eq_int_float_b, int_float_a_gt_int_float2_b}};
+  const auto join_graph_d = BaseJoinGraph{{int_float2, int_float}, {p1_and_p2_or_p3}};
+  const auto join_graph_e = BaseJoinGraph{{int_float2, int_float}, {p1_and_p2_or_p3, int_float_a_eq_five}};
 
+  cache.set_cardinality(join_graph_a, 13, 24);
+  cache.set_timeout(join_graph_a, 100s);
+  cache.set_cardinality(join_graph_b, 14, 21);
+  cache.set_timeout(join_graph_b, 101s);
+  cache.set_cardinality(join_graph_c, 15, 25);
+  cache.set_timeout(join_graph_c, 102s);
+  cache.set_cardinality(join_graph_d, 16, 30);
+  cache.set_timeout(join_graph_d, 103s);
+
+  EXPECT_EQ(cache.get_cardinality(join_graph_a), 13);
+  EXPECT_EQ(cache.get_cardinality(join_graph_b), std::nullopt);
+  EXPECT_EQ(cache.get_cardinality(join_graph_c), 15);
+  EXPECT_EQ(cache.get_cardinality(join_graph_d), 16);
+
+  cache.set_cardinality(join_graph_e, 16, 16);
+  cache.set_timeout(join_graph_e, 104s);
+
+  EXPECT_EQ(cache.get_cardinality(join_graph_e), std::nullopt);
+  EXPECT_EQ(cache.get_timeout(join_graph_e), 104s);
 }
 
 }  // namespace opossum

@@ -1,33 +1,64 @@
 #include "cardinality_cache_lag.hpp"
 
+#include <cmath>
+
+#include "utils/assert.hpp"
+
 namespace opossum {
 
+
 CardinalityCacheLAG::CardinalityCacheLAG(const size_t capacity):
-_cache(capacity) {}
+  _capacity(capacity) {}
 
-std::shared_ptr<CardinalityCacheEntry> CardinalityCacheLAG::get_engaged_entry(const BaseJoinGraph &join_graph) {
-
+std::shared_ptr<CardinalityCacheEntry> CardinalityCacheLAG::get(const BaseJoinGraph &join_graph) {
+  const auto normalized = join_graph.normalized();
+  const auto iter = _map.find(normalized);
+  if (iter == _map.end()) return nullptr;
+  return iter->second;
 }
 
-void CardinalityCacheLAG::set_engaged_entry(const BaseJoinGraph &join_graph, const std::shared_ptr<CardinalityCacheEntry>& entry) {
-  const auto disengaged = _cache.set(_normalize(join_graph), entry);
-  if (disengaged) {
-    _disengage_entry(disengaged->first, disengaged->second);
+std::optional<CardinalityCacheLAG::KeyValuePair> CardinalityCacheLAG::set(const BaseJoinGraph &join_graph, const std::shared_ptr<CardinalityCacheEntry>& entry) {
+  const auto normalized = join_graph.normalized();
+
+  Assert(_map.find(normalized) == _map.end(), "can't insert same elem twice");
+  _map.emplace(normalized, entry);
+  _lag.emplace(normalized, entry);
+
+  if (_lag.size() > _capacity) {
+    const auto removal = *_lag.begin();
+    _lag.erase(_lag.begin());
+    const auto removed = _map.erase(removal.first);
+    Assert(removed == 1, "");
+
+    return removal;
   }
+
+  return std::nullopt;
 }
 
-void CardinalityCacheLAG::visit_engaged_entries_impl(const CardinalityCacheVisitor &visitor) const {
-  for (const auto& pair : _cache._list) {
+void CardinalityCacheLAG::visit(const CardinalityCacheVisitor &visitor) const {
+  for (const auto& pair : _lag) {
     visitor.visit(pair.first, pair.second);
   }
 }
 
-void CardinalityCacheLAG::clear_engaged_entries() {
-  _cache.clear();
+void CardinalityCacheLAG::clear() {
+  _lag.clear();
+  _map.clear();
 }
 
-size_t CardinalityCacheLAG::engaged_size() const {
-  return _cache.size();
+size_t CardinalityCacheLAG::size() const {
+  return _lag.size();
+}
+
+bool CardinalityCacheLAG::LAGCmp::operator()(const KeyValuePair& lhs, const KeyValuePair& rhs) const {
+  Assert(lhs.second->estimated_cardinality && lhs.second->cardinality, "Can't cmp entries");
+  Assert(rhs.second->estimated_cardinality && rhs.second->cardinality, "Can't cmp entries");
+
+  const auto llag = std::fabs(*lhs.second->estimated_cardinality - *lhs.second->cardinality);
+  const auto rlag = std::fabs(*rhs.second->estimated_cardinality - *rhs.second->cardinality);
+
+  return llag < rlag;
 }
 
 }  // namespace opossum

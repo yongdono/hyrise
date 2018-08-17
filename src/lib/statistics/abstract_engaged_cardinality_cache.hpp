@@ -2,7 +2,8 @@
 
 #include <optional>
 
-#include "cardinality_cache.hpp"
+#include "cardinality_cache_entry.hpp"
+#include "optimizer/join_ordering/base_join_graph.hpp"
 #include "sql/lru_cache.hpp"
 
 namespace opossum {

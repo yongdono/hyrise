@@ -297,8 +297,8 @@ set(
     statistics/abstract_column_statistics.hpp
     statistics/cardinality_cache.cpp
     statistics/cardinality_cache.hpp
-    #statistics/cardinality_cache_lag.cpp
-    #statistics/cardinality_cache_lag.hpp
+    statistics/cardinality_cache_lag.cpp
+    statistics/cardinality_cache_lag.hpp
     statistics/cardinality_cache_entry.hpp
     statistics/cardinality_cache_lru.cpp
     statistics/cardinality_cache_lru.hpp
