@@ -127,6 +127,7 @@ std::shared_ptr<JitOperatorWrapper> JitAwareLQPTranslator::_try_translate_sub_pl
   if (jittable_node_count == 1 && (node->type == LQPNodeType::Projection || node->type == LQPNodeType::Validate ||
                                    node->type == LQPNodeType::Limit))
     return nullptr;
+  if (jittable_node_count == 2 && node->type == LQPNodeType::Validate) return nullptr;
 
   // limit can only be the root node
   const bool use_limit = node->type == LQPNodeType::Limit;
