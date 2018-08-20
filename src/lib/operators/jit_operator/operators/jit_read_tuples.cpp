@@ -167,10 +167,8 @@ JitTupleValue JitReadTuples::add_parameter_value(const DataType data_type, const
 
 void JitReadTuples::set_parameters(const std::unordered_map<ParameterID, AllTypeVariant>& parameters) {
   for (auto& parameter : _input_parameters) {
-    DebugAssert(parameters.count(parameter.parameter_id),
-                "Value for parameter with id #" + std::to_string(parameter.parameter_id) + " not provided.");
     auto search = parameters.find(parameter.parameter_id);
-    parameter.value = search->second;
+    if (search != parameters.end()) parameter.value = search->second;
   }
 }
 
