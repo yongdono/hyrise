@@ -125,7 +125,7 @@ std::shared_ptr<JitOperatorWrapper> JitAwareLQPTranslator::_try_translate_sub_pl
   //   - Otherwise, JIT if there are two or more jittable nodes
   if (input_nodes.size() != 1 || jittable_node_count < 1) return nullptr;
   if (jittable_node_count == 1 && (node->type == LQPNodeType::Projection || node->type == LQPNodeType::Validate ||
-                                   node->type == LQPNodeType::Limit))
+                                   node->type == LQPNodeType::Limit || node->type == LQPNodeType::Predicate))
     return nullptr;
   if (jittable_node_count == 2 && node->type == LQPNodeType::Validate) return nullptr;
 
