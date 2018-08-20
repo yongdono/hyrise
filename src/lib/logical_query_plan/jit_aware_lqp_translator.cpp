@@ -332,6 +332,35 @@ std::shared_ptr<const JitExpression> JitAwareLQPTranslator::_try_translate_expre
   }
 }
 
+namespace {
+bool _expressions_are_jittable(const std::vector<std::shared_ptr<AbstractExpression>>& expressions) {
+  for (const auto& expression : expressions) {
+    switch (expression->type) {
+      case ExpressionType::Cast:
+      case ExpressionType::Case:
+      case ExpressionType::Exists:
+      case ExpressionType::Extract:
+      case ExpressionType::Function:
+      case ExpressionType::List:
+      case ExpressionType::PQPSelect:
+      case ExpressionType::LQPSelect:
+      case ExpressionType::UnaryMinus:
+        return false;
+      case ExpressionType::Predicate: {
+        const auto predicate_expression = std::static_pointer_cast<AbstractPredicateExpression>(expression);
+        if (predicate_expression->predicate_condition == PredicateCondition::In) return false;
+      }
+      case ExpressionType::Arithmetic:
+      case ExpressionType::Logical:
+        if (!_expressions_are_jittable(expression->arguments)) return false;
+      default:
+        break;
+    }
+  }
+  return true;
+}
+}  // namespace
+
 bool JitAwareLQPTranslator::_node_is_jittable(const std::shared_ptr<AbstractLQPNode>& node,
                                               const bool allow_aggregate_node, const bool allow_limit_node) const {
   if (node->type == LQPNodeType::Aggregate) {
@@ -369,21 +398,7 @@ bool JitAwareLQPTranslator::_node_is_jittable(const std::shared_ptr<AbstractLQPN
   }
 
   if (auto projection_node = std::dynamic_pointer_cast<ProjectionNode>(node)) {
-    // Jit operators only support the following five expressions
-    for (const auto& expression : projection_node->expressions) {
-      switch (expression->type) {
-        case ExpressionType::Value:
-        case ExpressionType::LQPColumn:
-        case ExpressionType::Predicate:
-        case ExpressionType::Arithmetic:
-        case ExpressionType::Logical:
-        case ExpressionType::Parameter:
-          break;
-        default:
-          return false;
-      }
-    }
-    return true;
+    return _expressions_are_jittable(projection_node->expressions);
   }
 
   return node->type == LQPNodeType::Union;
